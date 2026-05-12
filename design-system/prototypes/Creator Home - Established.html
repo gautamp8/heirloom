@@ -1,0 +1,750 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Heirloom · Creator Home</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,500;8..60,600&family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FAF7F0;
+    --paper-warm:#F4EDD7;
+    --paper-card:#FFFEFB;
+    --ink:#1F1B14;
+    --ink-soft:#3D372C;
+    --ink-muted:#7A6F5C;
+    --ink-faint:#A89E89;
+    --rule:rgba(31,27,20,0.10);
+    --rule-strong:rgba(31,27,20,0.18);
+    --oxblood:#7D2A1A;
+    --oxblood-soft:#9A4030;
+    --sepia:#5C3A21;
+    --serif:'Source Serif 4','Source Serif Pro',Georgia,serif;
+    --sans:'Geist','Inter',-apple-system,sans-serif;
+    --mono:'Geist Mono','JetBrains Mono',monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;background:#1a1814;font-family:var(--sans);color:var(--ink);overflow:hidden}
+  body{display:flex;align-items:center;justify-content:center;padding:24px}
+
+  /* phone */
+  .phone{
+    width:390px;height:844px;background:var(--paper);
+    border-radius:48px;position:relative;overflow:hidden;
+    box-shadow:0 40px 80px -20px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.4), inset 0 0 0 6px #0d0c0a;
+  }
+  .stage{position:absolute;inset:6px;border-radius:42px;overflow:hidden;background:var(--paper);display:flex;flex-direction:column}
+
+  /* status bar */
+  .status-bar{
+    height:44px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;
+    font-family:var(--sans);font-size:14px;font-weight:600;color:var(--ink);flex-shrink:0;
+  }
+  .status-bar .right{display:flex;gap:6px;align-items:center;font-size:12px}
+
+  /* app bar */
+  .app-bar{
+    padding:8px 24px 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+  }
+  .app-bar .brand{display:flex;align-items:center;gap:8px}
+  .app-bar .brand img{width:24px;height:24px;opacity:0.95}
+  .app-bar .brand .name{font-family:var(--serif);font-style:italic;font-size:18px;color:var(--ink)}
+  .icon-btn{
+    appearance:none;border:none;background:transparent;cursor:pointer;
+    width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--ink-soft);
+  }
+  .icon-btn:hover{background:rgba(31,27,20,0.05)}
+
+  /* scrollable content */
+  .scroll{flex:1;overflow-y:auto;padding:18px 22px 96px;scrollbar-width:none}
+  .scroll::-webkit-scrollbar{display:none}
+
+  /* type */
+  .meta{font-family:var(--mono);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-muted);margin:0}
+  .meta-soft{font-family:var(--mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-faint);margin:0}
+  h1.greet{font-family:var(--serif);font-weight:400;font-size:34px;line-height:1.05;margin:6px 0 0;color:var(--ink);letter-spacing:-0.01em}
+  h1.greet em{font-style:italic;color:var(--oxblood)}
+  h3.section{font-family:var(--mono);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-muted);font-weight:500;margin:0 0 12px;display:flex;align-items:center;justify-content:space-between}
+  h3.section .count{color:var(--ink-faint)}
+
+  /* prompt card */
+  .prompt-card{
+    margin-top:20px;background:var(--paper-warm);
+    border-radius:16px;padding:22px 22px 20px;position:relative;
+    box-shadow:0 1px 0 rgba(255,255,255,0.4) inset, 0 2px 8px -2px rgba(0,0,0,0.06);
+  }
+  .prompt-card .quote{
+    font-family:var(--serif);font-style:italic;font-size:21px;line-height:1.3;
+    color:var(--ink);margin:10px 0 18px;text-wrap:pretty;letter-spacing:-0.005em;
+  }
+  .prompt-card .actions{display:flex;align-items:center;gap:14px}
+  .btn-primary{
+    appearance:none;border:none;cursor:pointer;
+    background:var(--ink);color:var(--paper);
+    font-family:var(--sans);font-size:14px;font-weight:500;
+    padding:12px 22px;border-radius:24px;
+    display:inline-flex;align-items:center;gap:8px;
+    transition:transform 120ms ease, background 120ms ease;
+  }
+  .btn-primary:hover{background:var(--oxblood)}
+  .btn-link{
+    appearance:none;border:none;cursor:pointer;background:transparent;
+    font-family:var(--sans);font-size:13px;color:var(--ink-muted);padding:6px 4px;
+  }
+  .btn-link:hover{color:var(--ink)}
+
+  /* capture row */
+  .capture-row{margin-top:28px}
+  .chip-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+  .cap-chip{
+    appearance:none;cursor:pointer;
+    background:var(--paper-card);border:1px solid var(--rule);border-radius:12px;
+    padding:14px 14px;display:flex;align-items:center;gap:12px;
+    text-align:left;color:var(--ink);
+    transition:all 150ms ease;
+  }
+  .cap-chip:hover{border-color:var(--ink-muted);transform:translateY(-1px);box-shadow:0 4px 12px -4px rgba(0,0,0,0.08)}
+  .cap-chip .glyph{
+    width:32px;height:32px;border-radius:8px;background:var(--paper-warm);
+    display:grid;place-items:center;color:var(--oxblood);flex-shrink:0;
+  }
+  .cap-chip .label{font-family:var(--sans);font-size:14px;font-weight:500;color:var(--ink)}
+  .cap-chip .sub{font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-faint);margin-top:2px;display:block}
+
+  /* section divider */
+  .divider{margin:32px 0 18px;border:none;border-top:1px solid var(--rule)}
+
+  /* thread cards */
+  .thread-card{
+    display:flex;align-items:center;gap:14px;padding:12px 0;
+    border-bottom:1px solid var(--rule);
+  }
+  .thread-card:last-child{border-bottom:none}
+  .thread-stripe{width:3px;height:36px;background:var(--oxblood);border-radius:2px;flex-shrink:0;opacity:0.55}
+  .thread-stripe.sepia{background:var(--sepia);opacity:0.6}
+  .thread-stripe.muted{background:var(--ink-muted);opacity:0.55}
+  .thread-card .body{flex:1;min-width:0}
+  .thread-card .title{font-family:var(--serif);font-size:16px;line-height:1.25;color:var(--ink);margin:0}
+  .thread-card .stats{font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-muted);margin-top:3px}
+  .thread-card .arrow{color:var(--ink-faint);font-size:14px}
+
+  /* recent captures */
+  .cap-item{
+    display:flex;align-items:flex-start;gap:14px;padding:14px 0;
+    border-bottom:1px solid var(--rule);
+  }
+  .cap-item:last-child{border-bottom:none}
+  .cap-thumb{
+    width:48px;height:48px;border-radius:10px;flex-shrink:0;
+    display:grid;place-items:center;background:var(--paper-warm);color:var(--oxblood);
+  }
+  .cap-thumb.photo{background:var(--paper-warm);overflow:hidden;position:relative}
+  .cap-thumb.photo::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg, #C9B98E 0%, #8B7355 100%);opacity:0.7}
+  .cap-thumb.photo .pin{position:relative;z-index:1;color:var(--paper);font-size:11px}
+  .cap-thumb.note{background:#F0E8D0;color:var(--sepia)}
+  .cap-body{flex:1;min-width:0}
+  .cap-title{font-family:var(--serif);font-size:15px;line-height:1.3;color:var(--ink);margin:0}
+  .cap-meta-row{display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap}
+  .cap-time{font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-muted)}
+  .tag{
+    font-family:var(--mono);font-size:9px;letter-spacing:0.08em;text-transform:lowercase;
+    color:var(--ink-soft);background:rgba(31,27,20,0.05);
+    padding:2px 7px;border-radius:8px;
+  }
+  .cap-snippet{font-family:var(--serif);font-style:italic;font-size:13px;color:var(--ink-muted);margin:6px 0 0;line-height:1.4;text-wrap:pretty}
+
+  /* mini waveform */
+  .wave-mini{display:flex;align-items:center;gap:1.5px;height:18px;margin-top:6px}
+  .wave-mini span{width:2px;background:var(--oxblood);border-radius:1px;opacity:0.7}
+
+  /* nominee cards */
+  .nominee-card{
+    background:var(--paper-card);border:1px solid var(--rule);border-radius:14px;
+    padding:16px 18px;margin-bottom:10px;
+    display:flex;align-items:center;gap:14px;
+  }
+  .nominee-card .avatar{
+    width:42px;height:42px;border-radius:50%;flex-shrink:0;
+    background:var(--paper-warm);display:grid;place-items:center;
+    font-family:var(--serif);font-style:italic;font-size:18px;color:var(--oxblood);
+  }
+  .nominee-card.executor .avatar{background:var(--ink);color:var(--paper);font-style:normal;font-family:var(--mono);font-size:11px;letter-spacing:0.1em}
+  .nominee-card .info{flex:1;min-width:0}
+  .nominee-card .name{font-family:var(--serif);font-size:16px;color:var(--ink);margin:0;line-height:1.2}
+  .nominee-card .name em{font-style:italic;color:var(--ink-muted);font-size:13px;margin-left:4px}
+  .nominee-card .info .meta{margin-top:4px;letter-spacing:0.12em}
+  .nominee-card .dot{width:6px;height:6px;border-radius:50%;background:var(--oxblood);opacity:0.55}
+  .nominee-card.executor .dot{background:#3D8B5B;opacity:0.7}
+
+  /* footer */
+  .vault-footer{
+    margin-top:28px;padding-top:18px;border-top:1px solid var(--rule);
+    text-align:center;
+  }
+  .vault-footer .stats{font-family:var(--mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-muted)}
+  .vault-footer .preview-btn{
+    margin-top:14px;appearance:none;cursor:pointer;
+    background:transparent;border:1px solid var(--rule-strong);
+    font-family:var(--sans);font-size:13px;color:var(--ink-soft);
+    padding:10px 18px;border-radius:24px;
+  }
+  .vault-footer .preview-btn:hover{border-color:var(--ink);color:var(--ink)}
+
+  /* bottom tab bar */
+  .tab-bar{
+    position:absolute;left:6px;right:6px;bottom:6px;height:64px;
+    background:rgba(250,247,240,0.92);backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);
+    border-top:1px solid var(--rule);
+    display:flex;align-items:center;justify-content:space-around;padding:0 12px;
+    border-radius:0 0 42px 42px;
+  }
+  .tab-bar button{
+    appearance:none;border:none;background:transparent;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:3px;
+    font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;
+    color:var(--ink-faint);padding:6px 10px;
+  }
+  .tab-bar button.active{color:var(--ink)}
+  .tab-bar .home-pill{
+    width:120px;height:34px;background:var(--ink);color:var(--paper);
+    border-radius:24px;display:flex;align-items:center;justify-content:center;gap:6px;
+    font-family:var(--sans);font-size:13px;font-weight:500;letter-spacing:0;text-transform:none;
+  }
+
+  /* ── Capture sheet (modal) ───────────────────────────── */
+  .sheet-backdrop{
+    position:absolute;inset:0;background:rgba(15,12,8,0.36);
+    opacity:0;pointer-events:none;transition:opacity 280ms ease;z-index:10;
+  }
+  .sheet-backdrop.show{opacity:1;pointer-events:auto}
+  .sheet{
+    position:absolute;left:6px;right:6px;bottom:6px;
+    background:var(--paper);
+    border-radius:24px 24px 42px 42px;
+    transform:translateY(110%);transition:transform 360ms cubic-bezier(0.32,0.72,0.2,1);
+    z-index:11;padding:18px 24px 28px;
+    box-shadow:0 -20px 40px -10px rgba(0,0,0,0.2);
+    max-height:88%;overflow-y:auto;scrollbar-width:none;
+  }
+  .sheet::-webkit-scrollbar{display:none}
+  .sheet.show{transform:translateY(0)}
+  .sheet-handle{width:36px;height:4px;background:var(--rule-strong);border-radius:2px;margin:0 auto 12px}
+  .sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .sheet-title{font-family:var(--serif);font-style:italic;font-size:20px;color:var(--ink);margin:0}
+  .sheet-close{appearance:none;border:none;background:transparent;cursor:pointer;color:var(--ink-muted);font-size:18px;padding:4px 8px;border-radius:8px}
+  .sheet-close:hover{background:rgba(31,27,20,0.05);color:var(--ink)}
+  .sheet-prompt{font-family:var(--serif);font-size:17px;line-height:1.35;color:var(--ink-soft);margin:8px 0 18px}
+
+  /* voice sheet content */
+  .voice-stage{display:flex;flex-direction:column;align-items:center;padding:20px 0 8px}
+  .voice-wave{display:flex;align-items:center;gap:3px;height:80px;margin:18px 0}
+  .voice-wave span{width:3px;background:var(--oxblood);border-radius:2px;animation:pulse 1.4s ease-in-out infinite}
+  .voice-wave span:nth-child(2n){animation-delay:0.2s}
+  .voice-wave span:nth-child(3n){animation-delay:0.4s}
+  @keyframes pulse{0%,100%{height:18%}50%{height:100%}}
+  .voice-time{font-family:var(--mono);font-size:14px;letter-spacing:0.08em;color:var(--ink)}
+  .voice-trans{font-family:var(--serif);font-style:italic;font-size:15px;line-height:1.4;color:var(--ink-muted);text-align:center;margin:18px 8px 0;text-wrap:pretty;min-height:60px}
+  .rec-btn{
+    width:72px;height:72px;border-radius:50%;background:var(--oxblood);
+    border:none;cursor:pointer;color:var(--paper);
+    display:grid;place-items:center;margin-top:18px;
+    box-shadow:0 8px 20px -6px rgba(125,42,26,0.4);
+  }
+  .rec-btn .square{width:22px;height:22px;background:var(--paper);border-radius:3px}
+
+  /* photo sheet */
+  .photo-stage{padding:8px 0}
+  .photo-frame{
+    aspect-ratio:4/5;border-radius:14px;
+    background:linear-gradient(135deg, #C9B98E 0%, #8B7355 60%, #5C4A2E 100%);
+    position:relative;overflow:hidden;
+    display:grid;place-items:center;color:rgba(255,255,255,0.6);
+    font-family:var(--mono);font-size:11px;letter-spacing:0.16em;text-transform:uppercase;
+  }
+  .photo-frame::after{
+    content:"";position:absolute;inset:0;
+    background:radial-gradient(ellipse at 30% 30%, rgba(255,240,200,0.2) 0%, transparent 50%);
+  }
+  .photo-caption{
+    margin-top:14px;width:100%;
+    background:transparent;border:none;outline:none;resize:none;
+    font-family:var(--serif);font-style:italic;font-size:16px;line-height:1.4;
+    color:var(--ink);min-height:60px;text-wrap:pretty;
+  }
+  .photo-caption::placeholder{color:var(--ink-faint)}
+  .photo-tools{display:flex;gap:8px;margin-top:6px}
+  .photo-tool{
+    appearance:none;border:1px solid var(--rule);background:transparent;
+    cursor:pointer;font-family:var(--mono);font-size:9px;letter-spacing:0.14em;
+    text-transform:uppercase;color:var(--ink-muted);padding:7px 12px;border-radius:18px;
+  }
+  .photo-tool:hover{border-color:var(--ink);color:var(--ink)}
+
+  /* note sheet */
+  .note-stage{padding:8px 0}
+  .note-area{
+    width:100%;min-height:280px;background:transparent;border:none;outline:none;resize:none;
+    font-family:var(--serif);font-size:17px;line-height:1.5;color:var(--ink);
+    text-wrap:pretty;letter-spacing:-0.003em;
+  }
+  .note-area::placeholder{color:var(--ink-faint);font-style:italic}
+  .note-meta{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:12px;border-top:1px solid var(--rule)}
+  .note-meta .count{font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--ink-faint)}
+
+  /* video sheet */
+  .video-frame{
+    aspect-ratio:9/16;max-height:340px;border-radius:14px;
+    background:#0d0c0a;position:relative;overflow:hidden;
+    display:grid;place-items:center;margin:0 auto;
+  }
+  .video-frame::before{
+    content:"";position:absolute;inset:0;
+    background:radial-gradient(ellipse at center, rgba(125,42,26,0.18) 0%, transparent 60%);
+  }
+  .video-frame .live{
+    position:absolute;top:12px;left:12px;
+    display:flex;align-items:center;gap:6px;
+    font-family:var(--mono);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--paper);
+  }
+  .video-frame .live .ring{width:8px;height:8px;border-radius:50%;background:var(--oxblood);box-shadow:0 0 12px var(--oxblood);animation:blink 1.4s ease-in-out infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.4}}
+  .video-frame .time{position:absolute;bottom:12px;right:12px;font-family:var(--mono);font-size:12px;color:var(--paper)}
+
+  /* sheet save row */
+  .sheet-save{
+    display:flex;gap:10px;margin-top:18px;padding-top:14px;border-top:1px solid var(--rule);
+  }
+  .sheet-save .btn-primary{flex:1;justify-content:center;padding:13px 22px}
+  .sheet-save .btn-secondary{
+    appearance:none;cursor:pointer;
+    background:transparent;border:1px solid var(--rule-strong);
+    font-family:var(--sans);font-size:14px;color:var(--ink-soft);
+    padding:13px 20px;border-radius:24px;
+  }
+
+  /* ── Tweaks panel ─────────────────────────────────────── */
+  .tweaks-panel{
+    position:fixed;bottom:24px;right:24px;z-index:1000;
+    width:268px;padding:16px 18px 18px;
+    background:#fff;border:1px solid var(--rule);
+    border-radius:14px;
+    box-shadow:0 24px 50px -16px rgba(0,0,0,0.45), 0 6px 16px rgba(0,0,0,0.15);
+    font-family:var(--sans);color:var(--ink);
+  }
+  .tweaks-panel[hidden]{display:none}
+  .tweaks-panel h4{
+    margin:0 0 14px;font-family:var(--mono);font-size:10px;letter-spacing:0.18em;
+    text-transform:uppercase;color:var(--ink-muted);font-weight:500;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .tw-close{appearance:none;border:none;background:transparent;cursor:pointer;font-size:14px;color:var(--ink-muted);padding:0 0 0 8px;line-height:1}
+  .tw-close:hover{color:var(--ink)}
+  .tw-label{font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:6px;display:block}
+  .tw-section + .tw-section{margin-top:14px}
+  .tw-seg{display:flex;gap:3px;background:#F2EBDB;padding:3px;border-radius:9px}
+  .tw-seg button{flex:1;appearance:none;border:none;cursor:pointer;background:transparent;font-family:var(--sans);font-size:11px;font-weight:500;padding:6px 4px;border-radius:6px;color:var(--ink-soft);transition:all 150ms ease}
+  .tw-seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,0.10)}
+  .tw-seg button:hover:not(.on){color:var(--ink)}
+  .tw-row{display:flex;gap:8px;align-items:center}
+  .tw-help{font-family:var(--mono);font-size:9px;letter-spacing:0.10em;color:var(--ink-faint);margin-top:8px;line-height:1.4}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="stage">
+    <div class="status-bar">
+      <div>9:41</div>
+      <div class="right">
+        <span>●●●●</span>
+        <span>5G</span>
+        <span>100%</span>
+      </div>
+    </div>
+
+    <div class="app-bar">
+      <div class="brand">
+        <img src="../assets/seal.png" alt="">
+        <span class="name">Heirloom</span>
+      </div>
+      <button class="icon-btn" aria-label="Settings" title="Settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+    </div>
+
+    <div class="scroll">
+      <!-- Greeting -->
+      <p class="meta">Tuesday · March 14</p>
+      <h1 class="greet">Good morning, <em>Elena</em>.</h1>
+
+      <!-- Prompt card -->
+      <div class="prompt-card">
+        <p class="meta">A question for you today</p>
+        <p class="quote">"What is one thing your mother made that you can still see in your hands?"</p>
+        <div class="actions">
+          <button class="btn-primary">Begin
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          </button>
+          <button class="btn-link">Skip · maybe later</button>
+        </div>
+      </div>
+
+      <!-- Capture types -->
+      <div class="capture-row">
+        <p class="meta">Or capture something else</p>
+        <div class="chip-row">
+          <button class="cap-chip" data-mode="voice">
+            <div class="glyph"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="13" rx="3"/><path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v3"/></svg></div>
+            <div><span class="label">Voice</span><span class="sub">a recording</span></div>
+          </button>
+          <button class="cap-chip" data-mode="photo">
+            <div class="glyph"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L17 6h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/></svg></div>
+            <div><span class="label">Photo</span><span class="sub">with a caption</span></div>
+          </button>
+          <button class="cap-chip" data-mode="note">
+            <div class="glyph"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div>
+            <div><span class="label">Note</span><span class="sub">written</span></div>
+          </button>
+          <button class="cap-chip" data-mode="video">
+            <div class="glyph"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M15 10l5-3v10l-5-3M3 7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>
+            <div><span class="label">Video</span><span class="sub">short clip</span></div>
+          </button>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <!-- Threads -->
+      <h3 class="section">Threads in progress <span class="count">3</span></h3>
+      <div class="thread-card">
+        <div class="thread-stripe"></div>
+        <div class="body">
+          <p class="title">Things I learned from my father</p>
+          <p class="stats">8 captures · 42 min · last week</p>
+        </div>
+        <span class="arrow">→</span>
+      </div>
+      <div class="thread-card">
+        <div class="thread-stripe sepia"></div>
+        <div class="body">
+          <p class="title">How to make my mother's bread</p>
+          <p class="stats">5 captures · 18 min · 1 photo</p>
+        </div>
+        <span class="arrow">→</span>
+      </div>
+      <div class="thread-card">
+        <div class="thread-stripe muted"></div>
+        <div class="body">
+          <p class="title">When you were small, Maya</p>
+          <p class="stats">12 captures · 1h 04m</p>
+        </div>
+        <span class="arrow">→</span>
+      </div>
+
+      <hr class="divider">
+
+      <!-- Recent captures -->
+      <h3 class="section">Recent captures <span class="count">View all</span></h3>
+
+      <article class="cap-item">
+        <div class="cap-thumb">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="13" rx="3"/><path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v3"/></svg>
+        </div>
+        <div class="cap-body">
+          <p class="cap-title">A bad evening, and what we did</p>
+          <div class="cap-meta-row">
+            <span class="cap-time">Today · 4:12</span>
+            <span class="tag">grief</span>
+            <span class="tag">marriage</span>
+          </div>
+          <div class="wave-mini">
+            <span style="height:6px"></span><span style="height:14px"></span><span style="height:9px"></span>
+            <span style="height:16px"></span><span style="height:11px"></span><span style="height:18px"></span>
+            <span style="height:7px"></span><span style="height:13px"></span><span style="height:10px"></span>
+            <span style="height:15px"></span><span style="height:8px"></span><span style="height:12px"></span>
+            <span style="height:6px"></span><span style="height:14px"></span><span style="height:9px"></span>
+            <span style="height:11px"></span><span style="height:15px"></span><span style="height:7px"></span>
+            <span style="height:13px"></span><span style="height:10px"></span><span style="height:16px"></span>
+            <span style="height:8px"></span><span style="height:12px"></span><span style="height:6px"></span>
+            <span style="height:14px"></span><span style="height:9px"></span><span style="height:11px"></span>
+            <span style="height:15px"></span><span style="height:7px"></span>
+          </div>
+        </div>
+      </article>
+
+      <article class="cap-item">
+        <div class="cap-thumb photo"><span class="pin">photo</span></div>
+        <div class="cap-body">
+          <p class="cap-title">The kitchen in Lyon, 1994</p>
+          <div class="cap-meta-row">
+            <span class="cap-time">Sunday · note + 1 photo</span>
+            <span class="tag">home</span>
+          </div>
+          <p class="cap-snippet">"It always smelled of olives and the bread my grandmother used to set on the windowsill —"</p>
+        </div>
+      </article>
+
+      <article class="cap-item">
+        <div class="cap-thumb note">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+        </div>
+        <div class="cap-body">
+          <p class="cap-title">For Daniel, when you doubt yourself</p>
+          <div class="cap-meta-row">
+            <span class="cap-time">Saturday · 220 words</span>
+            <span class="tag">advice</span>
+            <span class="tag">for daniel</span>
+          </div>
+          <p class="cap-snippet">"The thing nobody told me about courage — it was never the loud kind. It was getting up on Tuesday after a hard Monday and—"</p>
+        </div>
+      </article>
+
+      <article class="cap-item">
+        <div class="cap-thumb">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="13" rx="3"/><path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v3"/></svg>
+        </div>
+        <div class="cap-body">
+          <p class="cap-title">The night we lost the cat</p>
+          <div class="cap-meta-row">
+            <span class="cap-time">Last Friday · 6:30</span>
+            <span class="tag">family</span>
+            <span class="tag">funny</span>
+          </div>
+          <div class="wave-mini">
+            <span style="height:10px"></span><span style="height:6px"></span><span style="height:14px"></span>
+            <span style="height:9px"></span><span style="height:16px"></span><span style="height:11px"></span>
+            <span style="height:7px"></span><span style="height:13px"></span><span style="height:18px"></span>
+            <span style="height:10px"></span><span style="height:15px"></span><span style="height:8px"></span>
+            <span style="height:12px"></span><span style="height:6px"></span><span style="height:14px"></span>
+            <span style="height:9px"></span><span style="height:11px"></span><span style="height:15px"></span>
+            <span style="height:7px"></span><span style="height:13px"></span><span style="height:10px"></span>
+            <span style="height:16px"></span><span style="height:8px"></span><span style="height:12px"></span>
+            <span style="height:6px"></span><span style="height:14px"></span><span style="height:9px"></span>
+            <span style="height:11px"></span>
+          </div>
+        </div>
+      </article>
+
+      <hr class="divider">
+
+      <!-- Nominees -->
+      <h3 class="section">For your nominees <span class="count">3</span></h3>
+
+      <div class="nominee-card">
+        <div class="avatar">M</div>
+        <div class="info">
+          <p class="name">Maya <em>daughter</em></p>
+          <p class="meta"><span class="dot" style="display:inline-block;vertical-align:middle;margin-right:6px"></span>32 captures sealed · releases on her 18th</p>
+        </div>
+        <span class="arrow" style="color:var(--ink-faint)">→</span>
+      </div>
+
+      <div class="nominee-card">
+        <div class="avatar">D</div>
+        <div class="info">
+          <p class="name">Daniel <em>son</em></p>
+          <p class="meta"><span class="dot" style="display:inline-block;vertical-align:middle;margin-right:6px"></span>18 captures sealed · by your request</p>
+        </div>
+        <span class="arrow" style="color:var(--ink-faint)">→</span>
+      </div>
+
+      <div class="nominee-card executor">
+        <div class="avatar">EX</div>
+        <div class="info">
+          <p class="name">Sam <em>executor</em></p>
+          <p class="meta"><span class="dot" style="display:inline-block;vertical-align:middle;margin-right:6px"></span>holds your recovery key · tested 2 wks ago</p>
+        </div>
+        <span class="arrow" style="color:var(--ink-faint)">→</span>
+      </div>
+
+      <!-- Footer -->
+      <div class="vault-footer">
+        <p class="stats">47 captures · 6 h 12 m · 8 threads</p>
+        <button class="preview-btn">Preview as Maya</button>
+      </div>
+    </div>
+
+    <!-- Capture sheet -->
+    <div class="sheet-backdrop" id="sheetBackdrop"></div>
+    <div class="sheet" id="captureSheet" aria-hidden="true">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <h3 class="sheet-title" id="sheetTitle">Voice</h3>
+        <button class="sheet-close" id="sheetClose" aria-label="Close">✕</button>
+      </div>
+      <p class="sheet-prompt" id="sheetPrompt"></p>
+      <div id="sheetBody"></div>
+      <div class="sheet-save">
+        <button class="btn-secondary" id="sheetCancel">Save later</button>
+        <button class="btn-primary" id="sheetSave">Save to vault</button>
+      </div>
+    </div>
+
+    <!-- Tab bar -->
+    <div class="tab-bar">
+      <button class="active">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 11l9-8 9 8v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        Home
+      </button>
+      <button>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        Explore
+      </button>
+      <button>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+        You
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Tweaks panel -->
+<div class="tweaks-panel" id="tweaksPanel" hidden>
+  <h4><span>Tweaks</span><button class="tw-close" id="twClose" aria-label="Close">✕</button></h4>
+  <div class="tw-section">
+    <label class="tw-label">Open capture sheet</label>
+    <div class="tw-seg" id="tw-modeseg">
+      <button data-v="voice" class="on">Voice</button>
+      <button data-v="photo">Photo</button>
+      <button data-v="note">Note</button>
+      <button data-v="video">Video</button>
+    </div>
+  </div>
+  <div class="tw-section">
+    <label class="tw-label">Time of day</label>
+    <div class="tw-seg" id="tw-todseg">
+      <button data-v="morning" class="on">Morning</button>
+      <button data-v="evening">Evening</button>
+    </div>
+  </div>
+  <p class="tw-help">Tap a capture chip or use the picker above to preview a capture sheet.</p>
+</div>
+
+<script>
+(function(){
+  const SHEET_DATA = {
+    voice: {
+      title:'Voice',
+      prompt:'"What is one thing your mother made that you can still see in your hands?"',
+      body:`
+        <div class="voice-stage">
+          <div class="voice-time">00:14</div>
+          <div class="voice-wave">
+            ${Array.from({length:34}).map((_,i)=>`<span style="height:${20+Math.sin(i*0.7)*30+Math.random()*30}%"></span>`).join('')}
+          </div>
+          <button class="rec-btn"><div class="square"></div></button>
+          <p class="voice-trans">"My mother's hands were always rough at the knuckles from kneading. I remember—"</p>
+        </div>`
+    },
+    photo: {
+      title:'Photo',
+      prompt:'A single photo, a single line.',
+      body:`
+        <div class="photo-stage">
+          <div class="photo-frame">your photo</div>
+          <textarea class="photo-caption" placeholder="A short caption — one sentence is enough.">The kitchen in Lyon, the spring my grandmother taught me to make tarte aux pommes.</textarea>
+          <div class="photo-tools">
+            <button class="photo-tool">Retake</button>
+            <button class="photo-tool">From library</button>
+            <button class="photo-tool">Date · 1994</button>
+          </div>
+        </div>`
+    },
+    note: {
+      title:'Note',
+      prompt:'For when speaking is too much.',
+      body:`
+        <div class="note-stage">
+          <textarea class="note-area" placeholder="Write freely. No one will see this until you decide.">There is something I never told you about the year I turned thirty. I was afraid of becoming small. I think you will face this too, in your own way, and I want you to know what helped me—</textarea>
+          <div class="note-meta">
+            <span class="count">48 words · 220 characters</span>
+            <span class="count">draft saved · just now</span>
+          </div>
+        </div>`
+    },
+    video: {
+      title:'Video',
+      prompt:'A short clip. Two minutes or less.',
+      body:`
+        <div class="photo-stage">
+          <div class="video-frame">
+            <div class="live"><span class="ring"></span>Recording</div>
+            <div class="time">00:42</div>
+          </div>
+          <p class="voice-trans" style="text-align:left;margin-top:14px;font-size:14px">Look into the camera as if you were looking at her. Say it the way you would in the kitchen.</p>
+        </div>`
+    }
+  };
+
+  function openSheet(mode){
+    const d = SHEET_DATA[mode]; if(!d) return;
+    document.getElementById('sheetTitle').textContent = d.title;
+    document.getElementById('sheetPrompt').textContent = d.prompt;
+    document.getElementById('sheetBody').innerHTML = d.body;
+    document.getElementById('captureSheet').classList.add('show');
+    document.getElementById('sheetBackdrop').classList.add('show');
+  }
+  function closeSheet(){
+    document.getElementById('captureSheet').classList.remove('show');
+    document.getElementById('sheetBackdrop').classList.remove('show');
+  }
+
+  document.querySelectorAll('.cap-chip').forEach(b => {
+    b.addEventListener('click', () => openSheet(b.dataset.mode));
+  });
+  document.getElementById('sheetClose').addEventListener('click', closeSheet);
+  document.getElementById('sheetCancel').addEventListener('click', closeSheet);
+  document.getElementById('sheetSave').addEventListener('click', closeSheet);
+  document.getElementById('sheetBackdrop').addEventListener('click', closeSheet);
+
+  // ── Tweaks ─────────────────────────────────────────────
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "mode": "voice",
+    "tod": "morning"
+  }/*EDITMODE-END*/;
+  let tweaks = Object.assign({}, TWEAK_DEFAULTS);
+
+  function render(){
+    const greet = tweaks.tod === 'morning' ? 'Good morning' : 'Good evening';
+    const meta = tweaks.tod === 'morning' ? 'Tuesday · March 14' : 'Tuesday evening · March 14';
+    document.querySelector('h1.greet').innerHTML = greet + ', <em>Elena</em>.';
+    document.querySelector('.scroll > .meta').textContent = meta;
+  }
+
+  function setTweak(k,v){
+    tweaks[k]=v;
+    try{window.parent.postMessage({type:'__edit_mode_set_keys',edits:Object.fromEntries([[k,v]])},'*')}catch(e){}
+    render();
+  }
+
+  window.addEventListener('message',function(e){
+    var t = e.data && e.data.type;
+    if(t === '__activate_edit_mode') document.getElementById('tweaksPanel').hidden = false;
+    if(t === '__deactivate_edit_mode') document.getElementById('tweaksPanel').hidden = true;
+  });
+  try{window.parent.postMessage({type:'__edit_mode_available'},'*')}catch(e){}
+
+  document.getElementById('twClose').addEventListener('click',function(){
+    document.getElementById('tweaksPanel').hidden = true;
+    try{window.parent.postMessage({type:'__edit_mode_dismissed'},'*')}catch(e){}
+  });
+  document.getElementById('tw-modeseg').addEventListener('click',function(e){
+    var b = e.target.closest('button'); if(!b) return;
+    [].forEach.call(e.currentTarget.children,function(x){x.classList.toggle('on',x===b)});
+    setTweak('mode',b.dataset.v);
+    openSheet(b.dataset.v);
+  });
+  document.getElementById('tw-todseg').addEventListener('click',function(e){
+    var b = e.target.closest('button'); if(!b) return;
+    [].forEach.call(e.currentTarget.children,function(x){x.classList.toggle('on',x===b)});
+    setTweak('tod',b.dataset.v);
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

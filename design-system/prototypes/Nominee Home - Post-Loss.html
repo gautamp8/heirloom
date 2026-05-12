@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Heirloom · Maya's archive</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,500;8..60,600&family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FAF7F0;
+    --paper-warm:#F4EDD7;
+    --paper-deep:#EFE6CC;
+    --paper-card:#FFFEFB;
+    --ink:#1F1B14;
+    --ink-soft:#3D372C;
+    --ink-muted:#7A6F5C;
+    --ink-faint:#A89E89;
+    --rule:rgba(31,27,20,0.10);
+    --rule-strong:rgba(31,27,20,0.18);
+    --oxblood:#7D2A1A;
+    --oxblood-soft:#9A4030;
+    --sepia:#5C3A21;
+    --moss:#3D6B4A;
+    --serif:'Source Serif 4','Source Serif Pro',Georgia,serif;
+    --sans:'Geist','Inter',-apple-system,sans-serif;
+    --mono:'Geist Mono','JetBrains Mono',monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;background:#1a1814;font-family:var(--sans);color:var(--ink);overflow:hidden}
+  body{display:flex;align-items:center;justify-content:center;padding:24px}
+
+  .phone{
+    width:390px;height:844px;background:var(--paper);
+    border-radius:48px;position:relative;overflow:hidden;
+    box-shadow:0 40px 80px -20px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.4), inset 0 0 0 6px #0d0c0a;
+  }
+  .stage{position:absolute;inset:6px;border-radius:42px;overflow:hidden;background:var(--paper);display:flex;flex-direction:column}
+
+  .status-bar{height:44px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;font-size:14px;font-weight:600;color:var(--ink);flex-shrink:0}
+  .status-bar .right{display:flex;gap:6px;align-items:center;font-size:12px}
+
+  .app-bar{padding:8px 24px 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+  .app-bar .brand{display:flex;align-items:center;gap:8px}
+  .app-bar .brand img{width:22px;height:22px;opacity:0.9}
+  .app-bar .brand .name{font-family:var(--serif);font-style:italic;font-size:16px;color:var(--ink)}
+  .app-bar .from{font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-faint);margin-top:2px;display:block}
+  .icon-btn{appearance:none;border:none;background:transparent;cursor:pointer;width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--ink-soft)}
+  .icon-btn:hover{background:rgba(31,27,20,0.05)}
+
+  .scroll{flex:1;overflow-y:auto;padding:14px 22px 96px;scrollbar-width:none}
+  .scroll::-webkit-scrollbar{display:none}
+
+  .meta{font-family:var(--mono);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-muted);margin:0}
+  .meta-soft{font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-faint);margin:0}
+  h1.greet{font-family:var(--serif);font-weight:400;font-size:28px;line-height:1.1;margin:8px 0 0;color:var(--ink);letter-spacing:-0.005em}
+  h1.greet em{font-style:italic;color:var(--oxblood)}
+  h3.section{font-family:var(--mono);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-muted);font-weight:500;margin:0 0 12px;display:flex;align-items:center;justify-content:space-between}
+  h3.section .count{color:var(--ink-faint);font-weight:400}
+
+  /* The opening note from the creator — soft frame */
+  .from-creator{
+    margin-top:18px;background:var(--paper-warm);
+    border-radius:14px;padding:14px 18px;display:flex;align-items:center;gap:14px;
+    border:1px solid rgba(120,100,70,0.12);
+  }
+  .from-creator .seal{
+    width:36px;height:36px;border-radius:50%;flex-shrink:0;
+    background:linear-gradient(135deg, var(--oxblood) 0%, var(--sepia) 100%);
+    display:grid;place-items:center;color:var(--paper);
+    font-family:var(--serif);font-style:italic;font-size:18px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.2), 0 2px 4px rgba(0,0,0,0.15);
+  }
+  .from-creator .text{flex:1;min-width:0}
+  .from-creator p{margin:0;font-family:var(--serif);font-style:italic;font-size:14px;color:var(--ink-soft);line-height:1.35}
+  .from-creator .label{font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:2px;font-style:normal}
+
+  /* Latest unlocked — hero card */
+  .hero-card{
+    margin-top:22px;background:var(--paper-card);
+    border:1px solid var(--rule);border-radius:18px;
+    padding:20px 22px 22px;position:relative;overflow:hidden;
+    box-shadow:0 6px 18px -8px rgba(0,0,0,0.08);
+  }
+  .hero-card::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+    background:var(--oxblood);opacity:0.55;
+  }
+  .hero-card .topline{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .hero-card .topline .left{display:flex;align-items:center;gap:8px}
+  .hero-card .badge{
+    font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;
+    color:var(--oxblood);background:rgba(125,42,26,0.08);
+    padding:3px 9px;border-radius:10px;
+  }
+  .hero-card h2{
+    font-family:var(--serif);font-weight:400;font-size:22px;line-height:1.2;
+    color:var(--ink);margin:6px 0 8px;letter-spacing:-0.005em;text-wrap:pretty;
+  }
+  .hero-card .from-line{font-family:var(--mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-muted)}
+  .hero-card .snippet{
+    font-family:var(--serif);font-style:italic;font-size:15px;line-height:1.45;
+    color:var(--ink-soft);margin:14px 0 16px;text-wrap:pretty;
+  }
+  .hero-card .wave{display:flex;align-items:center;gap:2px;height:32px;margin:0 0 14px}
+  .hero-card .wave span{flex:1;background:var(--oxblood);border-radius:1.5px;opacity:0.65;max-width:3px}
+  .hero-card .controls{display:flex;align-items:center;gap:12px}
+  .play-btn{
+    width:44px;height:44px;border-radius:50%;background:var(--ink);
+    border:none;cursor:pointer;color:var(--paper);
+    display:grid;place-items:center;flex-shrink:0;
+  }
+  .play-btn:hover{background:var(--oxblood)}
+  .hero-card .time{font-family:var(--mono);font-size:11px;letter-spacing:0.08em;color:var(--ink-muted)}
+  .hero-card .open{
+    margin-left:auto;appearance:none;border:1px solid var(--rule-strong);
+    background:transparent;cursor:pointer;
+    font-family:var(--sans);font-size:13px;color:var(--ink-soft);
+    padding:9px 16px;border-radius:18px;
+  }
+  .hero-card .open:hover{border-color:var(--ink);color:var(--ink)}
+
+  .divider{margin:30px 0 18px;border:none;border-top:1px solid var(--rule)}
+
+  /* Threads */
+  .thread-card{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--rule)}
+  .thread-card:last-child{border-bottom:none}
+  .thread-stripe{width:3px;height:36px;background:var(--oxblood);border-radius:2px;flex-shrink:0;opacity:0.5}
+  .thread-stripe.sepia{background:var(--sepia);opacity:0.55}
+  .thread-stripe.muted{background:var(--ink-muted);opacity:0.5}
+  .thread-stripe.moss{background:var(--moss);opacity:0.55}
+  .thread-card .body{flex:1;min-width:0}
+  .thread-card .title{font-family:var(--serif);font-size:15px;line-height:1.25;color:var(--ink);margin:0}
+  .thread-card .stats{font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-muted);margin-top:3px}
+  .thread-card .arrow{color:var(--ink-faint);font-size:14px}
+
+  .see-all{
+    margin-top:10px;appearance:none;border:none;background:transparent;cursor:pointer;
+    font-family:var(--mono);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;
+    color:var(--ink-muted);padding:6px 0;display:inline-flex;align-items:center;gap:6px;
+  }
+  .see-all:hover{color:var(--ink)}
+
+  /* Sealed pieces */
+  .sealed-card{
+    display:flex;align-items:center;gap:14px;padding:14px 16px;
+    background:var(--paper-deep);border-radius:14px;margin-bottom:10px;
+    border:1px solid rgba(120,100,70,0.10);
+    position:relative;
+  }
+  .sealed-icon{
+    width:38px;height:38px;border-radius:10px;flex-shrink:0;
+    background:rgba(31,27,20,0.05);
+    display:grid;place-items:center;color:var(--ink-muted);
+  }
+  .sealed-card .body{flex:1;min-width:0}
+  .sealed-card .title{font-family:var(--serif);font-size:15px;color:var(--ink-soft);margin:0;line-height:1.25}
+  .sealed-card .condition{font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-muted);margin-top:4px}
+  .sealed-card .condition em{font-style:italic;color:var(--oxblood);text-transform:none;font-family:var(--serif);font-size:11px;letter-spacing:0;margin-left:6px}
+  .sealed-card .count-tag{
+    font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--ink-faint);
+  }
+
+  /* Saved passage */
+  .passage-card{
+    background:var(--paper-card);border:1px solid var(--rule);border-radius:14px;
+    padding:18px 20px;margin-bottom:10px;
+  }
+  .passage-card blockquote{
+    margin:0;font-family:var(--serif);font-style:italic;font-size:16px;line-height:1.5;
+    color:var(--ink);text-wrap:pretty;letter-spacing:-0.003em;
+  }
+  .passage-card .open-quote{color:var(--oxblood);font-size:24px;line-height:0;position:relative;top:6px;margin-right:2px}
+  .passage-card .attr{
+    font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;
+    color:var(--ink-muted);margin-top:14px;display:flex;justify-content:space-between;align-items:center;
+  }
+  .passage-card .attr .save-state{color:var(--ink-faint)}
+
+  /* Reflection entry — persistent pill, floating */
+  .reflect-pill{
+    position:absolute;left:24px;right:24px;bottom:78px;
+    background:var(--ink);color:var(--paper);
+    border-radius:28px;padding:14px 20px;
+    display:flex;align-items:center;gap:12px;
+    cursor:pointer;
+    box-shadow:0 14px 32px -8px rgba(0,0,0,0.35);
+    z-index:5;
+    transition:transform 200ms ease;
+  }
+  .reflect-pill:hover{transform:translateY(-1px)}
+  .reflect-pill .icon{
+    width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.12);
+    display:grid;place-items:center;flex-shrink:0;
+  }
+  .reflect-pill .label{flex:1;font-family:var(--serif);font-style:italic;font-size:15px;letter-spacing:-0.003em}
+  .reflect-pill .arrow{opacity:0.7}
+
+  /* Bottom tab bar */
+  .tab-bar{
+    position:absolute;left:6px;right:6px;bottom:6px;height:64px;
+    background:rgba(250,247,240,0.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    border-top:1px solid var(--rule);
+    display:flex;align-items:center;justify-content:space-around;padding:0 12px;
+    border-radius:0 0 42px 42px;
+  }
+  .tab-bar button{
+    appearance:none;border:none;background:transparent;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:3px;
+    font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;
+    color:var(--ink-faint);padding:6px 10px;
+  }
+  .tab-bar button.active{color:var(--ink)}
+
+  /* ── Tweaks ────────────────────────────────────────────── */
+  .tweaks-panel{
+    position:fixed;bottom:24px;right:24px;z-index:1000;width:264px;padding:16px 18px 18px;
+    background:#fff;border:1px solid var(--rule);border-radius:14px;
+    box-shadow:0 24px 50px -16px rgba(0,0,0,0.45), 0 6px 16px rgba(0,0,0,0.15);
+    font-family:var(--sans);color:var(--ink);
+  }
+  .tweaks-panel[hidden]{display:none}
+  .tweaks-panel h4{margin:0 0 14px;font-family:var(--mono);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-muted);font-weight:500;display:flex;justify-content:space-between;align-items:center}
+  .tw-close{appearance:none;border:none;background:transparent;cursor:pointer;font-size:14px;color:var(--ink-muted);padding:0 0 0 8px;line-height:1}
+  .tw-close:hover{color:var(--ink)}
+  .tw-label{font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:6px;display:block}
+  .tw-section + .tw-section{margin-top:14px}
+  .tw-seg{display:flex;gap:3px;background:#F2EBDB;padding:3px;border-radius:9px}
+  .tw-seg button{flex:1;appearance:none;border:none;cursor:pointer;background:transparent;font-family:var(--sans);font-size:11px;font-weight:500;padding:6px 4px;border-radius:6px;color:var(--ink-soft);transition:all 150ms ease}
+  .tw-seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,0.10)}
+  .tw-help{font-family:var(--mono);font-size:9px;letter-spacing:0.10em;color:var(--ink-faint);margin-top:8px;line-height:1.4}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="stage">
+    <div class="status-bar"><div>9:41</div><div class="right"><span>●●●●</span><span>5G</span><span>100%</span></div></div>
+
+    <div class="app-bar">
+      <div class="brand">
+        <img src="../assets/seal.png" alt="">
+        <div>
+          <span class="name">Maya's archive</span>
+          <span class="from">left by her mother</span>
+        </div>
+      </div>
+      <button class="icon-btn" aria-label="Menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      </button>
+    </div>
+
+    <div class="scroll">
+      <p class="meta" style="margin-top:6px">Sunday · Mar 23</p>
+      <h1 class="greet">Good evening, <em>Maya</em>.</h1>
+
+      <!-- A small note framing the visit (gentle, no death imagery) -->
+      <div class="from-creator">
+        <div class="seal">H</div>
+        <div class="text">
+          <p class="label">Today's release</p>
+          <p>Two new pieces. One she sealed for the morning of your eighteenth, and one she asked be sent today.</p>
+        </div>
+      </div>
+
+      <!-- Latest unlocked hero -->
+      <div class="hero-card">
+        <div class="topline">
+          <div class="left">
+            <span class="badge">Latest unlocked</span>
+            <span class="meta-soft">2 days ago</span>
+          </div>
+        </div>
+        <p class="from-line">A note for you · March 2026</p>
+        <h2>"There was something I never told you about the year I turned thirty."</h2>
+        <p class="snippet">— Your mother · recorded one Tuesday morning, four years before you turned eighteen.</p>
+        <div class="wave">
+          <span style="height:18%"></span><span style="height:38%"></span><span style="height:22%"></span>
+          <span style="height:62%"></span><span style="height:34%"></span><span style="height:76%"></span>
+          <span style="height:28%"></span><span style="height:50%"></span><span style="height:36%"></span>
+          <span style="height:84%"></span><span style="height:42%"></span><span style="height:58%"></span>
+          <span style="height:24%"></span><span style="height:68%"></span><span style="height:32%"></span>
+          <span style="height:46%"></span><span style="height:72%"></span><span style="height:30%"></span>
+          <span style="height:54%"></span><span style="height:38%"></span><span style="height:62%"></span>
+          <span style="height:26%"></span><span style="height:44%"></span><span style="height:78%"></span>
+          <span style="height:34%"></span><span style="height:58%"></span><span style="height:40%"></span>
+          <span style="height:66%"></span><span style="height:28%"></span><span style="height:50%"></span>
+          <span style="height:36%"></span><span style="height:74%"></span><span style="height:30%"></span>
+          <span style="height:52%"></span><span style="height:24%"></span><span style="height:44%"></span>
+          <span style="height:38%"></span><span style="height:60%"></span><span style="height:32%"></span>
+          <span style="height:48%"></span><span style="height:70%"></span><span style="height:26%"></span>
+          <span style="height:42%"></span><span style="height:36%"></span><span style="height:54%"></span>
+          <span style="height:64%"></span><span style="height:28%"></span><span style="height:46%"></span>
+          <span style="height:38%"></span><span style="height:58%"></span><span style="height:34%"></span>
+          <span style="height:50%"></span><span style="height:22%"></span><span style="height:40%"></span>
+        </div>
+        <div class="controls">
+          <button class="play-btn" aria-label="Play">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+          <span class="time">6:30</span>
+          <button class="open">Open →</button>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <!-- Threads -->
+      <h3 class="section">Browse by thread <span class="count">8 threads</span></h3>
+      <div class="thread-card">
+        <div class="thread-stripe sepia"></div>
+        <div class="body"><p class="title">When you were small</p><p class="stats">12 captures · 1h 04m</p></div>
+        <span class="arrow">→</span>
+      </div>
+      <div class="thread-card">
+        <div class="thread-stripe"></div>
+        <div class="body"><p class="title">How to make her bread</p><p class="stats">5 captures · 18 min · 1 photo</p></div>
+        <span class="arrow">→</span>
+      </div>
+      <div class="thread-card">
+        <div class="thread-stripe muted"></div>
+        <div class="body"><p class="title">Things she learned from her father</p><p class="stats">8 captures · 42 min</p></div>
+        <span class="arrow">→</span>
+      </div>
+      <div class="thread-card">
+        <div class="thread-stripe moss"></div>
+        <div class="body"><p class="title">A bad evening, and what they did</p><p class="stats">1 capture · 4:12</p></div>
+        <span class="arrow">→</span>
+      </div>
+      <button class="see-all">See all 8 threads →</button>
+
+      <hr class="divider">
+
+      <!-- Sealed for later -->
+      <h3 class="section">Sealed for later <span class="count">4 pieces</span></h3>
+
+      <div class="sealed-card">
+        <div class="sealed-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        </div>
+        <div class="body">
+          <p class="title">For your wedding day</p>
+          <p class="condition">sealed <em>until you ask for it</em></p>
+        </div>
+        <span class="count-tag">3 pieces</span>
+      </div>
+
+      <div class="sealed-card">
+        <div class="sealed-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        </div>
+        <div class="body">
+          <p class="title">When you become a parent</p>
+          <p class="condition">sealed <em>until you ask for it</em></p>
+        </div>
+        <span class="count-tag">5 pieces</span>
+      </div>
+
+      <div class="sealed-card">
+        <div class="sealed-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        </div>
+        <div class="body">
+          <p class="title">For your next birthday</p>
+          <p class="condition">releases <em>12 March 2027</em></p>
+        </div>
+        <span class="count-tag">1 piece</span>
+      </div>
+
+      <div class="sealed-card">
+        <div class="sealed-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        </div>
+        <div class="body">
+          <p class="title">If you ever doubt yourself</p>
+          <p class="condition">sealed <em>until you ask for it</em></p>
+        </div>
+        <span class="count-tag">2 pieces</span>
+      </div>
+
+      <hr class="divider">
+
+      <!-- Saved passages -->
+      <h3 class="section">Saved passages <span class="count">3 saved</span></h3>
+
+      <div class="passage-card">
+        <blockquote>
+          <span class="open-quote">"</span>I used to wait for the bread to rise the way I would later wait for you — quiet, patient, sure that something good was on its way.
+        </blockquote>
+        <p class="attr">
+          <span>From <em style="text-transform:none;font-family:var(--serif);font-size:11px">How to make her bread</em> · cap 03</span>
+          <span class="save-state">saved last week</span>
+        </p>
+      </div>
+
+      <div class="passage-card">
+        <blockquote>
+          <span class="open-quote">"</span>Courage was never the loud kind. It was getting up on Tuesday after a hard Monday.
+        </blockquote>
+        <p class="attr">
+          <span>From <em style="text-transform:none;font-family:var(--serif);font-size:11px">A bad evening</em> · cap 01</span>
+          <span class="save-state">saved yesterday</span>
+        </p>
+      </div>
+
+      <div style="height:80px"></div>
+    </div>
+
+    <!-- Persistent Reflection entry -->
+    <div class="reflect-pill" id="reflectPill">
+      <div class="icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12a8 8 0 0 1-11.4 7.3L4 21l1.7-5.6A8 8 0 1 1 21 12z"/></svg>
+      </div>
+      <span class="label">Ask the archive a question</span>
+      <span class="arrow">→</span>
+    </div>
+
+    <!-- Tab bar -->
+    <div class="tab-bar">
+      <button class="active">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 11l9-8 9 8v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        Home
+      </button>
+      <button>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 4h16v4H4zM4 12h16v4H4zM4 20h16"/></svg>
+        Threads
+      </button>
+      <button>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        Saved
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Tweaks panel -->
+<div class="tweaks-panel" id="tweaksPanel" hidden>
+  <h4><span>Tweaks</span><button class="tw-close" id="twClose" aria-label="Close">✕</button></h4>
+  <div class="tw-section">
+    <label class="tw-label">Time since unlocked</label>
+    <div class="tw-seg" id="tw-fresh">
+      <button data-v="fresh" class="on">2 days</button>
+      <button data-v="weeks">3 weeks</button>
+      <button data-v="months">6 months</button>
+    </div>
+  </div>
+  <div class="tw-section">
+    <label class="tw-label">Sealed reveal</label>
+    <div class="tw-seg" id="tw-reveal">
+      <button data-v="hidden" class="on">Titled</button>
+      <button data-v="blurred">Blurred</button>
+    </div>
+  </div>
+  <p class="tw-help">Some families want titles on sealed pieces; others want them entirely opaque until the condition is met.</p>
+</div>
+
+<script>
+(function(){
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "fresh": "months",
+    "reveal": "blurred"
+  }/*EDITMODE-END*/;
+  let tweaks = Object.assign({}, TWEAK_DEFAULTS);
+
+  function render(){
+    // fresh — recency label on hero
+    const recencyMap = {fresh:'2 days ago', weeks:'3 weeks ago', months:'6 months ago'};
+    document.querySelectorAll('.hero-card .meta-soft').forEach(el => el.textContent = recencyMap[tweaks.fresh]);
+
+    // sealed reveal — titled vs blurred
+    document.querySelectorAll('.sealed-card .title').forEach(el => {
+      if (tweaks.reveal === 'blurred') {
+        el.style.filter = 'blur(6px)';
+        el.style.color = 'var(--ink-muted)';
+      } else {
+        el.style.filter = 'none';
+        el.style.color = '';
+      }
+    });
+  }
+
+  function setTweak(k,v){
+    tweaks[k]=v;
+    try{window.parent.postMessage({type:'__edit_mode_set_keys',edits:Object.fromEntries([[k,v]])},'*')}catch(e){}
+    render();
+  }
+
+  window.addEventListener('message',function(e){
+    var t = e.data && e.data.type;
+    if(t === '__activate_edit_mode') document.getElementById('tweaksPanel').hidden = false;
+    if(t === '__deactivate_edit_mode') document.getElementById('tweaksPanel').hidden = true;
+  });
+  try{window.parent.postMessage({type:'__edit_mode_available'},'*')}catch(e){}
+
+  document.getElementById('twClose').addEventListener('click',function(){
+    document.getElementById('tweaksPanel').hidden = true;
+    try{window.parent.postMessage({type:'__edit_mode_dismissed'},'*')}catch(e){}
+  });
+  document.getElementById('tw-fresh').addEventListener('click',function(e){
+    var b = e.target.closest('button'); if(!b) return;
+    [].forEach.call(e.currentTarget.children,function(x){x.classList.toggle('on',x===b)});
+    setTweak('fresh',b.dataset.v);
+  });
+  document.getElementById('tw-reveal').addEventListener('click',function(e){
+    var b = e.target.closest('button'); if(!b) return;
+    [].forEach.call(e.currentTarget.children,function(x){x.classList.toggle('on',x===b)});
+    setTweak('reveal',b.dataset.v);
+  });
+  render();
+})();
+</script>
+</body>
+</html>

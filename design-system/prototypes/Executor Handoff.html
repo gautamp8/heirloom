@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Heirloom · Executor Handoff</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,500;8..60,600&family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FAF7F0;--paper-warm:#F4EDD7;--paper-deep:#EFE6CC;--paper-card:#FFFEFB;
+    --ink:#1F1B14;--ink-soft:#3D372C;--ink-muted:#7A6F5C;--ink-faint:#A89E89;
+    --rule:rgba(31,27,20,0.10);--rule-strong:rgba(31,27,20,0.18);
+    --oxblood:#7D2A1A;--sepia:#5C3A21;--moss:#3D6B4A;
+    --serif:'Source Serif 4',Georgia,serif;--sans:'Geist',sans-serif;--mono:'Geist Mono',monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;background:#1a1814;font-family:var(--sans);color:var(--ink);overflow:hidden}
+  body{display:flex;align-items:center;justify-content:center;padding:24px;gap:24px}
+
+  .phone{
+    width:390px;height:844px;background:var(--paper);
+    border-radius:48px;position:relative;overflow:hidden;
+    box-shadow:0 40px 80px -20px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.4), inset 0 0 0 6px #0d0c0a;
+  }
+  .stage{position:absolute;inset:6px;border-radius:42px;overflow:hidden;background:var(--paper)}
+  .status-bar{height:44px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;font-size:14px;font-weight:600;color:var(--ink)}
+  .status-bar .right{display:flex;gap:6px;align-items:center;font-size:12px}
+
+  .app-bar{padding:8px 24px 0;display:flex;align-items:center;gap:12px}
+  .back-btn{appearance:none;border:none;background:transparent;cursor:pointer;width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--ink-soft)}
+  .app-bar h2{margin:0;font-family:var(--mono);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-muted);font-weight:500}
+
+  /* Step indicator */
+  .steps{padding:8px 24px 0;display:flex;align-items:center;gap:4px}
+  .steps .dot{flex:1;height:3px;background:var(--rule);border-radius:2px}
+  .steps .dot.done{background:var(--oxblood);opacity:0.5}
+  .steps .dot.active{background:var(--oxblood)}
+
+  /* scenes */
+  .scenes{position:absolute;inset:0;top:88px;bottom:0;overflow:hidden}
+  .scene{
+    position:absolute;inset:0;padding:18px 26px 28px;
+    opacity:0;pointer-events:none;
+    transition:opacity 400ms ease;
+    overflow-y:auto;scrollbar-width:none;
+  }
+  .scene::-webkit-scrollbar{display:none}
+  .scene.active{opacity:1;pointer-events:auto}
+
+  .meta{font-family:var(--mono);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-muted);margin:0}
+  h1.title{font-family:var(--serif);font-weight:400;font-size:30px;line-height:1.1;margin:10px 0 14px;color:var(--ink);letter-spacing:-0.005em;text-wrap:pretty}
+  h1.title em{font-style:italic;color:var(--oxblood)}
+  p.body{font-family:var(--serif);font-size:16px;line-height:1.5;color:var(--ink-soft);margin:0 0 14px;text-wrap:pretty;letter-spacing:-0.003em}
+  p.body em{font-style:italic}
+
+  .btn-primary{
+    appearance:none;border:none;cursor:pointer;
+    background:var(--ink);color:var(--paper);
+    font-family:var(--sans);font-size:14px;font-weight:500;
+    padding:14px 24px;border-radius:26px;display:inline-flex;align-items:center;gap:8px;
+  }
+  .btn-primary:hover{background:var(--oxblood)}
+  .btn-primary.full{width:100%;justify-content:center}
+  .btn-link{appearance:none;border:none;cursor:pointer;background:transparent;font-family:var(--sans);font-size:13px;color:var(--ink-muted);padding:10px 4px}
+  .btn-link:hover{color:var(--ink)}
+
+  .cta-row{display:flex;flex-direction:column;gap:8px;margin-top:24px}
+
+  /* ── Scene 0: Intro ─────────────────────────────────── */
+  .intro-illustration{
+    margin:20px auto 24px;width:200px;height:200px;
+    display:grid;place-items:center;position:relative;
+  }
+  .key-svg{width:100%;height:100%;color:var(--oxblood)}
+  .intro-illustration::before{
+    content:"";position:absolute;width:160px;height:160px;border-radius:50%;
+    border:1px dashed rgba(125,42,26,0.25);
+  }
+  .reason-list{margin:18px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:14px}
+  .reason-list li{display:flex;gap:14px;align-items:flex-start}
+  .reason-list .num{
+    width:24px;height:24px;border-radius:50%;background:var(--paper-warm);
+    flex-shrink:0;display:grid;place-items:center;
+    font-family:var(--mono);font-size:10px;color:var(--oxblood);font-weight:500;
+  }
+  .reason-list .text{font-family:var(--serif);font-size:15px;line-height:1.4;color:var(--ink-soft)}
+
+  /* ── Scene 1: Choose executor ───────────────────────── */
+  .form-section{margin-top:18px}
+  .form-section label{display:block;font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:8px}
+  .input{
+    width:100%;padding:14px 16px;border:1px solid var(--rule);border-radius:12px;
+    font-family:var(--serif);font-size:16px;color:var(--ink);
+    background:var(--paper-card);outline:none;
+  }
+  .input:focus{border-color:var(--ink)}
+  .rel-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .rel-chip{
+    appearance:none;cursor:pointer;border:1px solid var(--rule);
+    background:transparent;font-family:var(--sans);font-size:12px;
+    padding:7px 13px;border-radius:18px;color:var(--ink-soft);
+  }
+  .rel-chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  .helper{font-family:var(--mono);font-size:9px;letter-spacing:0.10em;color:var(--ink-faint);margin-top:8px;line-height:1.5}
+
+  /* ── Scene 2: Shamir split ──────────────────────────── */
+  .key-diagram{
+    margin:24px auto;width:100%;max-width:300px;padding:24px 0;position:relative;
+  }
+  .key-master{
+    width:60px;height:60px;border-radius:50%;background:var(--ink);color:var(--paper);
+    margin:0 auto;display:grid;place-items:center;
+    font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-align:center;line-height:1.15;
+  }
+  .key-shares{margin-top:24px;display:flex;justify-content:space-between;gap:12px;position:relative}
+  .key-shares::before{
+    content:"";position:absolute;top:-12px;left:50%;width:1px;height:12px;
+    background:var(--ink-faint);transform:translateX(-50%);
+  }
+  .key-share{
+    flex:1;text-align:center;
+  }
+  .share-icon{
+    width:54px;height:54px;border-radius:14px;margin:0 auto;
+    background:var(--paper-card);border:1px solid var(--rule-strong);
+    display:grid;place-items:center;color:var(--ink);position:relative;
+  }
+  .share-icon.self{background:var(--paper-warm);border-color:rgba(125,42,26,0.2);color:var(--oxblood)}
+  .share-icon.executor{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  .share-icon.cloud{background:var(--paper-card);color:var(--ink-muted)}
+  .share-label{font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink);margin-top:8px;display:block}
+  .share-name{font-family:var(--serif);font-style:italic;font-size:12px;color:var(--ink-muted);margin-top:2px;display:block}
+
+  .threshold-line{
+    margin-top:20px;padding:14px 16px;background:var(--paper-warm);
+    border-radius:12px;display:flex;align-items:center;gap:12px;
+  }
+  .threshold-line .badge{
+    font-family:var(--mono);font-size:11px;letter-spacing:0.10em;color:var(--oxblood);
+    background:rgba(125,42,26,0.10);padding:4px 10px;border-radius:10px;font-weight:500;
+  }
+  .threshold-line p{margin:0;font-family:var(--serif);font-size:14px;color:var(--ink-soft);line-height:1.35;flex:1}
+
+  /* ── Scene 3: Letter preview ────────────────────────── */
+  .letter-preview{
+    margin-top:18px;background:var(--paper-warm);
+    border-radius:14px;padding:24px 24px 22px;
+    border:1px solid rgba(120,100,70,0.18);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.4), 0 2px 8px -2px rgba(0,0,0,0.05);
+    font-family:var(--serif);
+  }
+  .letter-preview .from{font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 14px}
+  .letter-preview h3{font-family:var(--serif);font-style:italic;font-weight:400;font-size:20px;color:var(--ink);margin:0 0 12px;line-height:1.2}
+  .letter-preview p{font-size:14.5px;line-height:1.55;color:var(--ink-soft);margin:0 0 12px;text-wrap:pretty}
+  .letter-preview p:last-child{margin-bottom:0}
+  .letter-preview .signature{font-style:italic;color:var(--oxblood);margin-top:16px}
+  .letter-preview .passphrase{
+    margin:14px 0;padding:12px 14px;background:rgba(31,27,20,0.05);
+    border-radius:8px;font-family:var(--mono);font-size:13px;letter-spacing:0.05em;
+    color:var(--ink);text-align:center;border:1px dashed var(--rule-strong);
+  }
+  .test-row{
+    margin-top:18px;padding:14px 16px;background:var(--paper-card);
+    border:1px solid var(--rule);border-radius:12px;
+    display:flex;align-items:center;gap:12px;
+  }
+  .test-row .check{
+    width:24px;height:24px;border-radius:50%;background:var(--moss);color:var(--paper);
+    display:grid;place-items:center;flex-shrink:0;
+  }
+  .test-row .info{flex:1;font-family:var(--serif);font-size:13.5px;color:var(--ink-soft);line-height:1.35}
+  .test-row .info strong{font-style:italic;color:var(--ink)}
+  .test-row .when{font-family:var(--mono);font-size:9px;letter-spacing:0.12em;color:var(--ink-faint);text-transform:uppercase}
+
+  /* Outside nav */
+  .nav-side{
+    position:absolute;top:50%;transform:translateY(-50%);z-index:20;
+    width:42px;height:42px;border-radius:50%;background:rgba(250,247,240,0.95);
+    border:1px solid var(--rule);cursor:pointer;
+    display:grid;place-items:center;color:var(--ink-soft);
+    box-shadow:0 8px 20px -6px rgba(0,0,0,0.18);
+    transition:transform 150ms ease;
+  }
+  .nav-side:hover{transform:translateY(-50%) scale(1.06);color:var(--ink)}
+  .nav-side.prev{left:-58px}
+  .nav-side.next{right:-58px}
+  .scene-label{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:10px;letter-spacing:0.16em;color:var(--ink-faint);text-transform:uppercase;z-index:25}
+</style>
+</head>
+<body>
+
+<div class="phone" data-screen-label="Executor Handoff">
+  <div class="stage">
+    <div class="status-bar"><div>9:41</div><div class="right"><span>●●●●</span><span>5G</span><span>100%</span></div></div>
+
+    <div class="app-bar">
+      <button class="back-btn" aria-label="Back">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <h2 id="appbarLabel">Executor handoff</h2>
+    </div>
+
+    <div class="steps" id="stepsBar">
+      <span class="dot active"></span>
+      <span class="dot"></span>
+      <span class="dot"></span>
+      <span class="dot"></span>
+    </div>
+
+    <div class="scenes">
+
+      <!-- Scene 0: Intro -->
+      <section class="scene active" data-scene="0">
+        <p class="meta">Step 1 of 4 · Why this matters</p>
+        <h1 class="title">Heirloom is only as safe as the <em>person who holds the key.</em></h1>
+
+        <div class="intro-illustration">
+          <svg class="key-svg" viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <circle cx="78" cy="100" r="32" />
+            <circle cx="78" cy="100" r="8" fill="currentColor" />
+            <path d="M110 100 L165 100 M155 100 L155 118 M138 100 L138 114" />
+          </svg>
+        </div>
+
+        <p class="body">Your archive lives on this device. If something happens — to it, or to you — your nominees still need a way in.</p>
+
+        <ul class="reason-list">
+          <li>
+            <span class="num">1</span>
+            <span class="text">An executor is a trusted person who can release your archive when you can no longer do it yourself.</span>
+          </li>
+          <li>
+            <span class="num">2</span>
+            <span class="text">They cannot read it. They can only help unlock it.</span>
+          </li>
+          <li>
+            <span class="num">3</span>
+            <span class="text">You can change them at any time, and revoke the key with one tap.</span>
+          </li>
+        </ul>
+
+        <div class="cta-row">
+          <button class="btn-primary full" data-go="1">Choose an executor →</button>
+          <button class="btn-link">Maybe later</button>
+        </div>
+      </section>
+
+      <!-- Scene 1: Choose -->
+      <section class="scene" data-scene="1">
+        <p class="meta">Step 2 of 4 · The person</p>
+        <h1 class="title">Who do you <em>trust</em> with this?</h1>
+        <p class="body">Someone who would honour your archive — not necessarily someone who would read it.</p>
+
+        <div class="form-section">
+          <label for="exName">Their name</label>
+          <input class="input" id="exName" type="text" value="Sam Vargas" autocomplete="off">
+        </div>
+
+        <div class="form-section">
+          <label for="exEmail">A contact for them</label>
+          <input class="input" id="exEmail" type="text" value="sam@example.com" autocomplete="off">
+          <p class="helper">Used only to confirm them, never to send the archive.</p>
+        </div>
+
+        <div class="form-section">
+          <label>Their relationship to you</label>
+          <div class="rel-chips" id="relChips">
+            <button class="rel-chip on">Sibling</button>
+            <button class="rel-chip">Partner</button>
+            <button class="rel-chip">Old friend</button>
+            <button class="rel-chip">Lawyer</button>
+            <button class="rel-chip">Other</button>
+          </div>
+        </div>
+
+        <div class="cta-row">
+          <button class="btn-primary full" data-go="2">Continue →</button>
+        </div>
+      </section>
+
+      <!-- Scene 2: Shamir split -->
+      <section class="scene" data-scene="2">
+        <p class="meta">Step 3 of 4 · The key</p>
+        <h1 class="title">Your key is <em>split</em> three ways.</h1>
+        <p class="body">No single keeper can open the archive alone. Two must come together — by design.</p>
+
+        <div class="key-diagram">
+          <div class="key-master">
+            <span>master<br>key</span>
+          </div>
+
+          <div class="key-shares">
+            <div class="key-share">
+              <div class="share-icon self">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+              </div>
+              <span class="share-label">Share 1</span>
+              <span class="share-name">you</span>
+            </div>
+            <div class="key-share">
+              <div class="share-icon executor">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+              </div>
+              <span class="share-label">Share 2</span>
+              <span class="share-name">Sam</span>
+            </div>
+            <div class="key-share">
+              <div class="share-icon cloud">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7 17a5 5 0 0 1 1-9.9 6 6 0 0 1 11.5 1A4 4 0 0 1 19 17z"/></svg>
+              </div>
+              <span class="share-label">Share 3</span>
+              <span class="share-name">offline</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="threshold-line">
+          <span class="badge">2 of 3</span>
+          <p>Any two shares can reconstruct the key. None alone can.</p>
+        </div>
+
+        <p class="body" style="margin-top:18px;font-size:14.5px">Sam will receive a sealed letter — printed or digital — with their share and a phrase only they can use.</p>
+
+        <div class="cta-row">
+          <button class="btn-primary full" data-go="3">Review their letter →</button>
+        </div>
+      </section>
+
+      <!-- Scene 3: Letter preview -->
+      <section class="scene" data-scene="3">
+        <p class="meta">Step 4 of 4 · Their letter</p>
+        <h1 class="title">What Sam will <em>receive</em>.</h1>
+        <p class="body">A single page. Plain language. No app required to read it.</p>
+
+        <div class="letter-preview">
+          <p class="from">For Sam Vargas · from Elena Marin</p>
+          <h3>If you are reading this, you are holding something for me.</h3>
+          <p>I have asked you to be my executor for an archive of recordings I made for my daughter Maya, and my son Daniel. Not a will. Not anything legal. Just the things I wanted them to hear from me, in my own voice, at the right times in their lives.</p>
+          <p>You cannot read any of it. You will never need to. Your role is simpler: when the right moment comes, you help unlock it for them.</p>
+          <p>Below is your share of the key. Keep it. If the archive ever needs to be opened without me, Maya or Daniel will reach out — and you will know what to do.</p>
+          <div class="passphrase">share — willow · bread · river · 14</div>
+          <p class="signature">— Elena</p>
+        </div>
+
+        <div class="test-row">
+          <div class="check">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+          </div>
+          <div class="info"><strong>Recovery tested.</strong> Sam confirmed receipt on March 1.</div>
+          <span class="when">2 wks ago</span>
+        </div>
+
+        <div class="cta-row">
+          <button class="btn-primary full">Send Sam their letter</button>
+          <button class="btn-link">Print instead</button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <button class="nav-side prev" id="prevBtn" aria-label="Previous">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+  </button>
+  <button class="nav-side next" id="nextBtn" aria-label="Next">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+  </button>
+</div>
+
+<div class="scene-label" id="sceneLabel">Step 1 of 4 — Why this matters</div>
+
+<script>
+(function(){
+  let idx = 0;
+  const total = 4;
+  const labels = [
+    'Step 1 of 4 — Why this matters',
+    'Step 2 of 4 — Choose your executor',
+    'Step 3 of 4 — How the key is split',
+    'Step 4 of 4 — Their letter'
+  ];
+  function go(n){
+    idx = Math.max(0, Math.min(total-1, n));
+    document.querySelectorAll('.scene').forEach(s => s.classList.toggle('active', +s.dataset.scene === idx));
+    document.querySelectorAll('#stepsBar .dot').forEach((d,i) => {
+      d.classList.toggle('done', i < idx);
+      d.classList.toggle('active', i === idx);
+    });
+    document.getElementById('sceneLabel').textContent = labels[idx];
+  }
+  document.getElementById('prevBtn').addEventListener('click', () => go(idx-1));
+  document.getElementById('nextBtn').addEventListener('click', () => go(idx+1));
+  document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => go(+b.dataset.go)));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') go(idx+1);
+    if (e.key === 'ArrowLeft') go(idx-1);
+  });
+  // Rel chips
+  document.getElementById('relChips').addEventListener('click', (e) => {
+    const b = e.target.closest('.rel-chip'); if (!b) return;
+    document.querySelectorAll('.rel-chip').forEach(x => x.classList.toggle('on', x === b));
+  });
+})();
+</script>
+</body>
+</html>

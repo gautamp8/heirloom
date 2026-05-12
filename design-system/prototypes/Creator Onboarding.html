@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Heirloom — Creator Onboarding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=Geist:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FAF7F0;
+    --paper-2:#F2EBDB;
+    --paper-3:#E8DFC8;
+    --ink:#1F1B14;
+    --ink-soft:#4A4338;
+    --ink-muted:#8C8472;
+    --wax:#7D2A1A;
+    --wax-2:#5C1F12;
+    --rule:rgba(31,27,20,0.10);
+    --rule-soft:rgba(31,27,20,0.06);
+    --serif:'Source Serif 4', Georgia, serif;
+    --sans:'Geist', ui-sans-serif, -apple-system, system-ui, sans-serif;
+    --mono:'JetBrains Mono', ui-monospace, Menlo, monospace;
+  }
+  *{box-sizing:border-box;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+  html,body{margin:0;padding:0;background:#1a1814;color:var(--ink);font-family:var(--sans)}
+  body{
+    min-height:100vh;
+    display:flex;align-items:center;justify-content:center;
+    padding:40px 20px;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 40%, #2a241c 0%, #16130f 80%);
+  }
+  .stage{
+    width:390px;height:844px;
+    border-radius:56px;
+    background:var(--paper);
+    overflow:hidden;position:relative;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.04),
+      0 2px 0 rgba(255,255,255,0.05) inset,
+      0 80px 100px -40px rgba(0,0,0,0.7),
+      0 30px 60px -20px rgba(0,0,0,0.5);
+    isolation:isolate;
+  }
+  /* warm paper texture */
+  .stage::before{
+    content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
+    background:
+      radial-gradient(ellipse 70% 50% at 20% 10%, rgba(255,243,210,0.35), transparent 60%),
+      radial-gradient(ellipse 80% 60% at 90% 90%, rgba(180,120,40,0.06), transparent 60%);
+    mix-blend-mode:multiply;
+  }
+  .scene{
+    position:absolute;inset:0;
+    padding:64px 32px 36px;
+    display:flex;flex-direction:column;
+    opacity:0;pointer-events:none;
+    transition:opacity 400ms ease;
+    z-index:1;
+  }
+  .scene.active{opacity:1;pointer-events:auto}
+
+  /* status hint */
+  .statushint{
+    position:absolute;top:18px;left:0;right:0;
+    text-align:center;font-family:var(--mono);font-size:10px;color:var(--ink-muted);
+    letter-spacing:0.12em;text-transform:uppercase;z-index:2;
+  }
+
+  /* Type */
+  h1.display{font-family:var(--serif);font-weight:400;font-size:40px;line-height:1.04;letter-spacing:-0.01em;margin:0;font-variation-settings:"opsz" 36}
+  h1.display em{font-style:italic;font-variation-settings:"opsz" 60}
+  h2.title{font-family:var(--serif);font-weight:400;font-size:28px;line-height:1.12;letter-spacing:-0.005em;margin:0}
+  h2.title em{font-style:italic}
+  p.body{font-family:var(--sans);font-weight:400;font-size:14px;line-height:1.55;color:var(--ink-soft);margin:0;text-wrap:pretty}
+  p.meta{font-family:var(--mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-muted);margin:0}
+  .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-muted)}
+
+  /* Buttons */
+  .btn{
+    appearance:none;border:none;cursor:pointer;
+    font-family:var(--sans);font-weight:500;font-size:14px;
+    padding:16px 24px;border-radius:9999px;
+    background:var(--ink);color:var(--paper);
+    transition:transform 120ms ease, background 200ms ease;
+    letter-spacing:0.01em;
+  }
+  .btn:hover{background:var(--wax)}
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{background:transparent;color:var(--ink-soft);padding:8px 0;font-size:13px}
+  .btn.ghost:hover{color:var(--wax);background:transparent}
+  .btn.full{width:100%}
+
+  /* Inputs */
+  .input{
+    width:100%;
+    font-family:var(--serif);font-size:22px;font-weight:300;
+    padding:14px 0;
+    border:none;border-bottom:1px solid var(--rule);
+    background:transparent;color:var(--ink);outline:none;
+    letter-spacing:0.04em;
+  }
+  .input:focus{border-bottom-color:var(--wax)}
+  .input::placeholder{color:var(--ink-muted);font-style:italic;letter-spacing:0.02em}
+
+  /* Cards */
+  .card{
+    background:rgba(255,253,247,0.7);
+    border:1px solid var(--rule);
+    border-radius:14px;
+    padding:18px 20px;
+    cursor:pointer;
+    transition:all 200ms ease;
+  }
+  .card:hover{border-color:var(--ink-muted);background:rgba(255,253,247,1)}
+  .card.selected{border-color:var(--ink);background:#fff;box-shadow:0 4px 16px -8px rgba(31,27,20,0.18)}
+  .card-title{font-family:var(--serif);font-size:17px;font-weight:400;letter-spacing:-0.005em;color:var(--ink);margin:0 0 4px}
+  .card-sub{font-family:var(--sans);font-size:12px;color:var(--ink-muted);margin:0;line-height:1.45}
+
+  /* Tile (modality) */
+  .tile{
+    flex:1;
+    background:rgba(255,253,247,0.7);
+    border:1px solid var(--rule);
+    border-radius:14px;
+    padding:18px 14px 16px;
+    cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:8px;
+    transition:all 200ms ease;
+  }
+  .tile:hover{border-color:var(--ink-muted)}
+  .tile-icon{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--ink-soft)}
+  .tile-label{font-family:var(--sans);font-size:12px;font-weight:500;color:var(--ink);letter-spacing:0.04em}
+  .tile-sub{font-family:var(--sans);font-size:10px;color:var(--ink-muted);letter-spacing:0.04em}
+
+  /* Chips */
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:6px 12px;border-radius:9999px;
+    background:rgba(255,253,247,0.7);
+    border:1px solid var(--rule);
+    font-family:var(--sans);font-size:11px;color:var(--ink-soft);
+    cursor:pointer;transition:all 200ms ease;
+  }
+  .chip:hover{border-color:var(--ink-muted)}
+  .chip.selected{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  .chip.gemma{border-style:dashed;border-color:var(--ink-muted)}
+  .chip.gemma::before{content:"·";font-family:var(--mono);color:var(--wax);font-weight:700}
+
+  /* Seal */
+  .seal{width:100%;height:auto;display:block}
+  .seal-wrap{
+    width:140px;height:140px;margin:0 auto;
+    position:relative;
+  }
+  .seal-wrap img{width:100%;height:100%;object-fit:contain;display:block}
+
+  /* Waveform */
+  .waveform{
+    height:140px;width:100%;
+    display:flex;align-items:center;justify-content:center;gap:3px;
+    padding:0 8px;
+  }
+  .wave-bar{
+    width:3px;border-radius:2px;
+    background:var(--ink);
+    transition:height 80ms ease, background 200ms ease;
+  }
+  .waveform.idle .wave-bar{background:var(--ink-muted);opacity:0.5}
+  .waveform.recording .wave-bar{background:var(--wax)}
+
+  .record-btn{
+    width:72px;height:72px;border-radius:9999px;
+    background:var(--wax);color:#fff;border:none;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    position:relative;
+    transition:all 200ms ease;
+    box-shadow:0 8px 24px -8px rgba(125,42,26,0.5);
+  }
+  .record-btn::before{
+    content:"";position:absolute;inset:-8px;border-radius:9999px;
+    border:1px solid var(--wax);opacity:0;
+  }
+  .record-btn.recording{background:#1F1B14}
+  .record-btn.recording::before{opacity:0.3;animation:pulse 2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{transform:scale(1);opacity:0.3}50%{transform:scale(1.15);opacity:0}}
+  .record-dot{width:18px;height:18px;border-radius:9999px;background:#fff;transition:all 200ms ease}
+  .record-btn.recording .record-dot{width:18px;height:18px;border-radius:3px}
+
+  .timer{
+    font-family:var(--mono);font-size:13px;color:var(--ink-muted);
+    text-align:center;letter-spacing:0.1em;
+    margin-top:8px;
+  }
+
+  .transcript{
+    font-family:var(--serif);font-size:15px;line-height:1.6;color:var(--ink-soft);
+    font-style:italic;
+    min-height:80px;
+  }
+  .transcript .word{opacity:0;animation:fadein 280ms ease forwards}
+  @keyframes fadein{to{opacity:1}}
+
+  /* Layout helpers */
+  .stack{display:flex;flex-direction:column}
+  .stack > * + *{margin-top:var(--gap, 12px)}
+  .row{display:flex;align-items:center}
+  .grow{flex:1}
+  .center{align-items:center}
+  .between{justify-content:space-between}
+  .gap-8{gap:8px} .gap-12{gap:12px} .gap-16{gap:16px}
+
+  /* progress dots */
+  .dots{
+    position:absolute;bottom:24px;left:0;right:0;
+    display:flex;justify-content:center;gap:6px;z-index:2;pointer-events:none;
+  }
+  .dot{width:5px;height:5px;border-radius:9999px;background:var(--ink-muted);opacity:0.3;transition:opacity 200ms ease}
+  .dot.on{opacity:0.9}
+
+  /* navigation arrows (subtle) */
+  .nav{
+    position:absolute;top:50%;
+    width:44px;height:44px;border-radius:9999px;
+    background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);
+    border:1px solid rgba(255,255,255,0.08);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+    backdrop-filter:blur(8px);
+    transform:translateY(-50%);transition:all 200ms ease;
+    z-index:10;
+  }
+  .nav:hover{background:rgba(255,255,255,0.12);color:#fff}
+  .nav.prev{left:24px} .nav.next{right:24px}
+  .nav[disabled]{opacity:0.2;cursor:not-allowed}
+
+  /* checkbox */
+  .check{
+    display:flex;align-items:flex-start;gap:10px;cursor:pointer;
+    font-size:13px;color:var(--ink-soft);font-family:var(--sans);
+  }
+  .check input{
+    appearance:none;width:18px;height:18px;border-radius:5px;
+    border:1px solid var(--rule);background:#fff;cursor:pointer;flex-shrink:0;
+    margin-top:1px;position:relative;
+  }
+  .check input:checked{background:var(--ink);border-color:var(--ink)}
+  .check input:checked::after{
+    content:"";position:absolute;left:5px;top:2px;width:5px;height:9px;
+    border:solid #fff;border-width:0 1.5px 1.5px 0;transform:rotate(45deg);
+  }
+
+  /* Mode pill (creator chrome) */
+  .modepill{
+    display:inline-flex;align-items:center;gap:6px;padding:6px 12px;
+    border-radius:9999px;background:rgba(255,253,247,0.9);
+    border:1px solid var(--rule);font-family:var(--mono);font-size:10px;
+    letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-muted);
+  }
+  .modepill .dot-mode{width:6px;height:6px;border-radius:9999px;background:var(--wax)}
+
+  /* note */
+  .note{
+    background:rgba(125,42,26,0.04);
+    border-left:2px solid var(--wax);
+    padding:14px 16px;border-radius:0 8px 8px 0;
+  }
+  .note p{font-family:var(--serif);font-size:13px;line-height:1.5;font-style:italic;color:var(--ink-soft);margin:0}
+
+  /* home preview card */
+  .memory-card{
+    background:#fff;border:1px solid var(--rule);border-radius:14px;
+    padding:16px;overflow:hidden;
+  }
+  .memory-wave{display:flex;align-items:center;gap:2px;height:36px}
+  .memory-wave span{width:2px;background:var(--ink-soft);border-radius:1px;opacity:0.7}
+</style>
+</head>
+<body>
+
+<button class="nav prev" id="prev" aria-label="Previous">
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8L10 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</button>
+<button class="nav next" id="next" aria-label="Next">
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4L10 8L6 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</button>
+
+<div class="stage" id="stage">
+  <div class="statushint">creator onboarding · prototype</div>
+
+  <!-- ── Scene 1 · Portal ────────────────────────────────────── -->
+  <section class="scene active" data-scene="0" style="justify-content:space-between;padding-top:120px;padding-bottom:80px">
+    <div class="stack" style="--gap:48px;align-items:center;text-align:center">
+      <div class="seal-wrap" style="width:120px;height:120px"><img src="../assets/seal.png" alt="Heirloom seal" class="seal"></div>
+      <div class="stack" style="--gap:14px">
+        <h1 class="display"><em>Heirloom</em></h1>
+        <p class="body" style="max-width:240px;margin:0 auto">Preserve presence across generations.</p>
+      </div>
+    </div>
+    <div class="stack" style="--gap:16px;align-items:center">
+      <button class="btn full" data-act="next" style="max-width:260px">Begin a new archive</button>
+      <button class="btn ghost" data-act="next">I have a sealed letter</button>
+      <p class="meta" style="margin-top:16px">Local-first · Nothing leaves this device</p>
+    </div>
+  </section>
+
+  <!-- ── Scene 2 · Passphrase ────────────────────────────────── -->
+  <section class="scene" data-scene="1" style="justify-content:space-between">
+    <div class="stack" style="--gap:32px;margin-top:24px">
+      <div class="stack" style="--gap:14px">
+        <p class="eyebrow">step one of three</p>
+        <h2 class="title">Set a passphrase for this archive.</h2>
+        <p class="body">This unlocks the vault on this device. We don't have a copy — if you lose it, you lose the archive. Write it somewhere safe.</p>
+      </div>
+      <div class="stack" style="--gap:24px">
+        <input class="input" type="text" placeholder="A phrase only you would write" value="the long road home" autocomplete="off">
+        <label class="check"><input type="checkbox" checked><span>Allow biometric unlock on this device.</span></label>
+      </div>
+    </div>
+    <div class="stack" style="--gap:16px;align-items:center">
+      <button class="btn full" data-act="next">Continue</button>
+      <button class="btn ghost" data-act="next">Skip — I'll set this later</button>
+    </div>
+  </section>
+
+  <!-- ── Scene 3 · Who is this for? ──────────────────────────── -->
+  <section class="scene" data-scene="2" style="justify-content:space-between">
+    <div class="stack" style="--gap:24px;margin-top:24px">
+      <div class="stack" style="--gap:12px">
+        <p class="eyebrow">step two of three</p>
+        <h2 class="title">Who do you want to reach?</h2>
+        <p class="body">You can change this anytime. You can add more people later.</p>
+      </div>
+      <div class="stack" style="--gap:10px" id="who-cards">
+        <div class="card selected" data-who="someone">
+          <p class="card-title">Someone specific I love</p>
+          <p class="card-sub">A partner, child, parent, friend, sibling.</p>
+        </div>
+        <div class="card" data-who="future">
+          <p class="card-title">Future versions of people I love</p>
+          <p class="card-sub">Children not yet grown, family not yet born.</p>
+        </div>
+        <div class="card" data-who="unsure">
+          <p class="card-title">I'm not sure yet</p>
+          <p class="card-sub">I just want to start.</p>
+        </div>
+      </div>
+      <button class="btn ghost" style="text-align:left;padding:4px 0">
+        <span style="border-bottom:1px dotted var(--ink-muted);padding-bottom:2px">I'm preserving someone else's stories with their consent →</span>
+      </button>
+    </div>
+    <button class="btn full" data-act="next">Continue</button>
+  </section>
+
+  <!-- ── Scene 4 · First prompt ─────────────────────────────── -->
+  <section class="scene" data-scene="3" style="justify-content:space-between">
+    <div class="stack" style="--gap:24px;margin-top:24px">
+      <div class="stack" style="--gap:14px">
+        <p class="eyebrow">step three of three</p>
+        <h2 class="title">Let's start with <em>one memory</em>.</h2>
+        <p class="body">Speak it, write it, or upload it. There's no length, no structure. You're not performing.</p>
+      </div>
+      <div class="row gap-8">
+        <div class="tile" data-act="next">
+          <div class="tile-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="9" y="3" width="6" height="13" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M5 11C5 14.866 8.13401 18 12 18M12 18C15.866 18 19 14.866 19 11M12 18V21M9 21H15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <div class="tile-label">Speak</div>
+          <div class="tile-sub">audio</div>
+        </div>
+        <div class="tile">
+          <div class="tile-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 4h13l3 3v13H4V4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 11h8M8 15h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <div class="tile-label">Write</div>
+          <div class="tile-sub">text</div>
+        </div>
+        <div class="tile">
+          <div class="tile-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 16l4-5 4 4 3-3 5 5M4 4h16v16H4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="9" cy="9" r="1.5" stroke="currentColor" stroke-width="1.5"/></svg>
+          </div>
+          <div class="tile-label">Upload</div>
+          <div class="tile-sub">photo · video</div>
+        </div>
+      </div>
+
+      <div class="note">
+        <p>"What you want them to know when they're tired."</p>
+        <p style="margin-top:6px;font-style:normal;font-family:var(--sans);font-size:11px;letter-spacing:0.04em;color:var(--ink-muted)">SUGGESTED PROMPT · Tap to choose another →</p>
+      </div>
+
+      <div class="stack" style="--gap:10px">
+        <p class="body" style="font-family:var(--serif);font-style:italic;font-size:13px">Before we begin — is there a specific person you're speaking to? You don't have to name them. We just want to follow your lead.</p>
+        <div class="row gap-8" style="flex-wrap:wrap">
+          <div class="chip selected">Someone in particular</div>
+          <div class="chip">A group</div>
+          <div class="chip">I'd rather not say</div>
+        </div>
+      </div>
+    </div>
+
+    <p class="meta" style="text-align:center">Tap <em style="font-style:italic;font-family:var(--serif);text-transform:none;letter-spacing:0">Speak</em> to begin</p>
+  </section>
+
+  <!-- ── Scene 5 · Capture (recording) ──────────────────────── -->
+  <section class="scene" data-scene="4" id="scene-capture" style="justify-content:space-between;padding-top:56px">
+    <div class="stack" style="--gap:18px">
+      <div class="row between">
+        <button class="btn ghost" style="font-size:12px">←</button>
+        <div class="modepill"><span class="dot-mode"></span>Create</div>
+      </div>
+      <div class="stack" style="--gap:6px;margin-top:8px">
+        <p class="eyebrow">for Maya</p>
+        <h2 class="title" style="font-size:24px">What you want them to know when they're tired.</h2>
+      </div>
+    </div>
+
+    <div class="stack" style="--gap:18px;align-items:center">
+      <div class="waveform idle" id="waveform">
+        <!-- bars injected -->
+      </div>
+      <div class="timer" id="timer">00:00</div>
+      <button class="record-btn" id="recordBtn" aria-label="Record">
+        <span class="record-dot"></span>
+      </button>
+    </div>
+
+    <div class="stack" style="--gap:8px">
+      <p class="eyebrow">transcript</p>
+      <div class="transcript" id="transcript">
+        <span class="word" style="font-style:normal;color:var(--ink-muted)">Tap the circle to begin. Take your time.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Scene 6 · Post-capture ─────────────────────────────── -->
+  <section class="scene" data-scene="5" style="justify-content:space-between;padding-top:56px;overflow-y:auto">
+    <div class="stack" style="--gap:20px">
+      <div class="row between">
+        <button class="btn ghost" style="font-size:12px">←</button>
+        <div class="modepill"><span class="dot-mode"></span>Create</div>
+      </div>
+
+      <div class="stack" style="--gap:10px">
+        <p class="meta">audio · 01:47 · for Maya</p>
+        <h2 class="title" style="font-size:22px"><em>The thing about tired,</em></h2>
+        <div class="memory-wave" style="margin:6px 0">
+          <!-- decorative locked waveform -->
+        </div>
+      </div>
+
+      <p class="body" style="font-family:var(--serif);font-style:italic;font-size:14px;line-height:1.65;color:var(--ink)">"The thing about tired is — it's not the body. It's the part of you that forgets why you started. So I want you to know: you started because you loved something. That doesn't go away just because you can't feel it for a few days. Rest. The love is still there. Tomorrow you'll find it again."</p>
+
+      <div class="stack" style="--gap:8px">
+        <p class="eyebrow">tags · suggested</p>
+        <div class="row gap-8" style="flex-wrap:wrap">
+          <div class="chip gemma selected">warmth</div>
+          <div class="chip gemma selected">daughter</div>
+          <div class="chip gemma">resilience</div>
+          <div class="chip gemma">evening</div>
+          <div class="chip gemma">+ add</div>
+        </div>
+      </div>
+
+      <div class="note">
+        <p>You mentioned love as the thing that doesn't go away. Would you like to record something about where it comes from, while it's close?</p>
+        <p style="margin-top:6px;font-style:normal;font-family:var(--sans);font-size:11px;letter-spacing:0.04em;color:var(--ink-muted)">A GENTLE FOLLOW-UP</p>
+      </div>
+    </div>
+
+    <div class="row gap-12" style="margin-top:16px">
+      <button class="btn full" data-act="next" style="background:transparent;color:var(--ink);border:1px solid var(--rule)">Record one more</button>
+      <button class="btn full" data-act="next">Save and rest</button>
+    </div>
+  </section>
+
+  <!-- ── Scene 7 · Saved ─────────────────────────────────────── -->
+  <section class="scene" data-scene="6" style="justify-content:space-between;padding-top:64px">
+    <div class="stack" style="--gap:0;align-items:center;text-align:center;margin-top:48px">
+      <div class="seal-wrap" style="width:72px;height:72px;margin-bottom:24px"><img src="../assets/seal.png" alt="" class="seal"></div>
+      <h2 class="title"><em>Saved.</em></h2>
+      <p class="body" style="margin-top:8px">This is the beginning.</p>
+    </div>
+
+    <div class="stack" style="--gap:14px">
+      <p class="eyebrow" style="text-align:center">a preview of your home</p>
+
+      <div class="memory-card">
+        <p class="meta" style="margin-bottom:8px">today · audio · 01:47</p>
+        <p class="card-title" style="font-family:var(--serif);font-size:16px">The thing about tired,</p>
+        <div class="memory-wave" id="preview-wave" style="margin:10px 0 6px"></div>
+        <p class="card-sub" style="font-family:var(--sans)">for Maya · warmth · daughter</p>
+      </div>
+
+      <div class="card" style="cursor:default;background:transparent;border-style:dashed">
+        <p class="card-title" style="font-size:14px">Add someone who'll receive these →</p>
+        <p class="card-sub" style="margin-top:4px">Nominees can be people, milestones, or trusted bearers.</p>
+      </div>
+    </div>
+
+    <button class="btn full" data-act="restart">Restart prototype</button>
+  </section>
+
+  <div class="dots" id="dots"></div>
+</div>
+
+<script>
+  // ── state machine ────────────────────────────────────────
+  const scenes = [...document.querySelectorAll('.scene')];
+  const dotsEl = document.getElementById('dots');
+  const prevBtn = document.getElementById('prev');
+  const nextBtn = document.getElementById('next');
+  let current = 0;
+
+  // build dots
+  scenes.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' on' : '');
+    dotsEl.appendChild(d);
+  });
+
+  function go(n) {
+    const next = Math.max(0, Math.min(scenes.length - 1, n));
+    if (next === current) return;
+    scenes[current].classList.remove('active');
+    scenes[next].classList.add('active');
+    [...dotsEl.children].forEach((d, i) => d.classList.toggle('on', i <= next));
+    current = next;
+    prevBtn.toggleAttribute('disabled', current === 0);
+    nextBtn.toggleAttribute('disabled', current === scenes.length - 1);
+    onEnter(current);
+  }
+
+  prevBtn.onclick = () => go(current - 1);
+  nextBtn.onclick = () => go(current + 1);
+
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-act]');
+    if (!t) return;
+    if (t.dataset.act === 'next') go(current + 1);
+    if (t.dataset.act === 'restart') go(0);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); go(current + 1); }
+    if (e.key === 'ArrowLeft') go(current - 1);
+  });
+
+  // "Who" cards
+  document.querySelectorAll('#who-cards .card').forEach(c => {
+    c.onclick = () => {
+      document.querySelectorAll('#who-cards .card').forEach(x => x.classList.remove('selected'));
+      c.classList.add('selected');
+    };
+  });
+
+  // ── Waveform setup ─────────────────────────────────────
+  const waveform = document.getElementById('waveform');
+  const BAR_COUNT = 56;
+  const bars = [];
+  for (let i = 0; i < BAR_COUNT; i++) {
+    const b = document.createElement('div');
+    b.className = 'wave-bar';
+    b.style.height = '3px';
+    waveform.appendChild(b);
+    bars.push(b);
+  }
+
+  // idle gentle breathing
+  let breatheT = 0, idleAnim;
+  function idleBreathe() {
+    breatheT += 0.04;
+    bars.forEach((b, i) => {
+      const ph = Math.sin(breatheT + i * 0.15) * 0.5 + 0.5;
+      const h = 3 + ph * 6;
+      b.style.height = h + 'px';
+    });
+    idleAnim = requestAnimationFrame(idleBreathe);
+  }
+  idleBreathe();
+
+  // recording animation
+  let recordingAnim, recT = 0;
+  function recordWave() {
+    recT += 0.18;
+    bars.forEach((b, i) => {
+      // multi-frequency for organic feel
+      const a = Math.sin(recT + i * 0.4) * 0.5 + 0.5;
+      const c = Math.sin(recT * 0.7 + i * 0.18) * 0.5 + 0.5;
+      const e = Math.random() * 0.35;
+      const env = Math.exp(-Math.pow((i - BAR_COUNT / 2) / 28, 2)) * 0.5 + 0.5;
+      const h = 4 + (a * 0.6 + c * 0.4 + e) * 60 * env;
+      b.style.height = h + 'px';
+    });
+    recordingAnim = requestAnimationFrame(recordWave);
+  }
+
+  // ── Recording flow ──────────────────────────────────────
+  const recordBtn = document.getElementById('recordBtn');
+  const timerEl = document.getElementById('timer');
+  const transcriptEl = document.getElementById('transcript');
+  let recording = false, seconds = 0, secInt;
+  const phrase = "The thing about tired is — it's not the body. It's the part of you that forgets why you started. So I want you to know: you started because you loved something.";
+  const words = phrase.split(' ');
+  let wordIdx = 0, wordInt;
+
+  function startRecording() {
+    recording = true;
+    recordBtn.classList.add('recording');
+    waveform.classList.remove('idle');
+    waveform.classList.add('recording');
+    cancelAnimationFrame(idleAnim);
+    recordWave();
+    seconds = 0;
+    secInt = setInterval(() => {
+      seconds++;
+      const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+      const s = String(seconds % 60).padStart(2, '0');
+      timerEl.textContent = `${m}:${s}`;
+    }, 1000);
+    // streaming transcript
+    transcriptEl.innerHTML = '';
+    wordIdx = 0;
+    wordInt = setInterval(() => {
+      if (wordIdx >= words.length) {
+        clearInterval(wordInt);
+        // auto-end recording after the line
+        setTimeout(() => {
+          if (recording) stopRecording();
+        }, 1200);
+        return;
+      }
+      const w = document.createElement('span');
+      w.className = 'word';
+      w.textContent = words[wordIdx] + ' ';
+      w.style.color = 'var(--ink)';
+      transcriptEl.appendChild(w);
+      wordIdx++;
+    }, 240);
+  }
+
+  function stopRecording() {
+    recording = false;
+    recordBtn.classList.remove('recording');
+    waveform.classList.remove('recording');
+    waveform.classList.add('idle');
+    cancelAnimationFrame(recordingAnim);
+    idleBreathe();
+    clearInterval(secInt);
+    clearInterval(wordInt);
+    // advance to post-capture after a beat
+    setTimeout(() => go(current + 1), 800);
+  }
+
+  recordBtn.onclick = () => {
+    if (!recording) startRecording();
+    else stopRecording();
+  };
+
+  // ── Post-capture decorative locked waveform ──────────────
+  function paintLockedWave(target, opts = {}) {
+    const N = opts.n || 60;
+    target.innerHTML = '';
+    for (let i = 0; i < N; i++) {
+      const s = document.createElement('span');
+      const env = Math.exp(-Math.pow((i - N / 2) / (N / 2.4), 2));
+      const noise = Math.random() * 0.5 + 0.5;
+      const h = 4 + env * 26 * noise + Math.sin(i * 0.6) * 2;
+      s.style.height = Math.max(2, h) + 'px';
+      target.appendChild(s);
+    }
+  }
+  document.querySelectorAll('.memory-wave').forEach(el => paintLockedWave(el));
+
+  function onEnter(idx) {
+    // reset capture state when entering capture scene
+    if (idx === 4) {
+      recording = false;
+      seconds = 0;
+      timerEl.textContent = '00:00';
+      transcriptEl.innerHTML = '<span class="word" style="font-style:normal;color:var(--ink-muted)">Tap the circle to begin. Take your time.</span>';
+      recordBtn.classList.remove('recording');
+      waveform.classList.add('idle');
+      waveform.classList.remove('recording');
+    }
+  }
+</script>
+</body>
+</html>
