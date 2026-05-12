@@ -8,6 +8,8 @@ if (!url) {
 declare global {
   // eslint-disable-next-line no-var
   var __heirloomSql: ReturnType<typeof postgres> | undefined;
+  // eslint-disable-next-line no-var
+  var __heirloomSqlAdmin: ReturnType<typeof postgres> | undefined;
 }
 
 export const sql =
@@ -22,6 +24,31 @@ export const sql =
 if (process.env.NODE_ENV !== "production") {
   globalThis.__heirloomSql = sql;
 }
+
+/**
+ * Admin/superuser connection. **Use sparingly.** Only for trusted
+ * server-side code that legitimately needs to read across RLS tables
+ * before a session exists — bootstrap, magic-link/passphrase auth
+ * discovery, and similar. Never to serve user requests directly.
+ *
+ * Routes that already have a session should always go through `sql` +
+ * `withRls()` so RLS is the single source of truth for access control.
+ */
+export const sqlAdmin: ReturnType<typeof postgres> | null = (() => {
+  if (globalThis.__heirloomSqlAdmin) return globalThis.__heirloomSqlAdmin;
+  const adminUrl = process.env.DATABASE_ADMIN_URL;
+  if (!adminUrl) return null;
+  const client = postgres(adminUrl, {
+    max: 2,
+    idle_timeout: 30,
+    connect_timeout: 10,
+    transform: { undefined: null },
+  });
+  if (process.env.NODE_ENV !== "production") {
+    globalThis.__heirloomSqlAdmin = client;
+  }
+  return client;
+})();
 
 /**
  * Run a callback inside a transaction with the per-request RLS GUCs set.
