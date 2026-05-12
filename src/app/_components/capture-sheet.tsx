@@ -103,7 +103,10 @@ function TranscriptSkeleton() {
 
 export function CaptureSheet(props: {
   mode: "voice" | "note";
-  prompt: string;
+  /** Optional. When set the sheet shows it as the topic the user is
+   *  responding to (from the prompt-of-day card). When null the capture
+   *  is free-form and the prompt block is hidden. */
+  prompt: string | null;
   onClose: () => void;
   onSaved: (cap: HomeCapture) => void;
 }) {
@@ -136,13 +139,21 @@ export function CaptureSheet(props: {
         </div>
 
         <div className="px-5 pb-6 pt-2">
-          <p className="font-serif text-[17px] leading-[1.35] text-ink-soft mb-5">
-            {props.prompt}
-          </p>
+          {props.prompt && (
+            <div className="mb-5">
+              <p className="p-meta mb-1.5">Prompt</p>
+              <p className="font-serif italic text-[17px] leading-[1.35] text-ink-soft">
+                {props.prompt}
+              </p>
+            </div>
+          )}
           {props.mode === "voice" ? (
-            <VoiceCapture prompt={props.prompt} onSaved={props.onSaved} />
+            <VoiceCapture
+              prompt={props.prompt}
+              onSaved={props.onSaved}
+            />
           ) : (
-            <NoteCapture onSaved={props.onSaved} />
+            <NoteCapture prompt={props.prompt} onSaved={props.onSaved} />
           )}
         </div>
       </div>
@@ -157,7 +168,7 @@ export function CaptureSheet(props: {
 function VoiceCapture({
   onSaved,
 }: {
-  prompt: string;
+  prompt: string | null;
   onSaved: (cap: HomeCapture) => void;
 }) {
   const [state, setState] = useState<
@@ -416,7 +427,14 @@ function formatElapsed(ms: number): string {
    Note capture — borderless textarea + commit
    ============================================================ */
 
-function NoteCapture({ onSaved }: { onSaved: (cap: HomeCapture) => void }) {
+function NoteCapture({
+  prompt,
+  onSaved,
+}: {
+  prompt: string | null;
+  onSaved: (cap: HomeCapture) => void;
+}) {
+  const [title, setTitle] = useState("");
   const [text, setText] = useState("");
   const [state, setState] = useState<
     "typing" | "saving" | "processing" | "ready"
@@ -424,6 +442,10 @@ function NoteCapture({ onSaved }: { onSaved: (cap: HomeCapture) => void }) {
   const [tags, setTags] = useState<{ kind: string; value: string }[]>([]);
   const [stage, setStage] = useState<Stage | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // When the user is responding to a prompt, we don't let them retitle —
+  // the prompt itself stands in as the topic. Free-form notes (chip-launch)
+  // can take an explicit title.
+  const titleEditable = !prompt;
   const dots = useBreathDots();
 
   async function commit() {
@@ -433,7 +455,11 @@ function NoteCapture({ onSaved }: { onSaved: (cap: HomeCapture) => void }) {
     const r = await fetch("/api/capture", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ kind: "note", body: text.trim() }),
+      body: JSON.stringify({
+        kind: "note",
+        body: text.trim(),
+        title: titleEditable ? title.trim() || null : null,
+      }),
     });
     if (!r.ok) {
       setError("Save failed.");
@@ -470,12 +496,25 @@ function NoteCapture({ onSaved }: { onSaved: (cap: HomeCapture) => void }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {titleEditable && (
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="A title, if one wants to come"
+          maxLength={80}
+          disabled={state !== "typing"}
+          className="w-full font-serif text-[22px] font-light text-ink bg-transparent border-none outline-none placeholder:text-ink-muted placeholder:italic"
+          aria-label="Title"
+        />
+      )}
       <textarea
         className="w-full font-serif text-[17px] leading-[1.55] text-ink bg-transparent border-none outline-none resize-none min-h-[240px] placeholder:text-ink-muted placeholder:italic"
         placeholder="Take your time. Begin when you're ready."
         value={text}
         onChange={(e) => setText(e.target.value)}
-        autoFocus
+        autoFocus={!titleEditable}
+        disabled={state !== "typing"}
       />
       <div className="flex items-center justify-between">
         <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-fade">

@@ -1,30 +1,14 @@
 import { sqlAdmin, withRls } from "@/lib/db";
 import { errorResponse, requireSession } from "@/lib/auth";
+import { generatePromptOfDay } from "@/lib/prompts";
 
 export const dynamic = "force-dynamic";
-
-const FALLBACK_PROMPTS = [
-  "The first time you remember feeling proud of yourself.",
-  "A smell from your grandmother's kitchen.",
-  "Something small you do that no one else knows about.",
-  "What you wore the day everything changed.",
-  "What you want them to know when they're tired.",
-  "A song that always finds its way back to you.",
-];
 
 function timeOfDay(): "morning" | "afternoon" | "evening" {
   const h = new Date().getHours();
   if (h < 12) return "morning";
   if (h < 18) return "afternoon";
   return "evening";
-}
-
-function pickPrompt(seed: string): string {
-  const date = new Date();
-  const day = date.getUTCFullYear() * 1000 + date.getUTCMonth() * 32 + date.getUTCDate();
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return FALLBACK_PROMPTS[(day + h) % FALLBACK_PROMPTS.length];
 }
 
 export async function GET() {
@@ -61,7 +45,20 @@ export async function GET() {
             (SELECT COUNT(*)::int FROM captures WHERE vault_id = ${session.vault_id}) AS captures,
             (SELECT COUNT(*)::int FROM nominees WHERE vault_id = ${session.vault_id}) AS nominees
         `;
-        return { user, recent, counts };
+        const recentTopics = await tx<{ value: string }[]>`
+          SELECT DISTINCT value
+          FROM capture_tags ct
+          JOIN captures c ON c.id = ct.capture_id
+          WHERE c.vault_id = ${session.vault_id} AND ct.kind = 'topic'
+          ORDER BY value
+          LIMIT 8
+        `;
+        return { user, recent, counts, recentTopics };
+      });
+
+      const promptText = await generatePromptOfDay({
+        recentTopics: data.recentTopics.map((r) => r.value),
+        recentCount: data.counts.captures,
       });
 
       return Response.json({
@@ -70,10 +67,7 @@ export async function GET() {
           time_of_day: timeOfDay(),
           display_name: data.user.display_name,
         },
-        prompt_of_day: {
-          id: "fallback",
-          text: pickPrompt(session.vault_id),
-        },
+        prompt_of_day: { id: "gemma", text: promptText },
         recent_captures: data.recent,
         stats: data.counts,
       });

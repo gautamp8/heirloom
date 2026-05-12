@@ -83,11 +83,13 @@ async function commitNote(req: Request, session: Session): Promise<string> {
   if (body.kind !== "note") throw new HttpError(400, "bad_kind");
   if (!body.body || !body.body.trim()) throw new HttpError(400, "empty_body");
 
+  const explicitTitle = body.title?.trim() || null;
+
   return withRls(session.user_id, session.role, async (tx) => {
     const [row] = await tx<{ id: string }[]>`
       INSERT INTO captures (vault_id, kind, status, body, title)
       VALUES (${session.vault_id}, 'note', 'processing',
-              ${body.body!.trim()}, ${body.title ?? null})
+              ${body.body!.trim()}, ${explicitTitle})
       RETURNING id
     `;
     return row.id;

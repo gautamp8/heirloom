@@ -4,6 +4,7 @@ import { transcribeAudio } from "./whisper";
 import { chunkText } from "./chunking";
 import { embedAll, vectorLiteral } from "./embed";
 import { tagCapture, type CaptureTags } from "./tagging";
+import { generateNoteTitle } from "./prompts";
 import type { Session } from "./auth";
 
 type Kind = "audio" | "photo" | "note" | "video";
@@ -29,9 +30,10 @@ export async function runCapturePipeline(
           kind: Kind;
           body: string | null;
           blob_url: string | null;
+          title: string | null;
         }[]
       >`
-        SELECT id, vault_id, kind, body, blob_url FROM captures WHERE id = ${captureId}
+        SELECT id, vault_id, kind, body, blob_url, title FROM captures WHERE id = ${captureId}
       `;
       return c;
     });
@@ -94,7 +96,22 @@ export async function runCapturePipeline(
       });
     }
 
-    // 4) Status -> ready
+    // 4) Auto-title — if the creator didn't supply one, ask Gemma for a
+    //    short phrase in their own register. Best-effort; never blocks ready.
+    if (!cap.title && text.trim().length >= 12) {
+      try {
+        const generated = await generateNoteTitle(text);
+        if (generated) {
+          await withRls(session.user_id, session.role, async (tx) => {
+            await tx`UPDATE captures SET title = ${generated} WHERE id = ${cap.id} AND title IS NULL`;
+          });
+        }
+      } catch (e) {
+        console.warn("[pipeline] title generation failed", e);
+      }
+    }
+
+    // 5) Status -> ready
     await withRls(session.user_id, session.role, async (tx) => {
       await tx`UPDATE captures SET status = 'ready' WHERE id = ${cap.id}`;
     });

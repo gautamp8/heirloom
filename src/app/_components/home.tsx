@@ -17,8 +17,29 @@ export function Home(props: {
   recent: HomeCapture[];
   stats: { captures: number; nominees: number };
 }) {
-  const [sheetMode, setSheetMode] = useState<"voice" | "note" | null>(null);
+  // `sheet` is null when closed; otherwise carries the mode + an optional
+  // prompt to seed the capture with. Voice/Note chips open with no prompt
+  // (free-form). The prompt-card buttons open with the prompt-of-day.
+  const [sheet, setSheet] = useState<{
+    mode: "voice" | "note";
+    prompt?: string;
+  } | null>(null);
   const [recent, setRecent] = useState(props.recent);
+  const [prompt, setPrompt] = useState(props.prompt.text);
+  const [shuffling, setShuffling] = useState(false);
+
+  async function shufflePrompt() {
+    setShuffling(true);
+    try {
+      const r = await fetch("/api/prompt/shuffle");
+      if (r.ok) {
+        const d = (await r.json()) as { text: string };
+        if (d.text) setPrompt(d.text);
+      }
+    } finally {
+      setShuffling(false);
+    }
+  }
 
   return (
     <>
@@ -27,8 +48,6 @@ export function Home(props: {
         <p className="p-meta">{todayLong()}</p>
         <h1 className="font-serif font-normal text-[34px] leading-[1.05] tracking-[-0.01em] mt-1.5 text-ink">
           {TOD_LABELS[props.greeting.time_of_day]},
-          {/* Extra breathing room — italic display "E" leans into the comma
-              otherwise. A normal space + tracking on the em handles it. */}
           <em
             className="italic text-wax"
             style={{ marginLeft: "0.28em", letterSpacing: "0.005em" }}
@@ -37,22 +56,50 @@ export function Home(props: {
           </em>
         </h1>
 
-        {/* Prompt of the day */}
-        <article className="prompt-card mt-5 rounded-[14px] border border-rule p-5 bg-paper-2 relative">
-          <p className="p-meta">Prompt of the day</p>
-          <p className="font-serif italic text-[21px] leading-[1.3] mt-2.5 mb-4 text-ink tracking-[-0.005em] text-wrap-pretty">
-            {props.prompt.text}
+        {/* A place to begin — rotates every visit; "Another" reshuffles */}
+        <article className="mt-5 rounded-[14px] border border-rule p-5 bg-paper-2 relative">
+          <div className="flex items-center justify-between mb-2.5">
+            <p className="p-meta">A place to begin</p>
+            <button
+              type="button"
+              onClick={shufflePrompt}
+              disabled={shuffling}
+              aria-label="Suggest another"
+              className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-muted hover:text-ink disabled:opacity-50 flex items-center gap-1 transition-colors"
+            >
+              {shuffling ? "Listening…" : "Another"}
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{
+                  transformOrigin: "center",
+                  animation: shuffling ? "spin 1.4s linear infinite" : "none",
+                }}
+              >
+                <path d="M2.5 8a5.5 5.5 0 1 0 1.3-3.55" />
+                <path d="M2.5 2v3h3" />
+              </svg>
+            </button>
+          </div>
+          <p className="font-serif italic text-[21px] leading-[1.3] mb-4 text-ink tracking-[-0.005em] text-wrap-pretty">
+            {prompt}
           </p>
           <div className="flex items-center gap-3.5">
             <button
               className="btn"
-              onClick={() => setSheetMode("voice")}
+              onClick={() => setSheet({ mode: "voice", prompt })}
             >
               Speak it
             </button>
             <button
               className="btn-ghost"
-              onClick={() => setSheetMode("note")}
+              onClick={() => setSheet({ mode: "note", prompt })}
             >
               Or write
             </button>
@@ -68,13 +115,13 @@ export function Home(props: {
             label="Voice"
             sub="A recording"
             icon={<IconMic />}
-            onClick={() => setSheetMode("voice")}
+            onClick={() => setSheet({ mode: "voice" })}
           />
           <CapChip
             label="Note"
             sub="Typed lines"
             icon={<IconNote />}
-            onClick={() => setSheetMode("note")}
+            onClick={() => setSheet({ mode: "note" })}
           />
           <CapChip label="Photo" sub="With caption" icon={<IconPhoto />} disabled />
           <CapChip label="Video" sub="Short clip" icon={<IconVideo />} disabled />
@@ -111,14 +158,14 @@ export function Home(props: {
         <div className="h-8" />
       </section>
 
-      {sheetMode && (
+      {sheet && (
         <CaptureSheet
-          mode={sheetMode}
-          prompt={props.prompt.text}
-          onClose={() => setSheetMode(null)}
+          mode={sheet.mode}
+          prompt={sheet.prompt ?? null}
+          onClose={() => setSheet(null)}
           onSaved={(cap) => {
             setRecent((r) => [cap, ...r]);
-            setSheetMode(null);
+            setSheet(null);
           }}
         />
       )}
