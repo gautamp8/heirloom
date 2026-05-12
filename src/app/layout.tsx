@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Newsreader, Geist, JetBrains_Mono } from "next/font/google";
+import { Source_Serif_4, Geist, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const newsreader = Newsreader({
-  variable: "--font-newsreader",
+const sourceSerif = Source_Serif_4({
+  variable: "--font-source-serif",
   subsets: ["latin"],
   weight: ["200", "300", "400", "500"],
   style: ["normal", "italic"],
@@ -44,9 +44,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${newsreader.variable} ${geist.variable} ${jetbrainsMono.variable}`}
+      className={`${sourceSerif.variable} ${geist.variable} ${jetbrainsMono.variable}`}
     >
-      <body className="min-h-dvh">{children}</body>
+      <body className="min-h-dvh bg-paper text-ink">{children}</body>
     </html>
   );
 }

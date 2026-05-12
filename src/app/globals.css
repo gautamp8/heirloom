@@ -1,26 +1,268 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ============================================================
+   Heirloom — Warm Paper design system
+   Source of truth:
+     - design-system/Heirloom Design System.html
+     - design-system/prototypes/Creator Onboarding.html
+   ------------------------------------------------------------
+   `@theme static` (vs vanilla `@theme`) forces every variable
+   here to be emitted on :root regardless of whether a Tailwind
+   utility consumes it — necessary because we mix Tailwind
+   utilities (`bg-paper`) with CSS primitives that reach for
+   `var(--paper)` directly.
+   ============================================================ */
+
+@theme static {
+  /* Paper */
+  --color-paper: #faf7f0;
+  --color-paper-2: #f2ebdb;
+  --color-paper-3: #e8dfc8;
+  --color-vellum: #d8cba8;
+  --color-bg-raised: #fffdf7;
+
+  /* Ink */
+  --color-ink: #1f1b14;
+  --color-ink-soft: #4a4338;
+  --color-ink-muted: #8c8472;
+  --color-ink-fade: #9c9075;
+
+  /* Accents — wax is ceremonial only (Record/Designate/Release) */
+  --color-sepia: #5c3a21;
+  --color-wax: #7d2a1a;
+  --color-wax-2: #5c1f12;
+  --color-wax-soft: #a23f2a;
+  --color-candle: #c9892a;
+  --color-moss: #5f6b43;
+
+  /* Rules */
+  --color-rule: rgba(31, 27, 20, 0.10);
+  --color-rule-soft: rgba(31, 27, 20, 0.06);
+  --color-rule-strong: rgba(31, 27, 20, 0.22);
+
+  /* Font families — bound to the next/font/google CSS variables
+     declared in layout.tsx via the className= chain. */
+  --font-serif: var(--font-source-serif), "Source Serif 4", Georgia, serif;
+  --font-sans: var(--font-geist), ui-sans-serif, -apple-system, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, Menlo, monospace;
+
+  /* Type scale */
+  --text-display: 40px;
+  --text-h1: 56px;
+  --text-h2: 28px;
+  --text-h3: 22px;
+  --text-body: 14px;
+  --text-small: 13px;
+  --text-meta: 10px;
+  --text-eyebrow: 10px;
+
+  /* Spacing tokens (in addition to Tailwind's default --spacing scale) */
+  --spacing-cinema: 96px;
+
+  /* Radii — `rounded-pill` utility */
+  --radius-pill: 9999px;
+
+  /* Shadows */
+  --shadow-paper-1: 0 1px 0 rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-paper-2: 0 1px 0 rgba(0, 0, 0, 0.05), 0 6px 18px rgba(0, 0, 0, 0.06);
+  --shadow-paper-3: 0 2px 0 rgba(0, 0, 0, 0.06), 0 22px 50px -18px rgba(31, 27, 20, 0.22);
+  --shadow-wax: 0 8px 24px -8px rgba(125, 42, 26, 0.5);
+
+  /* Motion */
+  --ease-paper: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-fold: cubic-bezier(0.55, 0.05, 0.25, 1);
+  --duration-quick: 240ms;
+  --duration-calm: 520ms;
+  --duration-cinema: 1100ms;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ============================================================
+   Base
+   ============================================================ */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ============================================================
+   Type primitives — direct ports from the prototype CSS so
+   typography matches the design exactly.
+   ============================================================ */
+
+.h-display {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--text-display);
+  line-height: 1.04;
+  letter-spacing: -0.01em;
+  margin: 0;
+  font-variation-settings: "opsz" 36;
+  color: var(--color-ink);
+}
+.h-display em {
+  font-style: italic;
+  font-variation-settings: "opsz" 60;
+}
+
+.h-title {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--text-h2);
+  line-height: 1.12;
+  letter-spacing: -0.005em;
+  margin: 0;
+  color: var(--color-ink);
+}
+.h-title em {
+  font-style: italic;
+}
+
+.p-body {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: var(--text-body);
+  line-height: 1.55;
+  color: var(--color-ink-soft);
+  margin: 0;
+  text-wrap: pretty;
+}
+
+.p-meta {
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+  margin: 0;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+
+.voice {
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--color-sepia);
+}
+
+/* ============================================================
+   Button primitives — ported from the prototype.
+   Primary action = ink-dark (NOT wax — wax is ceremonial only).
+   ============================================================ */
+
+.btn {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 14px;
+  padding: 16px 24px;
+  border-radius: var(--radius-pill);
+  background: var(--color-ink);
+  color: var(--color-paper);
+  letter-spacing: 0.01em;
+  transition: transform 120ms ease, background 200ms ease;
+}
+.btn:hover {
+  background: var(--color-wax);
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.btn-full {
+  width: 100%;
+}
+.btn-ghost {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: var(--color-ink-soft);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 13px;
+  padding: 8px 0;
+  transition: color 200ms ease;
+}
+.btn-ghost:hover {
+  color: var(--color-wax);
+}
+
+/* ============================================================
+   Inputs
+   ============================================================ */
+
+.input {
+  width: 100%;
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 300;
+  padding: 14px 0;
+  border: none;
+  border-bottom: 1px solid var(--color-rule);
+  background: transparent;
+  color: var(--color-ink);
+  outline: none;
+  letter-spacing: 0.04em;
+}
+.input:focus {
+  border-bottom-color: var(--color-wax);
+}
+.input::placeholder {
+  color: var(--color-ink-muted);
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
+
+/* ============================================================
+   Stage — the paper-textured background panel used in scenes
+   ============================================================ */
+
+.stage {
+  position: relative;
+  background: var(--color-paper);
+  isolation: isolate;
+}
+.stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 20% 10%, rgba(255, 243, 210, 0.35), transparent 60%),
+    radial-gradient(ellipse 80% 60% at 90% 90%, rgba(180, 120, 40, 0.06), transparent 60%);
+  mix-blend-mode: multiply;
+}
+
+/* Selection */
+::selection {
+  background: var(--color-paper-3);
+  color: var(--color-ink);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
