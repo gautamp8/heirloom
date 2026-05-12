@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 type Citation = { capture_id: string; snippet: string };
 
@@ -109,6 +110,12 @@ export function ReflectionRoom() {
   const showEmpty = s.status === "ungrounded" || s.answer === "I don't have that in the archive. Try asking another way?";
   const showAnswer = !!s.answer && !showEmpty;
   const citations = uniqueCitations(s.claims);
+  // "Listening" = we know we have grounded matches, but the model hasn't
+  // produced anything yet. Gemma 4 e4b can take 5–10s on first synthesis,
+  // so this state needs to feel like the system is paying attention rather
+  // than frozen.
+  const isListening =
+    s.status === "answering" && s.claims.length === 0 && !s.answer;
 
   return (
     <div className="flex-1 flex flex-col relative z-10">
@@ -137,9 +144,24 @@ export function ReflectionRoom() {
           </div>
         )}
 
-        {s.status === "retrieving" && (
-          <p className="p-meta">Searching the archive…</p>
-        )}
+        <AnimatePresence>
+          {(s.status === "retrieving" || isListening) && (
+            <motion.div
+              key="progress"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.5, ease: [0.22, 0.61, 0.36, 1] }}
+              className="max-w-[560px] mx-auto pt-2"
+            >
+              <ProgressStatus
+                state={s.status === "retrieving" ? "retrieving" : "listening"}
+                hits={s.hitCount}
+              />
+              <SkeletonLines pulsing={isListening} />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {showEmpty && (
           <div className="max-w-[520px] mx-auto pt-8">
@@ -255,6 +277,66 @@ function parseEvent(chunk: string): { name: string; data: unknown } | null {
   } catch {
     return null;
   }
+}
+
+/** Calm progress hint between submit and first claim. Two phases:
+ *  - retrieving: we're embedding + searching pgvector
+ *  - listening:  matches found, Gemma 4 is composing the answer */
+function ProgressStatus({
+  state,
+  hits,
+}: {
+  state: "retrieving" | "listening";
+  hits: number | null;
+}) {
+  const dots = useBreathDot();
+  const label =
+    state === "retrieving"
+      ? `Searching the archive${dots}`
+      : `Found ${hits ?? "a few"} ${hits === 1 ? "memory" : "memories"}. Listening for an answer${dots}`;
+  return (
+    <p className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted mb-5">
+      {label}
+    </p>
+  );
+}
+
+/** Soft pulsing line placeholders mirroring the shape of the final answer.
+ *  Pulses at ~1.4 s (calm — matches the design system's breathing waveform
+ *  cadence). When `pulsing` is false the bars stay flat (just present). */
+function SkeletonLines({ pulsing }: { pulsing: boolean }) {
+  return (
+    <div className="flex flex-col gap-3 mt-2">
+      {[88, 96, 72, 84, 62].map((w, i) => (
+        <motion.div
+          key={i}
+          className="h-[14px] rounded-[4px]"
+          style={{ width: `${w}%`, background: "var(--color-rule)" }}
+          animate={
+            pulsing
+              ? { opacity: [0.35, 0.7, 0.35] }
+              : { opacity: 0.45 }
+          }
+          transition={{
+            duration: 1.6,
+            ease: "easeInOut",
+            repeat: pulsing ? Infinity : 0,
+            delay: i * 0.12,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** Three dots that cycle every 500 ms — calmer than a real spinner. */
+function useBreathDot(): string {
+  const [n, setN] = useState(1);
+  useEffect(() => {
+    const id = window.setInterval(() => setN((v) => (v % 3) + 1), 500);
+    return () => clearInterval(id);
+  }, []);
+  return ".".repeat(n);
 }
 
 function uniqueCitations(
