@@ -26,8 +26,15 @@ export function Home(props: {
         {/* Greeting */}
         <p className="p-meta">{todayLong()}</p>
         <h1 className="font-serif font-normal text-[34px] leading-[1.05] tracking-[-0.01em] mt-1.5 text-ink">
-          {TOD_LABELS[props.greeting.time_of_day]},{" "}
-          <em className="italic text-wax">{props.greeting.display_name}</em>
+          {TOD_LABELS[props.greeting.time_of_day]},
+          {/* Extra breathing room — italic display "E" leans into the comma
+              otherwise. A normal space + tracking on the em handles it. */}
+          <em
+            className="italic text-wax"
+            style={{ marginLeft: "0.28em", letterSpacing: "0.005em" }}
+          >
+            {props.greeting.display_name}
+          </em>
         </h1>
 
         {/* Prompt of the day */}
