@@ -208,3 +208,19 @@ Never cut: capture commit, Reflection, seal-break, executor unlock. Those four a
 - A first-time visitor to the public URL can read about the project, browse a seeded archive, ask Reflection a real question, and tap a citation chip back to the original audio — all without a login.
 
 That is v1.
+
+---
+
+## Deferred items (revisit before public release)
+
+Things explicitly skipped or partially shipped during the agent-paced build.
+Each entry names the phase, the reason for deferral, and the cost to finish.
+
+| Phase | Item | Status | Reason | Cost to finish |
+|---|---|---|---|---|
+| B5 | **IndexedDB drafts via Dexie** — write audio blob to client-side persistent storage *before* network upload so a closed tab or lost connection doesn't drop a recording | not started | Not on the demo critical path; demo recordings happen on stable WiFi where this never fires. Strongly affects real-world trust ("this will not be lost") | ~1 hr; 200–300 lines |
+| B (polish) | **Capture status SSE granularity** — pipeline currently coalesces stages so the SSE jumps `uploaded → embedded → ready` without surfacing `transcribed` / `tagged` as separate UI moments | partial | The transitions are emitted by the pipeline but the polling loop in `/api/capture/[id]/status` is too coarse to consistently catch each one before the next overwrites it | ~30 min; replace polling with an event table or pg LISTEN/NOTIFY |
+| A7 | **CI workflow** (`.github/workflows/ci.yaml`) — lint + typecheck + tests on every PR | not started | No PRs yet; local dev runs the typecheck manually | ~20 min; one yaml file |
+| C9 | **Guardrail tests as vitest suite** — codify the seven non-negotiables from `GUARDRAILS.md §1` plus the full `PROMPT_INJECTION_TESTS.md` corpus | not started | Verifying visually first to land the working surface; tests will pin the working behavior | ~2 hr; one test file per guardrail |
+| C (polish) | **Reflection answer history** — past Reflection queries cached and re-displayable | not started | Single-turn is enough for the demo; multi-turn is a v2 affordance | ~1 hr |
+| C | **Recalibrate `REFLECTION_SIMILARITY_THRESHOLD`** | shipped at 0.40 (was 0.55 in design) | EmbeddingGemma's similarity distribution is lower than the model the original 0.55 was tuned against. Current value matches the 4-capture dev corpus; needs to be re-validated when the seed corpus is in place | ~30 min; collect 20 known-match + 20 known-miss queries, plot, pick the trough between distributions |

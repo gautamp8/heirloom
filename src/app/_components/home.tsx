@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { CaptureSheet } from "./capture-sheet";
 import type { HomeCapture } from "../page";
 
@@ -71,6 +72,19 @@ export function Home(props: {
           <CapChip label="Photo" sub="With caption" icon={<IconPhoto />} disabled />
           <CapChip label="Video" sub="Short clip" icon={<IconVideo />} disabled />
         </div>
+
+        {/* Reflection entry */}
+        <Link
+          href="/reflect"
+          className="mt-6 block rounded-[14px] border border-rule p-4 bg-bg-raised flex items-center justify-between hover:border-ink-muted transition-colors"
+        >
+          <span className="font-serif italic text-[16px] text-ink">
+            Ask the archive a question
+          </span>
+          <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-fade">
+            Reflect →
+          </span>
+        </Link>
 
         {/* Recent */}
         <h3 className="mt-7 mb-3 font-mono text-[10px] tracking-[0.18em] uppercase text-ink-muted font-medium flex items-center justify-between">
