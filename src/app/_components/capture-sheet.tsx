@@ -1,9 +1,105 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import type { HomeCapture } from "../page";
 
 type Stage = "uploaded" | "transcribed" | "embedded" | "tagged" | "ready" | "failed";
+
+/** Stage-aware copy. Calm verbs, no productivity-app urgency. */
+function pipelineLabel(
+  kind: "audio" | "note",
+  stage: Stage | null,
+): string {
+  if (kind === "audio") {
+    switch (stage) {
+      case null:
+      case "uploaded":
+        return "Saving the recording…";
+      case "transcribed":
+        return "Listening for the words…";
+      case "embedded":
+        return "Tracing the threads…";
+      case "tagged":
+        return "Almost there…";
+      case "ready":
+        return "Saved. This is the beginning.";
+      case "failed":
+        return "Something went wrong. The recording is still kept.";
+    }
+  }
+  switch (stage) {
+    case null:
+    case "uploaded":
+      return "Saving your words…";
+    case "embedded":
+      return "Reading what you wrote…";
+    case "transcribed":
+    case "tagged":
+      return "Tracing the threads…";
+    case "ready":
+      return "Saved. This is the beginning.";
+    case "failed":
+      return "Something went wrong. The note is still kept.";
+  }
+}
+
+/** Calm three-dot animator (matches Reflection's progress style). */
+function useBreathDots(): string {
+  const [n, setN] = useState(1);
+  useEffect(() => {
+    const id = window.setInterval(() => setN((v) => (v % 3) + 1), 500);
+    return () => clearInterval(id);
+  }, []);
+  return ".".repeat(n);
+}
+
+/** Pulsing chip placeholders sized like real tag chips. Used while the
+ *  pipeline is past the embedding stage but tags haven't landed yet. */
+function TagChipSkeleton() {
+  const widths = [56, 72, 64, 48, 80];
+  return (
+    <div className="flex flex-wrap gap-2 justify-center">
+      {widths.map((w, i) => (
+        <motion.span
+          key={i}
+          className="inline-block h-[24px] rounded-full border border-rule-soft"
+          style={{ width: w, background: "var(--color-rule)", opacity: 0.4 }}
+          animate={{ opacity: [0.25, 0.55, 0.25] }}
+          transition={{
+            duration: 1.6,
+            ease: "easeInOut",
+            repeat: Infinity,
+            delay: i * 0.1,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** Pulsing transcript-shaped placeholder for the gap before Whisper finishes. */
+function TranscriptSkeleton() {
+  const widths = [88, 96, 72];
+  return (
+    <div className="flex flex-col gap-2 w-full">
+      {widths.map((w, i) => (
+        <motion.div
+          key={i}
+          className="h-[12px] rounded-[3px]"
+          style={{ width: `${w}%`, background: "var(--color-rule)" }}
+          animate={{ opacity: [0.3, 0.6, 0.3] }}
+          transition={{
+            duration: 1.6,
+            ease: "easeInOut",
+            repeat: Infinity,
+            delay: i * 0.12,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 export function CaptureSheet(props: {
   mode: "voice" | "note";
@@ -71,7 +167,9 @@ function VoiceCapture({
   const [elapsedMs, setElapsedMs] = useState(0);
   const [transcript, setTranscript] = useState<string | null>(null);
   const [tags, setTags] = useState<{ kind: string; value: string }[]>([]);
+  const [stage, setStage] = useState<Stage | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const dots = useBreathDots();
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -185,8 +283,9 @@ function VoiceCapture({
     // Subscribe to SSE
     const es = new EventSource(`/api/capture/${capture_id}/status`);
     es.addEventListener("stage", (ev) => {
-      const { stage } = JSON.parse((ev as MessageEvent).data) as { stage: Stage };
-      if (stage === "ready") setState("ready");
+      const { stage: s } = JSON.parse((ev as MessageEvent).data) as { stage: Stage };
+      setStage(s);
+      if (s === "ready") setState("ready");
     });
     es.addEventListener("transcript", (ev) => {
       const { text } = JSON.parse((ev as MessageEvent).data) as { text: string };
@@ -265,29 +364,25 @@ function VoiceCapture({
         </button>
       )}
 
-      {state === "uploading" && (
-        <p className="p-meta">Saving…</p>
-      )}
-
-      {state === "processing" && (
-        <div className="flex flex-col items-center gap-3 w-full">
-          <p className="p-meta">Transcribing…</p>
-          {transcript && (
-            <p className="font-serif italic text-[15px] leading-[1.6] text-ink-soft text-wrap-pretty">
-              {transcript}
-            </p>
-          )}
-        </div>
-      )}
-
-      {state === "ready" && (
+      {(state === "uploading" || state === "processing" || state === "ready") && (
         <div className="flex flex-col items-center gap-4 w-full">
-          {transcript && (
+          <p className="p-meta">
+            {state === "ready"
+              ? pipelineLabel("audio", "ready")
+              : pipelineLabel("audio", stage) + (state === "ready" ? "" : dots.slice(0, dots.length - 1))}
+          </p>
+
+          {/* Transcript: skeleton until Whisper completes, then real text */}
+          {transcript ? (
             <p className="font-serif italic text-[15px] leading-[1.6] text-ink-soft text-wrap-pretty">
               {transcript}
             </p>
+          ) : (
+            state !== "ready" && <TranscriptSkeleton />
           )}
-          {tags.length > 0 && (
+
+          {/* Tags: skeleton chips once the pipeline has chunked the transcript */}
+          {tags.length > 0 ? (
             <div className="flex flex-wrap gap-2 justify-center">
               {tags.map((t) => (
                 <span
@@ -299,6 +394,8 @@ function VoiceCapture({
                 </span>
               ))}
             </div>
+          ) : (
+            (stage === "embedded" || stage === "tagged") && <TagChipSkeleton />
           )}
         </div>
       )}
@@ -325,7 +422,9 @@ function NoteCapture({ onSaved }: { onSaved: (cap: HomeCapture) => void }) {
     "typing" | "saving" | "processing" | "ready"
   >("typing");
   const [tags, setTags] = useState<{ kind: string; value: string }[]>([]);
+  const [stage, setStage] = useState<Stage | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const dots = useBreathDots();
 
   async function commit() {
     if (!text.trim()) return;
@@ -345,6 +444,10 @@ function NoteCapture({ onSaved }: { onSaved: (cap: HomeCapture) => void }) {
     setState("processing");
 
     const es = new EventSource(`/api/capture/${capture_id}/status`);
+    es.addEventListener("stage", (ev) => {
+      const { stage: s } = JSON.parse((ev as MessageEvent).data) as { stage: Stage };
+      setStage(s);
+    });
     es.addEventListener("tags", (ev) => {
       const { tags: t } = JSON.parse((ev as MessageEvent).data) as {
         tags: { kind: string; value: string }[];
@@ -389,17 +492,28 @@ function NoteCapture({ onSaved }: { onSaved: (cap: HomeCapture) => void }) {
         </button>
       </div>
 
-      {state === "ready" && tags.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-2">
-          {tags.map((t) => (
-            <span
-              key={`${t.kind}:${t.value}`}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-rule font-sans text-[11px] text-ink-soft bg-bg-raised"
-            >
-              <span className="text-wax">·</span>
-              {t.value}
-            </span>
-          ))}
+      {(state === "saving" || state === "processing" || state === "ready") && (
+        <div className="flex flex-col gap-3 mt-2">
+          <p className="p-meta">
+            {state === "ready"
+              ? pipelineLabel("note", "ready")
+              : pipelineLabel("note", stage) + dots.slice(0, dots.length - 1)}
+          </p>
+          {tags.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {tags.map((t) => (
+                <span
+                  key={`${t.kind}:${t.value}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-rule font-sans text-[11px] text-ink-soft bg-bg-raised"
+                >
+                  <span className="text-wax">·</span>
+                  {t.value}
+                </span>
+              ))}
+            </div>
+          ) : (
+            state !== "ready" && <TagChipSkeleton />
+          )}
         </div>
       )}
 
