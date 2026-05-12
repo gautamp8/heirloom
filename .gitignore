@@ -6,14 +6,29 @@
 
 # OS
 .DS_Store
+*.pem
 
 # Node / Next.js
 node_modules/
+.pnp
+.pnp.*
 .next/
 out/
+build/
 .vercel/
+*.tsbuildinfo
+next-env.d.ts
 
-# Python / FastAPI
+# Logs
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+
+# Python (in case any tooling drops a venv)
 __pycache__/
 *.pyc
 .venv/
@@ -24,9 +39,12 @@ __pycache__/
 
 # Local env
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
 # IDE
 .idea/
 .vscode/
+
+# Local storage (audio/photo/video blobs for v1 dev)
+storage/
