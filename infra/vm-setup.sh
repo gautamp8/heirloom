@@ -76,13 +76,17 @@ systemctl enable --now postgresql
 sleep 2
 ok "postgres $(psql --version | head -1)"
 
-# Initialise the database + app role idempotently
-sudo -u postgres psql <<SQL
+# Initialise the database + app role idempotently.
+# CREATE DATABASE can't run inside a DO block, so we use psql's \gexec
+# and a separate DO for the role.
+sudo -u postgres psql -v ON_ERROR_STOP=1 <<SQL
+SELECT 'CREATE DATABASE heirloom'
+ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'heirloom')\gexec
+SQL
+
+sudo -u postgres psql -v ON_ERROR_STOP=1 <<SQL
 DO \$\$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'heirloom') THEN
-        CREATE DATABASE heirloom;
-    END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'heirloom_app') THEN
         CREATE ROLE heirloom_app LOGIN PASSWORD '$DB_PASS';
     ELSE

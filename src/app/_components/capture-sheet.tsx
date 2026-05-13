@@ -432,7 +432,7 @@ function VoiceCapture({
           <p className="p-meta">
             {state === "ready"
               ? pipelineLabel("audio", "ready")
-              : pipelineLabel("audio", stage) + (state === "ready" ? "" : dots.slice(0, dots.length - 1))}
+              : pipelineLabel("audio", stage) + dots.slice(0, dots.length - 1)}
           </p>
 
           {/* Transcript: skeleton until Whisper completes, then real text */}
