@@ -14,6 +14,9 @@ export async function POST() {
   }
   try {
     if (!sqlAdmin) throw new HttpError(500, "admin_db_unavailable");
+    // Wipe every per-vault table. Users + vaults are KEPT so IDs stay
+    // stable, but vaults.onboarded_at is cleared so the next visit walks
+    // the creator through onboarding again.
     await sqlAdmin`TRUNCATE TABLE
       reflections,
       saved_passages,
@@ -22,11 +25,23 @@ export async function POST() {
       transcripts,
       thread_captures,
       threads,
+      sealed_letters,
+      nominee_states,
+      face_appearances,
       nominee_releases,
       executor_credentials,
       nominees,
+      life_events,
+      people,
       captures
     RESTART IDENTITY CASCADE`;
+    await sqlAdmin`UPDATE vaults SET onboarded_at = NULL`;
+    // Reset display_name on the dev creator so it doesn't leak into a
+    // subsequent run as a pre-filled fixture.
+    await sqlAdmin`
+      UPDATE users SET display_name = 'Friend'
+       WHERE email IN ('creator@heirloom.local', 'maya@heirloom.local')
+    `;
     await clearSessionCookie();
     return Response.json({ ok: true });
   } catch (err) {

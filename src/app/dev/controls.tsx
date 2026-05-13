@@ -76,17 +76,21 @@ export function DevControls({ snapshot }: { snapshot: Snapshot }) {
               if (r) router.push("/");
             }}
           >
-            {busy === "creator" ? "Opening…" : "Become Elena (creator)"}
+            {busy === "creator"
+              ? "Opening…"
+              : snapshot.captures > 0
+                ? "Open creator session"
+                : "Start a fresh archive"}
           </button>
           <button
-            className="btn"
+            className="btn-ghost"
             disabled={!!busy}
             onClick={async () => {
               const r = await call("nominee", "POST", "/api/dev/nominee");
               if (r) router.push("/");
             }}
           >
-            {busy === "nominee" ? "Opening…" : "Become Maya (nominee)"}
+            {busy === "nominee" ? "Opening…" : "Quick nominee (fixture)"}
           </button>
           <button
             className="btn-ghost"
@@ -99,6 +103,12 @@ export function DevControls({ snapshot }: { snapshot: Snapshot }) {
             Sign out
           </button>
         </div>
+        <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-fade mt-3 leading-[1.6]">
+          New creator sessions land on onboarding — the name + nominees you
+          enter there are the names the rest of the app uses. The fixture
+          nominee shortcut still works with the dev passphrase
+          &ldquo;the long road home&rdquo;.
+        </p>
       </section>
 
       {/* Stats */}
