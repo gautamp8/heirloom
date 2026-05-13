@@ -10,9 +10,9 @@ import {
 
 export const dynamic = "force-dynamic";
 
-// Dev shortcut — kept for the existing demo flow (the `/welcome` envelope
-// still expects this exact phrase). Real per-nominee passphrases generated
-// during onboarding are checked first.
+// Dev shortcut — the `/welcome` envelope accepts this exact phrase as a
+// fallback so a fresh fixture nominee can be unlocked without onboarding.
+// Real per-nominee passphrases are checked first.
 const DEV_PASSPHRASE_NORMALISED = "the long road home";
 
 type Row = {
@@ -71,8 +71,9 @@ export async function POST(req: Request) {
       }
     }
 
-    // 2) Dev fallback — first nominee with an existing user_id (legacy
-    //    bootstrap path) accepts "the long road home".
+    // 2) Dev fallback — first nominee with an existing user_id accepts
+    //    the dev passphrase. Skipped entirely in production unless dev
+    //    fixtures are explicitly enabled.
     if (!match && normalised === DEV_PASSPHRASE_NORMALISED) {
       match = rows.find((r) => r.user_id) ?? null;
     }

@@ -17,7 +17,7 @@ machine.
 
 ```
               ┌────────────────────────────────────┐
-              │  One Ubuntu 22.04 VM (D8as_v5)     │
+              │  One Ubuntu 22.04 VM               │
               │                                    │
               │  Caddy :443  ──reverse proxy──▶ :3000
               │                                  │ │
@@ -35,13 +35,13 @@ machine.
               └────────────────────────────────────┘
 ```
 
-A judge or a family member visits one URL. The model runs on the VM,
-the database lives on the VM, the audio blobs live on the VM. If you
-delete the VM, the archive is gone — the same way it would be if you
-threw away the laptop running the local install.
+A recipient visits one URL. The model runs on the VM, the database
+lives on the VM, the audio blobs live on the VM. If you delete the VM,
+the archive is gone — the same way it would be if you threw away the
+laptop running the local install.
 
 The same code that runs here runs on your Mac. There is no separate
-"hosted edition".
+edition for the cloud.
 
 ## Privacy posture for self-hosters
 
@@ -64,7 +64,7 @@ host. Specifically:
   new archive".** v1 is single-creator — the first person through
   onboarding becomes the creator and the rest see their data. Until
   per-user signup lands, treat the URL as semi-private and share it
-  only with the family member or judge you intend.
+  only with the recipient you intend.
 
 If those tradeoffs aren't acceptable, the local install is the right
 answer. The cloud option exists for the specific case where a non-
@@ -73,9 +73,8 @@ Ollama is.
 
 ## Choosing a host
 
-We deployed on Azure because the Sponsorship subscription was the
-fastest path. The architecture is provider-agnostic — anything that
-gives you an Ubuntu 22.04 VM with ≥ 32 GB RAM and ≥ 64 GB disk works:
+The architecture is provider-agnostic — anything that gives you an
+Ubuntu 22.04 VM with ≥ 32 GB RAM and ≥ 64 GB disk works:
 
 | Provider | Suggested SKU | Approximate cost |
 |---|---|---|
@@ -132,9 +131,9 @@ az vm open-port -g "$RG" -n "$VM" --port 443 --priority 901
 ```
 
 You should get back something like
-`heirloom-1ab066.eastus2.cloudapp.azure.com`. That's the URL your loved
-one or your judge types into Safari. Caddy will provision a valid
-Let's Encrypt cert for it on first boot.
+`heirloom-1ab066.eastus2.cloudapp.azure.com`. That's the URL your
+recipient types into Safari. Caddy will provision a valid Let's
+Encrypt cert for it on first boot.
 
 ## Step 2 — install the stack (run on the VM)
 
@@ -251,18 +250,17 @@ az group delete -g heirloom-rg --yes --no-wait
 
 ## CPU vs. GPU — what to expect
 
-This is the single most important section of this document. **Run the
-demo locally if you can.** A Mac with Gemma 4 e4b on Apple Silicon GPU
-runs Reflection in 3–5 s. The same model on 8 CPU cores takes 30–60 s.
-That's a ~15× gap. For a hackathon demo video, recording on local
-hardware is the right call. The cloud URL is for judges or family
-members who can't install Ollama themselves; it is not the
-fastest-feels-best surface.
+Local install on Apple Silicon is dramatically faster than a CPU-only
+VM. Reflection answers stream in seconds on a laptop with a GPU; on
+8 CPU cores they take 30–60 s. The shape of the gap is roughly 10–20×
+across every Gemma surface. If both options are open to you, prefer
+local.
 
-Measured numbers on the actual production deploy (D8as_v5, 8 vCPU AMD,
-no GPU) after the perf work in `18f9227`:
+Indicative latencies on the two reference deployments — an Apple
+Silicon laptop (M-series, GPU) and an Azure `Standard_D8as_v5`
+(8 vCPU AMD, no GPU):
 
-| Surface | M4 Pro local | D8as_v5 cloud |
+| Surface | Apple Silicon (GPU) | CPU-only VM |
 |---|---|---|
 | Greeting on home (cached) | ~50 ms | ~80 ms |
 | Note save → "Saved" | <2 s | ~1–2 s (status flips ready before Gemma) |
@@ -280,67 +278,33 @@ retrieved chunks plus the system prompt, around 2,000 input tokens,
 which dominates the wait. The actual streaming after that is a steady
 ~3–4 tok/s — about the speed of fast typing.
 
-What we did to make CPU feel less painful:
+What's in place to make CPU feel less painful:
 
-- **Stream the partial answer**. `/api/reflect` emits an
+- **Partial-answer streaming**. `/api/reflect` emits an
   `answer_partial` SSE event each time Gemma extends the prose, so the
-  user sees words forming rather than a 30-second whitespace stare.
-- **Reorder the note pipeline**. Capture goes to `status='ready'`
-  before tagging + auto-title. The user sees "Saved" in 1–2 s; tags
-  appear on the next home load.
-- **Async prompt-of-day on home**. The home renders instantly; the
+  user sees words forming rather than a long whitespace stare.
+- **Note pipeline ordering**. Capture goes to `status='ready'` before
+  tagging + auto-title. "Saved" appears in 1–2 s; tags fill in on the
+  next home load.
+- **Async prompt-of-day on home**. Home renders instantly; the
   Gemma-generated prompt fetches in the background.
 - **`OLLAMA_NUM_PARALLEL=2`** + **`OLLAMA_KEEP_ALIVE=30m`** so the
-  model stays resident and tag+title can overlap.
-- **Pre-warm at boot**. A separate `ollama-warmup.service` systemd
-  unit fires one tiny inference + one embed right after Ollama
-  starts, so the first real user request doesn't pay the ~10–15 s
-  cold-load tax.
-- **Cut retrieval from top-8 to top-5**. ~25% less prompt to evaluate.
+  model stays resident and tag + title can overlap.
+- **Pre-warm at boot**. `ollama-warmup.service` fires one tiny
+  inference + one embed right after Ollama starts, so the first real
+  user request doesn't pay the ~10–15 s cold-load tax.
+- **Top-5 retrieval** instead of top-8 — ~25% less prompt to evaluate.
 
-It's still slow. There's a floor on CPU and we're near it.
+There's a floor on CPU and we're near it.
 
 If you have GPU quota, swap to an NCv4 (Tesla T4) — the deploy scripts
 are unchanged because Ollama auto-detects CUDA. Add the NVIDIA driver
-+ CUDA runtime install before the Ollama install step. Expect numbers
-to land between the M4 Pro and the CPU columns above.
-
-## Known issues with the Turbopack production build
-
-During this project's first cloud deploy we ran into a reproducible bug
-where Turbopack on the VM silently dead-code-eliminated a code branch
-in `src/app/api/reflect/route.ts` — specifically the `answer_partial`
-streaming logic. The same build on the developer laptop produced the
-correct output. Both machines run Node 22 and Next.js 16.2.6 with the
-bundled Turbopack.
-
-**Workaround**: build `.next` locally and rsync the output to the VM
-instead of running `pnpm build` there.
-
-```bash
-# On your laptop
-pnpm install
-pnpm build
-
-# Ship the compiled output directly
-rsync -az --delete .next/ \
-    heirloom@<vm-ip>:/opt/heirloom/app/.next/
-ssh heirloom@<vm-ip> 'sudo chown -R heirloom:heirloom /opt/heirloom/app/.next \
-    && sudo systemctl restart heirloom'
-```
-
-The systemd `heirloom.service` unit invokes `pnpm start`, which only
-needs the `.next` directory and `node_modules`. Skipping the on-VM
-build sidesteps the Turbopack quirk entirely.
-
-When this is fixed upstream, the `build-and-start.sh` script's
-`pnpm build` step will once again be reliable. Until then, prefer
-the local-build-then-rsync pattern for production deploys.
++ CUDA runtime install before the Ollama install step.
 
 ## Updating later
 
-The reliable pattern is local build + ship the artifact, not on-VM
-build:
+The reliable pattern is to build locally and ship the compiled
+`.next/` to the VM rather than building on the VM:
 
 ```bash
 # From your local clone
@@ -349,15 +313,15 @@ pnpm build
 rsync -az --exclude=node_modules/ --exclude=storage/ \
     --exclude=.tmp-screenshots/ ./ \
     heirloom@<vm-ip>:/opt/heirloom/app/
+rsync -az --delete .next/ \
+    heirloom@<vm-ip>:/opt/heirloom/app/.next/
 
-# Run migrations + restart (re-uses the .next we just rsynced; the
-# pnpm build inside build-and-start.sh becomes a no-op if .next is
-# already current, or you can edit the script to skip it entirely).
-ssh heirloom@<vm-ip> 'sudo bash /opt/heirloom/build-and-start.sh'
+ssh heirloom@<vm-ip> 'sudo chown -R heirloom:heirloom /opt/heirloom/app/.next \
+    && sudo bash /opt/heirloom/build-and-start.sh'
 ```
 
 Migrations are idempotent. If you only changed code and not schema,
-just rsync `.next/` and restart:
+skip the source rsync and just ship `.next/` + restart:
 
 ```bash
 pnpm build

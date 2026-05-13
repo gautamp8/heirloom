@@ -3,22 +3,11 @@
 import Dexie, { type Table } from "dexie";
 
 /**
- * Client-side draft persistence — keeps in-flight captures safe across
- * network drops, tab closes, and page refreshes. Stored in IndexedDB
- * under the database `heirloom-drafts`.
- *
- * Lifecycle:
- *   1. As soon as a recording stops, the blob is written to IndexedDB
- *      via `saveDraft()`. Survives page close.
- *   2. The capture-sheet kicks off the network upload.
- *   3. On successful commit (server returned `capture_id` AND the
- *      pipeline reached 'ready'), `clearDraft()` removes the local row.
- *   4. On page load, `listDrafts()` returns any orphans — surfaced in
- *      the creator home as "You have an unfinished recording" with a
- *      "Send now" affordance.
- *
- * No PII goes here beyond the raw blob — the same data the user just
- * recorded. Lives only in their browser.
+ * Client-side draft persistence in IndexedDB (`heirloom-drafts`) so
+ * in-flight captures survive network drops, tab closes, and refreshes.
+ * The blob is written on stop, cleared once the pipeline reaches
+ * 'ready', and surfaced on home as an "unfinished recording" if it
+ * never made it.
  */
 
 export type DraftKind = "audio" | "photo" | "note";
@@ -79,10 +68,4 @@ export async function countDrafts(): Promise<number> {
   const conn = getDb();
   if (!conn) return 0;
   return conn.drafts.count();
-}
-
-export async function getDraft(id: number): Promise<CaptureDraft | undefined> {
-  const conn = getDb();
-  if (!conn) return undefined;
-  return conn.drafts.get(id);
 }

@@ -184,10 +184,6 @@ export function CaptureSheet(props: {
   );
 }
 
-/* ============================================================
-   Voice capture — MediaRecorder + live waveform + commit
-   ============================================================ */
-
 function VoiceCapture({
   onSaved,
 }: {
@@ -475,10 +471,6 @@ function formatElapsed(ms: number): string {
   return `${m.toString().padStart(2, "0")}:${r.toString().padStart(2, "0")}`;
 }
 
-/* ============================================================
-   Note capture — borderless textarea + commit
-   ============================================================ */
-
 function NoteCapture({
   prompt,
   onSaved,
@@ -639,10 +631,6 @@ function NoteCapture({
     </div>
   );
 }
-
-/* ============================================================
-   Photo capture — file picker / camera capture + commit
-   ============================================================ */
 
 function PhotoCapture({
   prompt,

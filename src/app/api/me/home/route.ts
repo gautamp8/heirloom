@@ -68,11 +68,8 @@ export async function GET() {
         return { user, recent, counts, recentTopics };
       });
 
-      // We DELIBERATELY do not call generatePromptOfDay here. On CPU it
-      // takes 5-8s and is the long pole that makes the home feel slow.
-      // The client fetches the prompt asynchronously via
-      // /api/prompt/shuffle once the page has rendered. A placeholder is
-      // returned so the slot doesn't flash empty.
+      // Prompt-of-day is fetched client-side via /api/prompt/shuffle
+      // after render so it doesn't block the home payload.
       return Response.json({
         role: "creator",
         greeting: {

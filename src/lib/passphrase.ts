@@ -1,8 +1,3 @@
-/**
- * Four-word passphrase generation for executor credentials.
- * Words are soft, archival, easy to read aloud, and unambiguous to
- * spell — chosen for the printed-letter handoff flow.
- */
 const WORDLIST = [
   "willow", "bread", "river", "garden", "harbor", "ember", "linen", "thistle",
   "marrow", "candle", "hearth", "compass", "season", "ledger", "ribbon", "ivory",
@@ -26,8 +21,7 @@ function randomTwoDigit(): string {
   return String(10 + (buf[0] % 90));
 }
 
-/** Generates `willow · bread · river · 14`. The middle-dot separators
- *  appear in the printed letter; the verifier normalises away. */
+/** Generates e.g. `willow · bread · river · 14`. */
 export function generatePassphrase(): string {
   const words = new Set<string>();
   while (words.size < 3) words.add(randomWord());
@@ -35,8 +29,7 @@ export function generatePassphrase(): string {
   return `${arr[0]} · ${arr[1]} · ${arr[2]} · ${randomTwoDigit()}`;
 }
 
-/** Normalise a passphrase input for hashing/verification. Lowercases,
- *  trims, replaces sequences of non-word chars with a single space. */
+/** Lowercase, collapse non-word runs to one space, trim. */
 export function normalisePassphrase(input: string): string {
   return input
     .toLowerCase()

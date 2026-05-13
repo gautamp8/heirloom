@@ -16,14 +16,10 @@ export type Session = {
 };
 
 /**
- * Whether the demo-friendly surfaces (fixture nominee, vault reset, the
- * /dev role-switcher console) should be reachable.
- *
- * Always on in development. In production, opted-in via the
- * HEIRLOOM_ALLOW_DEV_FIXTURES env flag — useful for a hosted demo
- * where you want judges to be able to click "Become Maya" without
- * walking the full onboarding flow, but dangerous in any deployment
- * intended to hold real data (anyone hitting Reset wipes the vault).
+ * Whether the dev-only surfaces (fixture nominee, vault reset, the
+ * `/dev` role-switcher console) should be reachable. Always on in
+ * development; in production, opt-in via HEIRLOOM_ALLOW_DEV_FIXTURES.
+ * Dangerous on any instance holding real data — Reset wipes the vault.
  */
 export function devFixturesAllowed(): boolean {
   if (process.env.NODE_ENV !== "production") return true;

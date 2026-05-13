@@ -2,9 +2,8 @@
 # Heirloom — Ubuntu 22.04 CPU-only single-VM bootstrap.
 #
 # Runs ON the target VM as root (via cloud-init or `sudo bash`). Brings
-# up everything needed for the hosted demo: Node + pnpm, Ollama (CPU),
-# whisper-cpp, PostgreSQL 16 + pgvector, ffmpeg, Caddy with automatic
-# TLS.
+# up the full Heirloom stack: Node + pnpm, Ollama (CPU), whisper-cpp,
+# PostgreSQL 16 + pgvector, ffmpeg, Caddy with automatic TLS.
 #
 # The Heirloom app itself is rsync'd in separately from the deploy
 # script; this file leaves a placeholder systemd unit pointed at
@@ -143,8 +142,8 @@ sleep 5
 ok "ollama serving on 127.0.0.1:11434"
 
 # Warm-up unit — fires a tiny inference + embed after Ollama starts so
-# the first real user request doesn't pay the ~10-15 s cold-load tax.
-# Keeps both models resident inside OLLAMA_KEEP_ALIVE=30m.
+# the first real user request doesn't pay the cold-load tax. Keeps both
+# models resident for the OLLAMA_KEEP_ALIVE window.
 cat > /etc/systemd/system/ollama-warmup.service <<'WARMUP'
 [Unit]
 Description=Pre-warm Gemma 4 + EmbeddingGemma after Ollama starts

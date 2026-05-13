@@ -16,10 +16,10 @@ v1 runs end-to-end on the development laptop. Apple Silicon with ≥ 32 GB unifi
 |---|---|---|---|
 | P1 | Install Ollama | ✓ done | `brew install ollama`, daemon running with `OLLAMA_FLASH_ATTENTION=1 OLLAMA_KV_CACHE_TYPE=q8_0` |
 | P2 | Pull `embeddinggemma` (621 MB) | ✓ done | 768-dim output, verified |
-| P3 | Pull `gemma4:e4b` (9.6 GB) | ✓ done | ~51 tok/s warm on M4 Pro 48 GB; third-person grounding behaviour verified |
+| P3 | Pull `gemma4:e4b` (9.6 GB) | ✓ done | Warm decode ~50 tok/s on Apple Silicon; third-person grounding behaviour verified |
 | P4 | Install Whisper for transcription | pending | `brew install whisper-cpp` or `pip install openai-whisper`; pull `ggml-large-v3` weights |
 | P5 | Postgres 16 + pgvector | pending | Local Docker (`postgres:16` with `pgvector/pgvector:pg16` image) or Postgres.app; create `heirloom_app` role and empty `heirloom` database |
-| P6 | (Optional) Cloudflare Tunnel or Tailscale Funnel | post-build | If a public URL is needed, tunnel `localhost:3000` from the laptop. Not required for development; required for a sharable demo URL. |
+| P6 | (Optional) Cloudflare Tunnel or Tailscale Funnel | post-build | If a public URL is needed, tunnel `localhost:3000` from the laptop. Not required for development; required for any sharable URL. |
 
 Verification before Phase A: `curl http://localhost:11434/api/version` returns Ollama's version, `psql -d heirloom -c 'SELECT 1'` returns one row, `whisper-cli --help` runs. All three local, no auth.
 

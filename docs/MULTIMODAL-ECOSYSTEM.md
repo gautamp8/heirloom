@@ -1,9 +1,9 @@
 # Heirloom — Gemma 4 multimodal ecosystem notes
 
 This document captures what we learned wiring Gemma 4 multimodal end-to-end
-through the local-first stack during the Gemma 4 Good Hackathon (May 2026),
-and the gaps we hit along the way. It's intended as a contribution to the
-broader Ollama / llama.cpp / Gemma community.
+through Heirloom's local-first stack, and the gaps we hit along the way.
+It's intended as a contribution to the broader Ollama / llama.cpp / Gemma
+community.
 
 ## What works today via Ollama
 
@@ -29,7 +29,7 @@ Heirloom uses Ollama for everything that does work:
 | Embeddings (text + caption) | `embeddinggemma:300m` | `/api/embed` |
 | Custom grounded variant | `heirloom/gemma4-grounded` | published Modelfile |
 
-Vision is fast: **~1.7s warm, 7.5s cold** on an M4 Pro 48 GB for a single
+Vision is fast on Apple Silicon: **~1.7s warm, ~7.5s cold** for a single
 image with `think: false` and `num_predict: 180`. The `think: true` path
 produces a separate chain-of-thought in `message.thinking` plus a shorter
 final caption in `message.content`.
@@ -150,7 +150,7 @@ projector is reachable. The metrics we'll publish:
 | Metric | Whisper small.en | Gemma 4 audio (target) |
 |---|---|---|
 | Word Error Rate (WER) | tbd | tbd |
-| Mean transcription time per 30s clip (M4 Pro) | tbd | tbd |
+| Mean transcription time per 30s clip | tbd | tbd |
 | Speaker-emotion classification accuracy | n/a | tbd |
 | Per-token latency | n/a | tbd |
 | Model download size | 142 MB | 9.6 GB (shared with text) |
@@ -178,8 +178,8 @@ A proposed concrete API shape for Ollama
 underlying llama.cpp multimodal handler when the model has an audio
 projector layer.
 
-This document plus a runnable benchmark is the comment we plan to post on
-#11798 once Heirloom's submission is final.
+This document plus a runnable benchmark is the contribution we plan to
+post upstream on the Ollama thread.
 
 ## License notes
 

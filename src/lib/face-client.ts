@@ -55,8 +55,6 @@ async function fileToImage(file: File): Promise<HTMLImageElement> {
 /**
  * Run detection + landmark + descriptor on a File.
  * Returns one record per detected face. Empty array when no faces.
- *
- * Timing on M4 Pro: ~250ms for a 1024px photo with 1 face.
  */
 export async function extractFaces(file: File): Promise<DetectedFace[]> {
   await loadFaceModels();

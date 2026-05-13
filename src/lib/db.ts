@@ -62,9 +62,9 @@ export async function withRls<T>(
   role: "creator" | "nominee",
   fn: (tx: postgres.TransactionSql) => Promise<T>,
 ): Promise<T> {
-  return sql.begin(async (tx) => {
+  return (await sql.begin(async (tx) => {
     await tx`SELECT set_config('app.user_id', ${userId}, true)`;
     await tx`SELECT set_config('app.role', ${role}, true)`;
     return fn(tx);
-  });
+  })) as T;
 }

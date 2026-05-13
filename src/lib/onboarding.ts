@@ -1,5 +1,5 @@
 import argon2 from "argon2";
-import { sql, withRls } from "./db";
+import { withRls } from "./db";
 import { embedOne, vectorLiteral } from "./embed";
 import { generatePassphrase, normalisePassphrase } from "./passphrase";
 import type { Session } from "./auth";
@@ -46,12 +46,8 @@ export async function getOnboardingStatus(
   });
 }
 
-/**
- * Step 1: persist the creator's name + (optional) selfie face embedding.
- *  • Updates users.display_name
- *  • Inserts/updates the people row with relation='self', confirmed=true,
- *    and the face-api.js 128-dim reference embedding.
- */
+/** Step 1: persist the creator's name + optional selfie face embedding
+ *  (128-dim reference vector from face-api.js, stored on the self person row). */
 export async function saveSelf(
   session: Session,
   opts: {
@@ -105,9 +101,8 @@ export async function saveSelf(
   });
 }
 
-/**
- * Step 2: life events (anchors) — embed label+description and insert.
- */
+/** Step 2: life events. Each event's label+description is embedded so
+ *  letter conditions can semantic-match against it. */
 export async function saveLifeEvents(
   session: Session,
   events: {
@@ -146,10 +141,8 @@ export async function saveLifeEvents(
   return enriched.length;
 }
 
-/**
- * Step 3: add nominees. Optionally adds a birthday life_event per nominee
- * with subject_person_id linking to a people row for that nominee.
- */
+/** Step 3: add nominees. Optionally inserts a birthday life_event per
+ *  nominee, linking via subject_person_id to a `people` row for them. */
 export type SavedNominee = {
   id: string;
   name: string;
@@ -170,7 +163,8 @@ export async function saveNominees(
   let inserted = 0;
   const out: SavedNominee[] = [];
 
-  // Pre-hash outside the transaction (argon2 is ~100ms each on M4 Pro)
+  // Pre-hash outside the transaction so we don't hold a long-running
+  // tx open across argon2 hashing.
   const prepared: {
     raw: (typeof nominees)[number];
     passphrase: string;
@@ -223,12 +217,9 @@ export async function saveNominees(
   return { inserted, nominees: out };
 }
 
-/**
- * Step 4: save sealed letters. Each draft becomes:
- *   - one note capture (the letter body)
- *   - one sealed_letters row with conditions DSL + intent_embedding
- * The capture is NOT released yet — release fires when conditions trigger.
- */
+/** Step 4: persist sealed letters. Each draft becomes a note capture
+ *  plus a `sealed_letters` row holding the trigger DSL and intent
+ *  embedding; release fires when the condition engine matches. */
 export async function saveSealedLetters(
   session: Session,
   drafts: {
@@ -244,8 +235,8 @@ export async function saveSealedLetters(
   for (const d of drafts) {
     if (!d.body.trim() || !d.occasion_prompt.trim()) continue;
 
-    // Embedding is over the occasion prompt + trigger hint so semantic-match
-    // unlocks fire on queries similar to the LETTER'S INTENT, not its body.
+    // Embed the intent (occasion + trigger), not the body, so
+    // semantic-match unlocks key off what the letter is FOR.
     const intent_text = `${d.occasion_prompt}. ${d.trigger_hint}`;
     const intent_vec = await embedOne(intent_text);
 
@@ -258,7 +249,6 @@ export async function saveSealedLetters(
          LIMIT 1
       `;
 
-      // Create the underlying note capture (status='ready' since we have body now)
       const [cap] = await tx<{ id: string }[]>`
         INSERT INTO captures (vault_id, kind, status, body, title)
         VALUES (${session.vault_id}, 'note', 'ready',
@@ -267,8 +257,7 @@ export async function saveSealedLetters(
         RETURNING id
       `;
 
-      // Conditions DSL — map trigger_hint to one of our condition kinds.
-      // Default is semantic_match with the intent embedding; we add a
+      // semantic_match against the intent embedding, with a
       // first_visit fallback so the letter is always reachable.
       const conditions = {
         any_of: [
@@ -305,12 +294,9 @@ export async function markOnboarded(session: Session): Promise<void> {
   });
 }
 
-/**
- * Regenerate a nominee's passphrase. We can't show the existing one
- * because we only kept the argon2id hash. The new plaintext is returned
- * ONCE — the caller is responsible for surfacing it to the creator so
- * they can re-share it with the recipient.
- */
+/** Regenerate a nominee's passphrase. The previous one is unrecoverable
+ *  (only its argon2id hash was stored). The new plaintext is returned
+ *  ONCE — surface it to the creator immediately. */
 export async function regenerateNomineePassphrase(
   session: Session,
   nominee_id: string,
@@ -437,5 +423,3 @@ export async function deleteLifeEvent(
     return rows.length > 0;
   });
 }
-
-void sql;

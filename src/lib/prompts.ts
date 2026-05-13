@@ -1,12 +1,3 @@
-/**
- * Short, fast Gemma 4 calls for inline assistive copy:
- *  - prompt-of-day: rotating reflective prompt on the creator home
- *  - note title:    a 3–6 word headline derived from the body of a note
- *
- * Both target the smaller variant (gemma4:e4b) for sub-second latency,
- * use temperature ~0.7 for variation, and strip quoting / preambles.
- */
-
 import { generateText } from "ai";
 import { ollama, SYNTHESIS_MODEL } from "./ollama";
 
@@ -26,11 +17,8 @@ const FALLBACK_PROMPTS = [
   "A piece of advice you keep but never say aloud.",
 ];
 
-/**
- * Generate one reflective prompt. Fresh on each call by design — the
- * variation IS the value. Falls back to a static pick if Gemma is slow
- * or unavailable so the home never hangs.
- */
+/** Generate one reflective prompt. Falls back to a static pick if
+ *  Gemma is unavailable so the home never hangs. */
 export async function generatePromptOfDay(opts: {
   recentTopics?: string[];
   recentCount?: number;
@@ -74,11 +62,9 @@ function fallbackPrompt(): string {
   return FALLBACK_PROMPTS[Math.floor(Math.random() * FALLBACK_PROMPTS.length)];
 }
 
-/**
- * Generate a 3–6 word title for a note body. Used when the creator
- * doesn't supply one. Returns null if Gemma is unhelpful so callers can
- * fall back to "Untitled" or the note's first clause.
- */
+/** Generate a 3–6 word title for a note body. Returns null when
+ *  Gemma is unhelpful; callers fall back to "Untitled" or the first
+ *  clause. */
 export async function generateNoteTitle(body: string): Promise<string | null> {
   const trimmed = body.trim();
   if (trimmed.length < 12) return null;
@@ -125,13 +111,10 @@ function cleanSentence(t: string): string {
     .trim();
 }
 
-/**
- * Generate 5–7 occasion-prompts for the onboarding "seed letters" step.
- * Each prompt describes a moment when a sealed letter should reach a
- * specific nominee. Returns an array of `{ to, prompt, condition_hint }`
- * — `condition_hint` is a free-text trigger that the condition engine
- * will later map into one of {date, life_event, state, semantic_match}.
- */
+/** Occasion prompts for the onboarding "seed letters" step. Each draft
+ *  carries a nominee, an occasion prompt for the creator, and a
+ *  free-text trigger that the condition engine later maps into one of
+ *  {date, life_event, state, semantic_match}. */
 export type SeedLetterDraft = {
   to: string; // nominee display name
   prompt: string; // occasion prompt for the creator

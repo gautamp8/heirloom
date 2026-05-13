@@ -4,11 +4,10 @@ import {
   createCipheriv,
   createDecipheriv,
   randomBytes,
-  scryptSync,
 } from "node:crypto";
 import argon2 from "argon2";
 import type { Session } from "./auth";
-import { sql, sqlAdmin } from "./db";
+import { sqlAdmin } from "./db";
 import { resolveBlob } from "./storage";
 
 /**
@@ -89,35 +88,35 @@ export async function exportVault(
   const captures = await sqlAdmin<{ id: string; blob_url: string | null }[]>`
     SELECT * FROM captures WHERE vault_id = ${vault_id}
   `;
-  const transcripts = await sqlAdmin<unknown[]>`
+  const transcripts = await sqlAdmin<Record<string, unknown>[]>`
     SELECT t.* FROM transcripts t
       JOIN captures c ON c.id = t.capture_id
      WHERE c.vault_id = ${vault_id}
   `;
-  const chunks = await sqlAdmin<unknown[]>`
+  const chunks = await sqlAdmin<Record<string, unknown>[]>`
     SELECT * FROM transcript_chunks WHERE vault_id = ${vault_id}
   `;
-  const tags = await sqlAdmin<unknown[]>`
+  const tags = await sqlAdmin<Record<string, unknown>[]>`
     SELECT ct.* FROM capture_tags ct
       JOIN captures c ON c.id = ct.capture_id
      WHERE c.vault_id = ${vault_id}
   `;
-  const life_events = await sqlAdmin<unknown[]>`
+  const life_events = await sqlAdmin<Record<string, unknown>[]>`
     SELECT * FROM life_events WHERE vault_id = ${vault_id}
   `;
-  const nominees = await sqlAdmin<unknown[]>`
+  const nominees = await sqlAdmin<Record<string, unknown>[]>`
     SELECT * FROM nominees WHERE vault_id = ${vault_id}
   `;
-  const sealed_letters = await sqlAdmin<unknown[]>`
+  const sealed_letters = await sqlAdmin<Record<string, unknown>[]>`
     SELECT * FROM sealed_letters WHERE vault_id = ${vault_id}
   `;
-  const people = await sqlAdmin<unknown[]>`
+  const people = await sqlAdmin<Record<string, unknown>[]>`
     SELECT * FROM people WHERE vault_id = ${vault_id}
   `;
-  const [vault] = await sqlAdmin<unknown[]>`
+  const [vault] = await sqlAdmin<Record<string, unknown>[]>`
     SELECT * FROM vaults WHERE id = ${vault_id}
   `;
-  const users = await sqlAdmin<unknown[]>`
+  const users = await sqlAdmin<Record<string, unknown>[]>`
     SELECT u.* FROM users u
       JOIN vaults v ON v.creator_id = u.id
      WHERE v.id = ${vault_id}
@@ -189,7 +188,7 @@ export async function exportVault(
   const cipher = createCipheriv("chacha20-poly1305", key, nonce, {
     authTagLength: TAG_LEN,
   });
-  cipher.setAAD(aad);
+  cipher.setAAD(aad, { plaintextLength: compressed.length });
   const ciphertext = Buffer.concat([cipher.update(compressed), cipher.final()]);
   const tag = cipher.getAuthTag();
 
@@ -283,7 +282,7 @@ export async function importVault(
     const decipher = createDecipheriv("chacha20-poly1305", key, nonce, {
       authTagLength: TAG_LEN,
     });
-    decipher.setAAD(aad);
+    decipher.setAAD(aad, { plaintextLength: ciphertext.length });
     decipher.setAuthTag(tag);
     compressed = Buffer.concat([
       decipher.update(ciphertext),
@@ -420,12 +419,7 @@ export async function importVault(
     counts.nominees = plaintext.rows.nominees.length;
     counts.people = plaintext.rows.people.length;
     counts.sealed_letters = plaintext.rows.sealed_letters.length;
-    // Nominees / people / sealed_letters are imported as records but with
-    // fresh ids — they're informational on the recipient side, the recipient
-    // can't act AS the creator. Detailed restore left for v1.1.
   });
 
   return { vault_id: session.vault_id, counts };
 }
-
-void sql;

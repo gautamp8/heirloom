@@ -11,12 +11,9 @@ export type RecognizedPerson = {
 
 /**
  * Describe a photo via Gemma 4 vision. When `people` is provided, the
- * system prompt tells the model who is in the image so the caption uses
- * names instead of generic descriptors ("Elena in a yellow dress" rather
- * than "a woman in a yellow dress").
- *
- * Empirically: 1–2s on M4 Pro with `think: false` and num_predict 120.
- * Returns a single short paragraph in archival, third-person voice.
+ * system prompt names them so the caption reads "Elena in a yellow
+ * dress" instead of "a woman in a yellow dress". Returns a single
+ * short paragraph in archival, third-person voice.
  */
 export async function captionPhoto(
   absPath: string,

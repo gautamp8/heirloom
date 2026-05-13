@@ -32,9 +32,8 @@ export function Home(props: {
   const [draftCount, setDraftCount] = useState(0);
 
   useEffect(() => {
-    // Async prompt fetch on first mount. Gemma 4 on CPU takes 5-8s so
-    // we keep this off the server render path. Setting `shuffling` so
-    // the breathing dots affordance shows during the fetch.
+    // Async prompt fetch on first mount — keeps the synthesis off the
+    // server render path so home paints instantly.
     if (prompt !== null) return;
     let cancelled = false;
     setShuffling(true);
@@ -338,7 +337,6 @@ function relativeTime(d: Date): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-/* ---- Icons (single-weight 1.2px stroke, hand-set, matches design system) ---- */
 function IconMic() {
   return (
     <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">

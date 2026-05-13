@@ -154,10 +154,6 @@ export function NomineeHome(props: {
   );
 }
 
-/* ============================================================
-   Daily memory hero
-   ============================================================ */
-
 function DailyHero({ capture }: { capture: ReleasedCapture }) {
   const isPhoto = capture.kind === "photo";
   return (
@@ -226,10 +222,6 @@ function DailyHero({ capture }: { capture: ReleasedCapture }) {
     </motion.article>
   );
 }
-
-/* ============================================================
-   Mood card — fires state triggers for sealed letters
-   ============================================================ */
 
 function MoodCard({ onUnlock }: { onUnlock: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
@@ -343,10 +335,6 @@ function MoodCard({ onUnlock }: { onUnlock: () => void }) {
   );
 }
 
-/* ============================================================
-   Unlocked letter card — when sealed letter just fired
-   ============================================================ */
-
 function UnlockedLetterCard({
   fired,
   capture,
@@ -393,10 +381,6 @@ function UnlockedLetterCard({
   );
 }
 
-/* ============================================================
-   Album card
-   ============================================================ */
-
 function AlbumCard({ album }: { album: Album }) {
   return (
     <li>
@@ -425,10 +409,6 @@ function AlbumCard({ album }: { album: Album }) {
     </li>
   );
 }
-
-/* ============================================================
-   Earlier-piece row (unchanged style from prior version)
-   ============================================================ */
 
 function ReleasedRow({ cap }: { cap: ReleasedCapture }) {
   const time = formatLongDate(new Date(cap.captured_at));

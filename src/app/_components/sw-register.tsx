@@ -2,13 +2,8 @@
 
 import { useEffect } from "react";
 
-/**
- * Registers /sw.js once on the client. Skipped in dev where Next.js'
- * HMR + the SW's runtime cache would race and serve stale chunks.
- *
- * To force-disable in production for a debugging session, set
- * NEXT_PUBLIC_DISABLE_SW=1.
- */
+/** Registers /sw.js on the client. Skipped in dev (HMR conflicts) and
+ *  when `NEXT_PUBLIC_DISABLE_SW=1`. */
 export function ServiceWorkerRegister() {
   useEffect(() => {
     if (typeof window === "undefined") return;

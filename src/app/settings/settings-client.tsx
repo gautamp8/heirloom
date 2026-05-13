@@ -59,7 +59,6 @@ export function SettingsClient({ initial }: { initial: Initial }) {
 
   return (
     <div className="flex flex-col gap-12">
-      {/* You ============================================================ */}
       <section className="flex flex-col gap-3">
         <h2 className="eyebrow">You</h2>
         <div className="flex flex-col gap-2 max-w-[420px]">
@@ -90,13 +89,10 @@ export function SettingsClient({ initial }: { initial: Initial }) {
         </div>
       </section>
 
-      {/* Important dates =============================================== */}
       <LifeEventsSection initial={initial.life_events} onChanged={() => router.refresh()} />
 
-      {/* Nominees ====================================================== */}
       <NomineesSection initial={initial.nominees} onChanged={() => router.refresh()} />
 
-      {/* Vault ========================================================= */}
       <section className="flex flex-col gap-4">
         <h2 className="eyebrow">Vault</h2>
         <p className="p-body max-w-[480px]">
@@ -121,10 +117,6 @@ export function SettingsClient({ initial }: { initial: Initial }) {
     </div>
   );
 }
-
-/* ================================================================
-   Important dates
-   ================================================================ */
 
 function LifeEventsSection({
   initial,
@@ -211,7 +203,7 @@ function AddLifeEventForm({
   const [label, setLabel] = useState("");
   const [kind, setKind] = useState("birth");
   const [date, setDate] = useState("");
-  const [recurrence, setRecurrence] = useState<"yearly" | "once">("yearly");
+  const [recurrence] = useState<"yearly" | "once">("yearly");
   const [busy, setBusy] = useState(false);
 
   async function save() {
@@ -297,10 +289,6 @@ function AddLifeEventForm({
     </div>
   );
 }
-
-/* ================================================================
-   Nominees + passphrase regeneration
-   ================================================================ */
 
 function NomineesSection({
   initial,
@@ -547,10 +535,6 @@ function AddNomineeForm({
     </div>
   );
 }
-
-/* ================================================================
-   Formatting helpers
-   ================================================================ */
 
 function prettyKind(kind: string): string {
   switch (kind) {

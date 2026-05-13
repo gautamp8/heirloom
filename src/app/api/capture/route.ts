@@ -1,4 +1,4 @@
-import { sql, withRls } from "@/lib/db";
+import { withRls } from "@/lib/db";
 import { writeBlob } from "@/lib/storage";
 import { runCapturePipeline } from "@/lib/pipeline";
 import { storeFaceAppearances, type FaceInput } from "@/lib/faces";
@@ -142,7 +142,3 @@ function extensionFor(mime: string, name: string): string {
   if (mime === "video/mp4") return "mp4";
   return "bin";
 }
-
-// Suppress unused-import linter; sql is exported for other modules but not
-// directly used here once withRls covers everything.
-void sql;

@@ -1,5 +1,5 @@
 import type postgres from "postgres";
-import { sql, sqlAdmin } from "./db";
+import { sqlAdmin } from "./db";
 import { embedOne, vectorLiteral } from "./embed";
 import type { Session } from "./auth";
 
@@ -182,8 +182,8 @@ async function fetchPending(
 }
 
 function parseConditions(raw: unknown): AnyCond[] {
-  // Conditions can arrive as a JSONB object OR as a JSON-encoded string
-  // (legacy rows stored via JSON.stringify + ::jsonb). Handle both.
+  // Conditions can arrive as a JSONB object or a JSON-encoded string;
+  // handle both shapes.
   let value: unknown = raw;
   if (typeof value === "string") {
     try {
@@ -291,5 +291,3 @@ function matchOne(
   }
   return null;
 }
-
-void sql;

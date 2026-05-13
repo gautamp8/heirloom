@@ -94,13 +94,8 @@ export async function POST(req: Request) {
             }
           }
 
-          // 3) Retrieve top-k.
-          //    On CPU inference the dominant cost is prompt evaluation,
-          //    not generation. Each chunk we include adds ~150-200 input
-          //    tokens, ~0.5-1s of prompt-eval on the D8as_v5 box. Top-5
-          //    is enough to ground most queries while keeping
-          //    time-to-first-token under 20-30 s on CPU. The transparency
-          //    page still records the top chunks that influenced the gate.
+          // 3) Retrieve top-k. Top-5 keeps the prompt small enough to
+          //    stay responsive on CPU while still grounding most queries.
           const chunks = await fetchTopK(qEmb, session, 5);
           const topSim = chunks[0]?.similarity ?? 0;
           send("retrieved", { hit_count: chunks.length, top_similarity: topSim });
@@ -155,14 +150,8 @@ export async function POST(req: Request) {
           });
 
           // 6) Stream the answer + claims as they arrive.
-          //
-          //    Two parallel streams matter to the UI:
-          //      - `answer_partial`: the prose answer text as Gemma writes
-          //        it character-by-character. Without this, the user sees
-          //        skeleton -> long whitespace -> sudden complete answer
-          //        on slow CPUs. With it, the prose grows visibly.
-          //      - `claim`: once a claim has BOTH text AND validated
-          //        citations, surface its citation chip.
+          //    `answer_partial` carries prose as Gemma extends it; `claim`
+          //    fires once a claim has both text and a validated citation.
           let lastAnswer = "";
           const sentClaims = new Set<number>();
           for await (const partial of partialObjectStream) {
@@ -209,8 +198,6 @@ export async function POST(req: Request) {
           const noClaims = final.claims.length === 0;
           const firstPerson = hasFirstPersonOutsideQuotes(final.answer);
           if (!cite.ok || firstPerson || noClaims) {
-            // Note: the model sometimes paraphrases a "no" answer rather than
-            // emitting the empty state verbatim. We coerce it back here.
             send("grounded", { grounded: false });
             send("answer", { text: EMPTY_STATE_ANSWER });
             const reflection_id = await saveReflection(

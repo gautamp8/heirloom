@@ -194,9 +194,9 @@ Two other deployment shapes are supported, in this order of preference:
 
 What we do **not** do:
 
-* Run Heirloom as a multi-tenant SaaS. v1 is single-creator-per-instance. A hosted demo URL is for one person at a time; concurrent visitors see each other's data. Real multi-tenancy needs proper per-vault folder namespacing, real signup/signin, and per-user RLS scopes — that work is tracked but explicitly deferred.
+* Run Heirloom as a multi-tenant SaaS. v1 is single-creator-per-instance. A shared URL is for one person at a time; concurrent visitors see each other's data. Real multi-tenancy needs proper per-vault folder namespacing, real signup/signin, and per-user RLS scopes — that work is tracked but explicitly deferred.
 * Send any telemetry. The only outbound HTTPS the running app makes is from Caddy to Let's Encrypt and from Ollama to ollama.com on first model pull. Everything else stays on the box.
-* Use managed inference providers (OpenAI, Together, Replicate, etc.) for the load-bearing surfaces. The product is Gemma 4 running locally via Ollama — that is non-negotiable. The hosted demo runs the same Ollama on the same VM as the app.
+* Use managed inference providers (OpenAI, Together, Replicate, etc.) for the load-bearing surfaces. The product is Gemma 4 running locally via Ollama — that is non-negotiable. Self-hosted instances run the same Ollama on the same VM as the app.
 
 When a feature is added, consider both deployment shapes:
 

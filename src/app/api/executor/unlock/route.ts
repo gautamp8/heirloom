@@ -5,8 +5,8 @@ import { normalisePassphrase } from "@/lib/passphrase";
 
 export const dynamic = "force-dynamic";
 
-// Naive in-memory rate limit. Dev-safe; the real system would back this
-// with Redis (tracked in Deferred items).
+// In-memory rate limit. A distributed deployment would back this with
+// Redis or similar; the single-VM topology lets a Map suffice.
 const ATTEMPTS = new Map<string, { count: number; firstAt: number }>();
 const MAX_PER_HOUR = 5;
 const MAX_LIFETIME = 10;

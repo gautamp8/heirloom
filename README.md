@@ -90,9 +90,9 @@ operational commands, backup recipe, CPU-vs-GPU expectations — lives in
   becomes the creator; concurrent visitors see each other's data. Share
   the URL only with the recipient you intend until per-user signup
   lands.
-- CPU inference is **slow**. A Reflection answer that streams in 3 s on
-  an M4 Pro takes 30–90 s on a D8as_v5 with no GPU. Acceptable for
-  a small audience; not acceptable for a public launch.
+- CPU inference is **slow**. A Reflection answer that streams in
+  seconds on a GPU laptop can take 30–90 s on a CPU-only VM.
+  Acceptable for a small audience; not acceptable for a public launch.
 - **Nothing phones home.** The only outbound HTTPS the running app
   makes is Caddy → Let's Encrypt for certificate renewal, and Ollama →
   ollama.com on the first model pull. Everything else stays on the box.
@@ -147,8 +147,8 @@ The grounding contract is hard-coded:
    to: *"I don't have that in the archive. Try asking another way?"*
 
 Every Reflection query's diagnostics are persisted and visible at
-`/transparency` — judges (and users) can see exactly how each decision
-was made, including the retrieved chunks and their similarity scores.
+`/transparency` — you can see exactly how each decision was made,
+including the retrieved chunks and their similarity scores.
 
 ## Sealed letters with conditional unlock
 
@@ -198,11 +198,10 @@ Heirloom uses Gemma 4 across three modalities:
 - **Text synthesis** for Reflection answers, letter prompts, note titles,
   and capture tagging — `gemma4:e4b` via `/api/chat`.
 - **Vision captioning** for photo uploads — same model, same endpoint,
-  `images: [b64]` field. ~1.7 s warm per photo on M4 Pro. When the
-  on-device face recognizer (face-api.js, 128-d descriptors) clusters a
-  face to a known person, the system prompt names them so the caption
-  reads "Elena holding Maya at the kitchen window" rather than "a woman
-  holding a child".
+  `images: [b64]` field. When the on-device face recognizer
+  (face-api.js, 128-d descriptors) clusters a face to a known person,
+  the system prompt names them so the caption reads "Elena holding
+  Maya at the kitchen window" rather than "a woman holding a child".
 - **Embeddings** — `embeddinggemma` (300M params, 768-dim, 621 MB) for
   the shared text + caption vector space.
 

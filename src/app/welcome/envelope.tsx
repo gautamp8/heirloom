@@ -13,8 +13,6 @@ export function Envelope({
   stage: Stage;
   letter: { from_name: string; to_name: string; body: string } | null;
 }) {
-  const flapOpen =
-    stage === "opening" || stage === "emerging" || stage === "unfolding";
   const letterUp = stage === "emerging" || stage === "unfolding";
   const letterUnfolded = stage === "unfolding";
 

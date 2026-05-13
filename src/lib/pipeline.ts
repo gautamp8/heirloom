@@ -1,4 +1,4 @@
-import { sql, withRls } from "./db";
+import { withRls } from "./db";
 import { resolveBlob } from "./storage";
 import { transcribeAudio } from "./whisper";
 import { captionPhoto } from "./vision";
@@ -43,10 +43,8 @@ export async function runCapturePipeline(
     if (!cap) return;
 
     // 1) Materialise the text we will embed + tag.
-    //
-    //   audio → Whisper transcript becomes `text`
-    //   photo → Gemma 4 vision caption becomes `text` (and is stored in captures.caption)
-    //   note  → cap.body is already the text
+    //    audio → Whisper transcript. photo → Gemma 4 vision caption
+    //    (also persisted to captures.caption). note → cap.body.
     let text = cap.body ?? "";
     if (cap.kind === "audio" && cap.blob_url) {
       const abs = resolveBlob(cap.blob_url);
@@ -62,10 +60,10 @@ export async function runCapturePipeline(
     } else if (cap.kind === "photo" && cap.blob_url) {
       const abs = resolveBlob(cap.blob_url);
 
-      // Look up any faces that the client-side face-api.js already detected
-      // and the server clustered against people. Pass the recognized people
-      // to the vision model so the caption uses names ("Elena holding Maya")
-      // rather than generic descriptors ("a woman holding a child").
+      // Names + bounding boxes for any faces the browser detected and
+      // the server has clustered against people. The vision model uses
+      // them so the caption reads "Elena holding Maya" rather than "a
+      // woman holding a child".
       const recognized = await withRls(
         session.user_id,
         session.role,
@@ -121,14 +119,9 @@ export async function runCapturePipeline(
       });
     }
 
-    // 3) Auto-release the capture to every nominee in the vault, UNLESS
-    //    this is the body of a sealed letter (those release via the
+    // 3) Auto-release to every nominee in the vault, unless the
+    //    capture is the body of a sealed letter (those release via the
     //    condition engine when their moment arrives).
-    //
-    //    v1 model: the creator's "regular" memories (audio/note/photo)
-    //    are visible to everyone the creator named in onboarding.
-    //    Sealed letters are the deliberate exception. Per-capture
-    //    privacy controls are a v1.1 item.
     await withRls(session.user_id, session.role, async (tx) => {
       const [sealed] = await tx<{ exists: boolean }[]>`
         SELECT EXISTS (
@@ -151,19 +144,15 @@ export async function runCapturePipeline(
       }
     });
 
-    // 4) Status -> ready NOW, before the slow Gemma calls.
-    //    This is the key UX move on CPU: the user sees the capture
-    //    saved immediately, the SSE closes, the capture sheet shows
-    //    "Saved." Tags and auto-title fill in in the background — the
-    //    user will see them on the next home load. Without this swap
-    //    every note takes 15-30 s end-to-end on CPU; with it, the
-    //    user-perceived latency is just chunk+embed (~1-2 s).
+    // 4) Mark the capture ready before the slow Gemma calls so the
+    //    user sees "Saved" immediately; tags and auto-title fill in
+    //    on the next home load.
     await withRls(session.user_id, session.role, async (tx) => {
       await tx`UPDATE captures SET status = 'ready' WHERE id = ${cap.id}`;
     });
 
-    // 5) Tag + auto-title via Gemma 4, in parallel — POST-READY.
-    //    Independent calls; with OLLAMA_NUM_PARALLEL >= 2 they overlap.
+    // 5) Tag + auto-title via Gemma 4, in parallel. Independent calls
+    //    overlap when OLLAMA_NUM_PARALLEL >= 2.
     const wantTitle = !cap.title && text.trim().length >= 12;
     const [tags, generatedTitle] = await Promise.all([
       tagCapture(text, cap.kind).catch((e) => {
@@ -210,7 +199,7 @@ export async function runCapturePipeline(
   }
 }
 
-/** bbox arrives from JSONB; legacy rows are double-encoded strings. */
+/** bbox can arrive from JSONB as either an object or a JSON-encoded string. */
 function parseBbox(raw: unknown): { x: number; y: number; w: number; h: number } {
   let v: unknown = raw;
   if (typeof v === "string") {
@@ -228,5 +217,3 @@ function parseBbox(raw: unknown): { x: number; y: number; w: number; h: number }
     h: typeof o.h === "number" ? o.h : 0,
   };
 }
-
-void sql;

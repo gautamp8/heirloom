@@ -1,26 +1,15 @@
 import { z } from "zod";
 
 /**
- * Heirloom Reflection — the contract that makes "AI that speaks for the dead"
- * ethically defensible. Every line in this file is load-bearing for the
- * `Safety & Trust` story.
- *
- * Reference: design-system/handoff/PROMPTS.md §5, §6
- *            design-system/handoff/GUARDRAILS.md §2
+ * Heirloom Reflection — grounding contract. Every claim cites a retrieved
+ * capture; uncited claims, first-person impersonation, or below-threshold
+ * retrievals collapse to the verbatim empty state without invoking the
+ * model. See `design-system/handoff/GUARDRAILS.md`.
  */
 
-/** Hard similarity gate. If the best-matching chunk's cosine similarity is
- *  below this, the system returns the empty-state response *without ever
- *  calling Gemma 4*. Do not branch around this constant.
- *
- *  Calibrated empirically against EmbeddingGemma 300m: same-topic queries
- *  score 0.40–0.55, unrelated queries 0.10–0.30. The 0.55 default suggested
- *  in design-system/handoff/PROMPTS.md §5 was tuned for a different
- *  embedding model and rejects legitimate matches at our scale.
- *
- *  This threshold will need recalibration after Phase E.5 (seed corpus)
- *  lands more captures and the similarity baseline rises. Tracked in
- *  EXECUTION-PLAN.md "Deferred items". */
+/** Hard similarity gate. Below this, the system returns the empty-state
+ *  response without calling Gemma 4. Calibrated against EmbeddingGemma
+ *  300m; recalibrate if the embedding model changes. */
 export const REFLECTION_SIMILARITY_THRESHOLD = 0.40;
 
 /** Verbatim copy returned when no grounded answer exists. The string itself

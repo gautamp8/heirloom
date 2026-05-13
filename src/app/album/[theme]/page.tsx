@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { readSession } from "@/lib/auth";
-import { sqlAdmin, withRls } from "@/lib/db";
+import { withRls } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -58,9 +58,6 @@ export default async function AlbumPage({
        ORDER BY c.captured_at DESC
     `;
   });
-
-  // Suppress unused-export linter
-  void sqlAdmin;
 
   return (
     <main className="stage relative min-h-dvh px-6 pt-8 pb-16">

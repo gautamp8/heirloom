@@ -7,17 +7,10 @@ const DEV_EMAIL = "creator@heirloom.local";
 
 /**
  * Idempotently provisions the single-creator user + vault and sets a
- * session cookie. This is the entry point for the "Begin a new archive"
- * button on /portal.
+ * session cookie. Entry point for "Begin a new archive" on `/portal`.
  *
- * The user's display_name starts as "Friend" — onboarding step 1
- * (saveSelf) overwrites it with the creator's real name.
- *
- * v1 ships single-creator-per-instance; everyone hitting this endpoint
- * lands on the same vault. Real per-user signup is the next phase
- * (tracked under multi-tenancy work).
- *
- * POST  → ensures user + vault exist, sets cookie, returns session payload.
+ * The user's display_name starts as "Friend"; onboarding step 1
+ * overwrites it with the creator's real name.
  */
 export async function POST() {
   try {
