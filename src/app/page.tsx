@@ -12,7 +12,7 @@ type CreatorHome = {
     time_of_day: "morning" | "afternoon" | "evening";
     display_name: string;
   };
-  prompt_of_day: { id: string; text: string };
+  prompt_of_day: { id: string; text: string | null };
   recent_captures: HomeCapture[];
   stats: { captures: number; nominees: number };
 };

@@ -13,7 +13,7 @@ const TOD_LABELS: Record<"morning" | "afternoon" | "evening", string> = {
 
 export function Home(props: {
   greeting: { time_of_day: "morning" | "afternoon" | "evening"; display_name: string };
-  prompt: { id: string; text: string };
+  prompt: { id: string; text: string | null };
   recent: HomeCapture[];
   stats: { captures: number; nominees: number };
 }) {
@@ -25,13 +25,39 @@ export function Home(props: {
     prompt?: string;
   } | null>(null);
   const [recent, setRecent] = useState(props.recent);
-  const [prompt, setPrompt] = useState(props.prompt.text);
+  // prompt starts null (server didn't wait for Gemma); we fetch it
+  // asynchronously below so the home renders instantly.
+  const [prompt, setPrompt] = useState<string | null>(props.prompt.text);
   const [shuffling, setShuffling] = useState(false);
   const [draftCount, setDraftCount] = useState(0);
 
   useEffect(() => {
+    // Async prompt fetch on first mount. Gemma 4 on CPU takes 5-8s so
+    // we keep this off the server render path. Setting `shuffling` so
+    // the breathing dots affordance shows during the fetch.
+    if (prompt !== null) return;
+    let cancelled = false;
+    setShuffling(true);
+    (async () => {
+      try {
+        const r = await fetch("/api/prompt/shuffle");
+        if (r.ok) {
+          const d = (await r.json()) as { text: string };
+          if (!cancelled && d.text) setPrompt(d.text);
+        }
+      } finally {
+        if (!cancelled) setShuffling(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Only run on initial mount; subsequent shuffles are user-triggered.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     // Check for any local drafts that didn't make it to the server.
-    // Loaded lazily so the bundle isn't pulled on every home render.
     let cancelled = false;
     (async () => {
       try {
@@ -106,19 +132,25 @@ export function Home(props: {
               </svg>
             </button>
           </div>
-          <p className="font-serif italic text-[21px] leading-[1.3] mb-4 text-ink tracking-[-0.005em] text-wrap-pretty">
-            {prompt}
-          </p>
+          {prompt ? (
+            <p className="font-serif italic text-[21px] leading-[1.3] mb-4 text-ink tracking-[-0.005em] text-wrap-pretty">
+              {prompt}
+            </p>
+          ) : (
+            <p className="font-serif italic text-[21px] leading-[1.3] mb-4 text-ink-muted tracking-[-0.005em]">
+              Composing a prompt for you<span className="opacity-50">…</span>
+            </p>
+          )}
           <div className="flex items-center gap-3.5">
             <button
               className="btn"
-              onClick={() => setSheet({ mode: "voice", prompt })}
+              onClick={() => setSheet({ mode: "voice", prompt: prompt ?? undefined })}
             >
               Speak it
             </button>
             <button
               className="btn-ghost"
-              onClick={() => setSheet({ mode: "note", prompt })}
+              onClick={() => setSheet({ mode: "note", prompt: prompt ?? undefined })}
             >
               Or write
             </button>

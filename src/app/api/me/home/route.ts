@@ -1,6 +1,5 @@
 import { sqlAdmin, withRls } from "@/lib/db";
 import { errorResponse, requireSession } from "@/lib/auth";
-import { generatePromptOfDay } from "@/lib/prompts";
 import { fireLetterConditions } from "@/lib/letter-conditions";
 
 export const dynamic = "force-dynamic";
@@ -69,18 +68,18 @@ export async function GET() {
         return { user, recent, counts, recentTopics };
       });
 
-      const promptText = await generatePromptOfDay({
-        recentTopics: data.recentTopics.map((r) => r.value),
-        recentCount: data.counts.captures,
-      });
-
+      // We DELIBERATELY do not call generatePromptOfDay here. On CPU it
+      // takes 5-8s and is the long pole that makes the home feel slow.
+      // The client fetches the prompt asynchronously via
+      // /api/prompt/shuffle once the page has rendered. A placeholder is
+      // returned so the slot doesn't flash empty.
       return Response.json({
         role: "creator",
         greeting: {
           time_of_day: timeOfDay(),
           display_name: data.user.display_name,
         },
-        prompt_of_day: { id: "gemma", text: promptText },
+        prompt_of_day: { id: "pending", text: null },
         recent_captures: data.recent,
         stats: data.counts,
       });

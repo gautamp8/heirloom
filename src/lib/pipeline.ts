@@ -163,7 +163,38 @@ export async function runCapturePipeline(
       }
     });
 
-    // 5) Status -> ready
+    // 5) Auto-release to every nominee in the vault, UNLESS this capture
+    //    is the body of a sealed letter (those release via the condition
+    //    engine when their moment arrives, not on capture-ready).
+    //
+    //    v1 model: the creator's "regular" memories (audio/note/photo)
+    //    are visible to everyone the creator named in onboarding. The
+    //    sealed-letter pattern is the deliberate exception — those stay
+    //    sealed until their condition fires. Per-capture privacy controls
+    //    ("share with only Maya", "private until 2030") are a v1.1 item.
+    await withRls(session.user_id, session.role, async (tx) => {
+      const [sealed] = await tx<{ exists: boolean }[]>`
+        SELECT EXISTS (
+          SELECT 1 FROM sealed_letters WHERE capture_id = ${cap.id}
+        ) AS exists
+      `;
+      if (!sealed?.exists) {
+        const nominees = await tx<{ id: string }[]>`
+          SELECT id FROM nominees WHERE vault_id = ${cap.vault_id}
+        `;
+        for (const n of nominees) {
+          await tx`
+            INSERT INTO nominee_releases
+              (vault_id, capture_id, nominee_id, trigger, released_at, label)
+            VALUES (${cap.vault_id}, ${cap.id}, ${n.id}, 'scheduled', now(),
+                    'auto-released on capture')
+            ON CONFLICT DO NOTHING
+          `;
+        }
+      }
+    });
+
+    // 6) Status -> ready
     await withRls(session.user_id, session.role, async (tx) => {
       await tx`UPDATE captures SET status = 'ready' WHERE id = ${cap.id}`;
     });
