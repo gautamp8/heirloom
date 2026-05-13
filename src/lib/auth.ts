@@ -15,6 +15,22 @@ export type Session = {
   role: "creator" | "nominee";
 };
 
+/**
+ * Whether the demo-friendly surfaces (fixture nominee, vault reset, the
+ * /dev role-switcher console) should be reachable.
+ *
+ * Always on in development. In production, opted-in via the
+ * HEIRLOOM_ALLOW_DEV_FIXTURES env flag — useful for a hosted demo
+ * where you want judges to be able to click "Become Maya" without
+ * walking the full onboarding flow, but dangerous in any deployment
+ * intended to hold real data (anyone hitting Reset wipes the vault).
+ */
+export function devFixturesAllowed(): boolean {
+  if (process.env.NODE_ENV !== "production") return true;
+  return process.env.HEIRLOOM_ALLOW_DEV_FIXTURES === "1" ||
+         process.env.HEIRLOOM_ALLOW_DEV_FIXTURES === "true";
+}
+
 export async function issueSession(session: Session): Promise<string> {
   return new SignJWT({ ...session })
     .setProtectedHeader({ alg: "HS256" })

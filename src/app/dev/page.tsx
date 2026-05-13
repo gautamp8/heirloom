@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { readSession } from "@/lib/auth";
+import { devFixturesAllowed, readSession } from "@/lib/auth";
 import { sqlAdmin } from "@/lib/db";
 import { DevControls } from "./controls";
 
@@ -16,7 +16,7 @@ type Snapshot = {
 };
 
 export default async function DevPage() {
-  if (process.env.NODE_ENV === "production") notFound();
+  if (!devFixturesAllowed()) notFound();
   if (!sqlAdmin) return <p>No admin DB.</p>;
 
   const session = await readSession();

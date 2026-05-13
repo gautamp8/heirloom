@@ -1,30 +1,25 @@
 import { sql } from "@/lib/db";
-import {
-  HttpError,
-  errorResponse,
-  issueSession,
-  setSessionCookie,
-} from "@/lib/auth";
+import { errorResponse, issueSession, setSessionCookie } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 const DEV_EMAIL = "creator@heirloom.local";
 
 /**
- * Dev-only shortcut: idempotently provisions a creator user + vault and
- * sets a session cookie. Use only when NODE_ENV !== "production".
+ * Idempotently provisions the single-creator user + vault and sets a
+ * session cookie. This is the entry point for the "Begin a new archive"
+ * button on /portal.
  *
- * The user's display_name is a placeholder ("Friend"). The real name is
- * captured in onboarding step 1 (saveSelf) and overwrites this row. The
- * Reset endpoint resets the name back to "Friend" so subsequent dev runs
- * don't accidentally inherit a previous creator's name as a fixture.
+ * The user's display_name starts as "Friend" — onboarding step 1
+ * (saveSelf) overwrites it with the creator's real name.
  *
- * POST  → ensures user + vault exist, sets cookie, returns the session payload.
+ * v1 ships single-creator-per-instance; everyone hitting this endpoint
+ * lands on the same vault. Real per-user signup is the next phase
+ * (tracked under multi-tenancy work).
+ *
+ * POST  → ensures user + vault exist, sets cookie, returns session payload.
  */
 export async function POST() {
-  if (process.env.NODE_ENV === "production") {
-    return errorResponse(new HttpError(404, "not_found"));
-  }
   try {
     const [user] = await sql<{ id: string; email: string; display_name: string }[]>`
       INSERT INTO users (email, display_name)

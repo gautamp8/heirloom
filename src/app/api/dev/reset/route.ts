@@ -1,5 +1,10 @@
 import { sqlAdmin } from "@/lib/db";
-import { HttpError, errorResponse, clearSessionCookie } from "@/lib/auth";
+import {
+  HttpError,
+  errorResponse,
+  devFixturesAllowed,
+  clearSessionCookie,
+} from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +14,7 @@ export const dynamic = "force-dynamic";
  * IDs stay stable across resets. Clears the session cookie.
  */
 export async function POST() {
-  if (process.env.NODE_ENV === "production") {
+  if (!devFixturesAllowed()) {
     return errorResponse(new HttpError(404, "not_found"));
   }
   try {

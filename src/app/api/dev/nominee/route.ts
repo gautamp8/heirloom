@@ -2,6 +2,7 @@ import { sqlAdmin } from "@/lib/db";
 import {
   HttpError,
   errorResponse,
+  devFixturesAllowed,
   issueSession,
   setSessionCookie,
 } from "@/lib/auth";
@@ -33,7 +34,7 @@ I love you.
  * tables before any user session exists.
  */
 export async function POST() {
-  if (process.env.NODE_ENV === "production") {
+  if (!devFixturesAllowed()) {
     return errorResponse(new HttpError(404, "not_found"));
   }
   try {
