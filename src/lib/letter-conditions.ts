@@ -2,6 +2,7 @@ import type postgres from "postgres";
 import { sqlAdmin } from "./db";
 import { embedOne, vectorLiteral } from "./embed";
 import type { Session } from "./auth";
+import { sendToUser } from "./notifications";
 
 /**
  * The conditions DSL stored in sealed_letters.conditions:
@@ -137,8 +138,46 @@ export async function fireLetterConditions(
       trigger: triggered.label,
       to_nominee_id: p.to_nominee_id,
     });
+
+    // Notify recipients. We don't await delivery — push services have
+    // their own retry semantics and a failure shouldn't block the
+    // grounding/retrieval path.
+    void notifyLetterUnlocked(
+      adm,
+      session.vault_id,
+      p.to_nominee_id,
+      p.occasion_prompt,
+    );
   }
   return fired;
+}
+
+async function notifyLetterUnlocked(
+  adm: postgres.Sql,
+  vault_id: string,
+  to_nominee_id: string | null,
+  occasion_prompt: string,
+): Promise<void> {
+  try {
+    const recipients = to_nominee_id
+      ? await adm<{ user_id: string | null }[]>`
+          SELECT user_id FROM nominees WHERE id = ${to_nominee_id}
+        `
+      : await adm<{ user_id: string | null }[]>`
+          SELECT user_id FROM nominees WHERE vault_id = ${vault_id}
+        `;
+    for (const r of recipients) {
+      if (!r.user_id) continue;
+      await sendToUser(r.user_id, "letter", {
+        title: "A letter is waiting",
+        body: occasion_prompt,
+        url: "/",
+        tag: `letter-${to_nominee_id ?? "broadcast"}`,
+      });
+    }
+  } catch (e) {
+    console.warn("[push] letter-unlock notify failed", e);
+  }
 }
 
 type PendingRow = {

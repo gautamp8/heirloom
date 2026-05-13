@@ -356,6 +356,57 @@ as a single encrypted file you can drop in any storage. That bundle is
 provider-independent — it imports cleanly into a fresh Heirloom
 instance running anywhere.
 
+## Push notifications (sealed-letter unlocks + daily memory)
+
+Heirloom can send Web Push notifications via the same VM. iOS PWA push
+requires the user to "Add to Home Screen" first; macOS / Android / desktop
+Chrome work the moment the user clicks **Turn on notifications** in
+Settings.
+
+Configure VAPID once (the keys persist with the rest of the env):
+
+```bash
+# Generate keys
+ssh heirloom@<vm-ip> 'cd /opt/heirloom/app && npx web-push generate-vapid-keys --json'
+
+# Add to /opt/heirloom/.env:
+#   VAPID_PUBLIC_KEY=<public>
+#   VAPID_PRIVATE_KEY=<private>
+#   VAPID_SUBJECT=mailto:you@example.com
+#   NEXT_PUBLIC_VAPID_PUBLIC_KEY=<public>
+#   CRON_SECRET=<openssl rand -hex 32>
+
+sudo systemctl restart heirloom
+```
+
+For the daily-memory tick, set a systemd timer or any cron:
+
+```bash
+# /etc/systemd/system/heirloom-daily.service
+[Unit]
+Description=Heirloom daily-memory push
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/curl -sS -X POST \
+    -H "X-Cron-Secret: ${CRON_SECRET}" \
+    http://127.0.0.1:3000/api/cron/daily-memory
+
+# /etc/systemd/system/heirloom-daily.timer
+[Unit]
+Description=Fire heirloom-daily once a day
+[Timer]
+OnCalendar=*-*-* 09:00:00
+Persistent=true
+[Install]
+WantedBy=timers.target
+```
+
+Then `systemctl enable --now heirloom-daily.timer`.
+
+Notification payloads carry only a title and short body — never the
+contents of a memory. Tapping a notification opens the app; the actual
+memory is fetched after the user is authenticated.
+
 ## When the cloud isn't the right answer
 
 If any of these are true, run locally instead:
