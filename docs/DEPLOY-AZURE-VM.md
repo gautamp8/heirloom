@@ -251,36 +251,121 @@ az group delete -g heirloom-rg --yes --no-wait
 
 ## CPU vs. GPU — what to expect
 
-On the recommended D8as_v5 (8 vCPU, no GPU) you'll see:
+This is the single most important section of this document. **Run the
+demo locally if you can.** A Mac with Gemma 4 e4b on Apple Silicon GPU
+runs Reflection in 3–5 s. The same model on 8 CPU cores takes 30–60 s.
+That's a ~15× gap. For a hackathon demo video, recording on local
+hardware is the right call. The cloud URL is for judges or family
+members who can't install Ollama themselves; it is not the
+fastest-feels-best surface.
+
+Measured numbers on the actual production deploy (D8as_v5, 8 vCPU AMD,
+no GPU) after the perf work in `18f9227`:
 
 | Surface | M4 Pro local | D8as_v5 cloud |
 |---|---|---|
-| Reflection grounded answer (first claim) | ~3 s | ~30–60 s |
+| Greeting on home (cached) | ~50 ms | ~80 ms |
+| Note save → "Saved" | <2 s | ~1–2 s (status flips ready before Gemma) |
+| Tag + auto-title (background) | ~2–4 s | ~15–25 s (off the user-perceived path) |
 | Photo caption via Gemma 4 vision | ~1.7 s | ~30–90 s |
 | Whisper small.en (30 s clip) | ~3 s | ~6 s |
 | EmbeddingGemma per chunk | ~50 ms | ~200 ms |
+| Reflection — empty state (no Gemma call) | ~200 ms | ~200 ms |
+| Reflection — time to first streamed token | ~3 s | ~27 s |
+| Reflection — full answer (~3 claims) | ~5 s | ~60 s |
 
-It's usable but slow. The empty-state path stays fast because Gemma is
-never called when retrieval fails. The slow case is exactly the
-expensive one — long-form synthesis with citations.
+The CPU bottleneck is **prompt evaluation**, not generation. Gemma 4
+e4b processes ~80 tokens/sec of input on 8 vCPUs; we ship the top-5
+retrieved chunks plus the system prompt, around 2,000 input tokens,
+which dominates the wait. The actual streaming after that is a steady
+~3–4 tok/s — about the speed of fast typing.
 
-If your audience won't tolerate 60 s response times and you do have
-GPU quota, swap to an NCv4 (Tesla T4) — the deploy scripts are
-unchanged because Ollama auto-detects CUDA. Add `nvidia-driver-535`
-in `vm-setup.sh` before the Ollama install.
+What we did to make CPU feel less painful:
+
+- **Stream the partial answer**. `/api/reflect` emits an
+  `answer_partial` SSE event each time Gemma extends the prose, so the
+  user sees words forming rather than a 30-second whitespace stare.
+- **Reorder the note pipeline**. Capture goes to `status='ready'`
+  before tagging + auto-title. The user sees "Saved" in 1–2 s; tags
+  appear on the next home load.
+- **Async prompt-of-day on home**. The home renders instantly; the
+  Gemma-generated prompt fetches in the background.
+- **`OLLAMA_NUM_PARALLEL=2`** + **`OLLAMA_KEEP_ALIVE=30m`** so the
+  model stays resident and tag+title can overlap.
+- **Pre-warm at boot**. A separate `ollama-warmup.service` systemd
+  unit fires one tiny inference + one embed right after Ollama
+  starts, so the first real user request doesn't pay the ~10–15 s
+  cold-load tax.
+- **Cut retrieval from top-8 to top-5**. ~25% less prompt to evaluate.
+
+It's still slow. There's a floor on CPU and we're near it.
+
+If you have GPU quota, swap to an NCv4 (Tesla T4) — the deploy scripts
+are unchanged because Ollama auto-detects CUDA. Add the NVIDIA driver
++ CUDA runtime install before the Ollama install step. Expect numbers
+to land between the M4 Pro and the CPU columns above.
+
+## Known issues with the Turbopack production build
+
+During this project's first cloud deploy we ran into a reproducible bug
+where Turbopack on the VM silently dead-code-eliminated a code branch
+in `src/app/api/reflect/route.ts` — specifically the `answer_partial`
+streaming logic. The same build on the developer laptop produced the
+correct output. Both machines run Node 22 and Next.js 16.2.6 with the
+bundled Turbopack.
+
+**Workaround**: build `.next` locally and rsync the output to the VM
+instead of running `pnpm build` there.
+
+```bash
+# On your laptop
+pnpm install
+pnpm build
+
+# Ship the compiled output directly
+rsync -az --delete .next/ \
+    heirloom@<vm-ip>:/opt/heirloom/app/.next/
+ssh heirloom@<vm-ip> 'sudo chown -R heirloom:heirloom /opt/heirloom/app/.next \
+    && sudo systemctl restart heirloom'
+```
+
+The systemd `heirloom.service` unit invokes `pnpm start`, which only
+needs the `.next` directory and `node_modules`. Skipping the on-VM
+build sidesteps the Turbopack quirk entirely.
+
+When this is fixed upstream, the `build-and-start.sh` script's
+`pnpm build` step will once again be reliable. Until then, prefer
+the local-build-then-rsync pattern for production deploys.
 
 ## Updating later
 
+The reliable pattern is local build + ship the artifact, not on-VM
+build:
+
 ```bash
 # From your local clone
-rsync -az --exclude=node_modules/ --exclude=.next/ --exclude=storage/ \
+pnpm build
+
+rsync -az --exclude=node_modules/ --exclude=storage/ \
     --exclude=.tmp-screenshots/ ./ \
     heirloom@<vm-ip>:/opt/heirloom/app/
+
+# Run migrations + restart (re-uses the .next we just rsynced; the
+# pnpm build inside build-and-start.sh becomes a no-op if .next is
+# already current, or you can edit the script to skip it entirely).
 ssh heirloom@<vm-ip> 'sudo bash /opt/heirloom/build-and-start.sh'
 ```
 
-Migrations are idempotent. The `build-and-start.sh` script is the only
-thing you need to re-run after a source change.
+Migrations are idempotent. If you only changed code and not schema,
+just rsync `.next/` and restart:
+
+```bash
+pnpm build
+rsync -az --delete .next/ \
+    heirloom@<vm-ip>:/opt/heirloom/app/.next/
+ssh heirloom@<vm-ip> 'sudo chown -R heirloom:heirloom /opt/heirloom/app/.next \
+    && sudo systemctl restart heirloom'
+```
 
 ## Backups
 
