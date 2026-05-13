@@ -122,8 +122,8 @@ Type=simple
 ExecStart=/usr/local/bin/ollama serve
 Environment=OLLAMA_HOST=127.0.0.1:11434
 Environment=OLLAMA_FLASH_ATTENTION=0
-Environment=OLLAMA_KEEP_ALIVE=15m
-Environment=OLLAMA_NUM_PARALLEL=1
+Environment=OLLAMA_KEEP_ALIVE=30m
+Environment=OLLAMA_NUM_PARALLEL=2
 Restart=always
 RestartSec=5
 User=ollama

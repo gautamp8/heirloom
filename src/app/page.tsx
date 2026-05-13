@@ -132,7 +132,12 @@ export default async function Root() {
             Heirloom
           </span>
         </div>
-        <span className="eyebrow">Creator</span>
+        <a
+          href="/settings"
+          className="eyebrow hover:text-ink transition-colors"
+        >
+          Settings
+        </a>
       </div>
 
       <Home

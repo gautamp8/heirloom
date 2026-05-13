@@ -121,15 +121,35 @@ export async function runCapturePipeline(
       });
     }
 
-    // 3) Tag via Gemma 4 → capture_tags
-    const tags: CaptureTags = await tagCapture(text, cap.kind);
+    // 3-4) Tag + auto-title via Gemma 4, in parallel.
+    //   - Tag and title are independent — both read `text`, neither
+    //     touches the other's output. Sequential cost on CPU is ~2x
+    //     each Gemma call (~5-10s each). Parallel cost is max(t,t).
+    //   - Requires OLLAMA_NUM_PARALLEL >= 2 to actually run them
+    //     concurrently; otherwise Ollama serializes them and we just
+    //     get clearer code with no perf change.
+    const wantTitle = !cap.title && text.trim().length >= 12;
+    const [tags, generatedTitle] = await Promise.all([
+      tagCapture(text, cap.kind).catch((e) => {
+        console.warn("[pipeline] tagging failed", e);
+        return { emotion: [], topic: [], person: [], place: [] } as CaptureTags;
+      }),
+      wantTitle
+        ? generateNoteTitle(text).catch((e) => {
+            console.warn("[pipeline] title generation failed", e);
+            return null;
+          })
+        : Promise.resolve(null),
+    ]);
+
     const rows: { kind: string; value: string }[] = [];
     for (const v of tags.emotion) rows.push({ kind: "emotion", value: v });
     for (const v of tags.topic) rows.push({ kind: "topic", value: v });
     for (const v of tags.person) rows.push({ kind: "person", value: v });
     for (const v of tags.place) rows.push({ kind: "place", value: v });
-    if (rows.length > 0) {
-      await withRls(session.user_id, session.role, async (tx) => {
+
+    await withRls(session.user_id, session.role, async (tx) => {
+      if (rows.length > 0) {
         for (const r of rows) {
           await tx`
             INSERT INTO capture_tags (capture_id, kind, value, confidence)
@@ -137,23 +157,11 @@ export async function runCapturePipeline(
             ON CONFLICT DO NOTHING
           `;
         }
-      });
-    }
-
-    // 4) Auto-title — if the creator didn't supply one, ask Gemma for a
-    //    short phrase in their own register. Best-effort; never blocks ready.
-    if (!cap.title && text.trim().length >= 12) {
-      try {
-        const generated = await generateNoteTitle(text);
-        if (generated) {
-          await withRls(session.user_id, session.role, async (tx) => {
-            await tx`UPDATE captures SET title = ${generated} WHERE id = ${cap.id} AND title IS NULL`;
-          });
-        }
-      } catch (e) {
-        console.warn("[pipeline] title generation failed", e);
       }
-    }
+      if (generatedTitle) {
+        await tx`UPDATE captures SET title = ${generatedTitle} WHERE id = ${cap.id} AND title IS NULL`;
+      }
+    });
 
     // 5) Status -> ready
     await withRls(session.user_id, session.role, async (tx) => {

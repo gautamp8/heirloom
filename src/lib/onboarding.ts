@@ -305,4 +305,137 @@ export async function markOnboarded(session: Session): Promise<void> {
   });
 }
 
+/**
+ * Regenerate a nominee's passphrase. We can't show the existing one
+ * because we only kept the argon2id hash. The new plaintext is returned
+ * ONCE — the caller is responsible for surfacing it to the creator so
+ * they can re-share it with the recipient.
+ */
+export async function regenerateNomineePassphrase(
+  session: Session,
+  nominee_id: string,
+): Promise<{ passphrase: string } | null> {
+  const passphrase = generatePassphrase();
+  const passphrase_hash = await argon2.hash(normalisePassphrase(passphrase), {
+    type: argon2.argon2id,
+  });
+  const updated = await withRls(session.user_id, session.role, async (tx) => {
+    const rows = await tx<{ id: string }[]>`
+      UPDATE nominees
+         SET passphrase_hash = ${passphrase_hash}, passphrase_set_at = now()
+       WHERE id = ${nominee_id} AND vault_id = ${session.vault_id}
+       RETURNING id
+    `;
+    return rows.length > 0;
+  });
+  return updated ? { passphrase } : null;
+}
+
+/**
+ * The settings surface needs everything onboarding gathers, plus the
+ * existing list of nominees (without exposing passphrase hashes).
+ */
+export async function getSettings(session: Session): Promise<{
+  user: { display_name: string };
+  vault: { onboarded_at: string | null };
+  life_events: {
+    id: string;
+    kind: string;
+    label: string;
+    event_date: string | null;
+    recurrence: string | null;
+  }[];
+  nominees: {
+    id: string;
+    name: string;
+    relationship: string | null;
+    email: string | null;
+    has_passphrase: boolean;
+    passphrase_set_at: string | null;
+  }[];
+}> {
+  return withRls(session.user_id, session.role, async (tx) => {
+    const [user] = await tx<{ display_name: string }[]>`
+      SELECT display_name FROM users WHERE id = ${session.user_id}
+    `;
+    const [vault] = await tx<{ onboarded_at: Date | null }[]>`
+      SELECT onboarded_at FROM vaults WHERE id = ${session.vault_id}
+    `;
+    const life_events = await tx<
+      {
+        id: string;
+        kind: string;
+        label: string;
+        event_date: Date | null;
+        recurrence: string | null;
+      }[]
+    >`
+      SELECT id, kind, label, event_date, recurrence
+        FROM life_events
+       WHERE vault_id = ${session.vault_id}
+       ORDER BY event_date NULLS LAST, label
+    `;
+    const nominees = await tx<
+      {
+        id: string;
+        name: string;
+        relationship: string | null;
+        email: string | null;
+        has_passphrase: boolean;
+        passphrase_set_at: Date | null;
+      }[]
+    >`
+      SELECT id, name, relationship, email,
+             (passphrase_hash IS NOT NULL) AS has_passphrase,
+             passphrase_set_at
+        FROM nominees
+       WHERE vault_id = ${session.vault_id}
+       ORDER BY created_at ASC
+    `;
+    return {
+      user: { display_name: user?.display_name ?? "Friend" },
+      vault: { onboarded_at: vault?.onboarded_at?.toISOString() ?? null },
+      life_events: life_events.map((e) => ({
+        ...e,
+        event_date: e.event_date
+          ? e.event_date.toISOString().slice(0, 10)
+          : null,
+      })),
+      nominees: nominees.map((n) => ({
+        ...n,
+        passphrase_set_at: n.passphrase_set_at?.toISOString() ?? null,
+      })),
+    };
+  });
+}
+
+export async function updateDisplayName(
+  session: Session,
+  display_name: string,
+): Promise<void> {
+  const name = display_name.trim();
+  if (!name) throw new Error("missing_name");
+  await withRls(session.user_id, session.role, async (tx) => {
+    await tx`UPDATE users SET display_name = ${name} WHERE id = ${session.user_id}`;
+    await tx`
+      UPDATE people SET display_name = ${name}
+       WHERE vault_id = ${session.vault_id} AND relation = 'self'
+    `;
+  });
+}
+
+export async function deleteLifeEvent(
+  session: Session,
+  id: string,
+): Promise<boolean> {
+  return withRls(session.user_id, session.role, async (tx) => {
+    const rows = await tx<{ id: string }[]>`
+      DELETE FROM life_events
+       WHERE id = ${id} AND vault_id = ${session.vault_id}
+       RETURNING id
+    `;
+    return rows.length > 0;
+  });
+}
+
 void sql;
