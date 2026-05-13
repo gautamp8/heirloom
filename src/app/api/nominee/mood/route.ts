@@ -1,5 +1,5 @@
-import { withRls } from "@/lib/db";
-import { embedOne, vectorLiteral } from "@/lib/embed";
+import { withRls, vec } from "@/lib/db";
+import { embedOne } from "@/lib/embed";
 import { fireLetterConditions } from "@/lib/letter-conditions";
 import { errorResponse, HttpError, requireSession } from "@/lib/auth";
 
@@ -36,8 +36,7 @@ export async function POST(req: Request) {
       if (!n) return;
       await tx`
         INSERT INTO nominee_states (nominee_id, vault_id, state_label, state_embedding)
-        VALUES (${n.id}, ${session.vault_id}, ${state},
-                ${vectorLiteral(embedding)}::vector)
+        VALUES (${n.id}, ${session.vault_id}, ${state}, ${vec(embedding)})
       `;
     });
 

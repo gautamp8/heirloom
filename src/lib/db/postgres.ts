@@ -68,3 +68,26 @@ export async function withRls<T>(
     return fn(tx);
   })) as T;
 }
+
+// Portable SQL helpers — these have a SQLite-backed twin in ./sqlite.ts
+// so call sites stay backend-agnostic.
+
+function vectorLiteral(arr: number[]): string {
+  return `[${arr.join(",")}]`;
+}
+
+/** Bind a numeric vector as a pgvector value. */
+export function vec(arr: number[]) {
+  return sql`${vectorLiteral(arr)}::vector`;
+}
+
+/** Cosine distance between a vector column and a query vector.
+ *  Returns a value in `[0, 2]` (smaller = closer). */
+export function cosineDist(column: string, query: number[]) {
+  return sql`(${sql.unsafe(column)} <=> ${vectorLiteral(query)}::vector)`;
+}
+
+/** Cosine similarity in `[-1, 1]` (larger = closer). */
+export function cosineSim(column: string, query: number[]) {
+  return sql`(1 - (${sql.unsafe(column)} <=> ${vectorLiteral(query)}::vector))`;
+}

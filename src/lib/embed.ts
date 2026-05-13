@@ -19,8 +19,3 @@ export async function embedAll(values: string[]): Promise<number[][]> {
   });
   return embeddings;
 }
-
-/** Format a number[] as a pgvector literal: '[0.1,0.2,...]'. */
-export function vectorLiteral(v: number[]): string {
-  return `[${v.join(",")}]`;
-}

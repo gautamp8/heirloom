@@ -1,5 +1,5 @@
 import type postgres from "postgres";
-import { vectorLiteral } from "./embed";
+import { vec as toVec, cosineSim, cosineDist } from "./db";
 
 export type FaceInput = {
   bbox: { x: number; y: number; w: number; h: number };
@@ -28,15 +28,15 @@ export async function storeFaceAppearances(
   let matched = 0;
   for (const f of opts.faces) {
     if (f.embedding.length !== 128) continue;
-    const vec = vectorLiteral(f.embedding);
+    const faceVec = toVec(f.embedding);
 
     // Find the closest existing person in this vault, if any.
     const [match] = await tx<{ id: string; similarity: number }[]>`
-      SELECT id, 1 - (reference_embedding <=> ${vec}::vector) AS similarity
+      SELECT id, ${cosineSim("reference_embedding", f.embedding)} AS similarity
         FROM people
        WHERE vault_id = ${opts.vault_id}
          AND reference_embedding IS NOT NULL
-       ORDER BY reference_embedding <=> ${vec}::vector
+       ORDER BY ${cosineDist("reference_embedding", f.embedding)}
        LIMIT 1
     `;
 
@@ -49,7 +49,7 @@ export async function storeFaceAppearances(
         (capture_id, vault_id, person_id, bbox, embedding, similarity)
       VALUES
         (${opts.capture_id}, ${opts.vault_id}, ${personId},
-         ${tx.json(f.bbox)}, ${vec}::vector, ${similarity})
+         ${tx.json(f.bbox)}, ${faceVec}, ${similarity})
     `;
 
     if (personId) {

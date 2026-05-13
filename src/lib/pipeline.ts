@@ -1,9 +1,9 @@
-import { withRls } from "./db";
+import { withRls, vec } from "./db";
 import { resolveBlob } from "./storage";
 import { transcribeAudio } from "./whisper";
 import { captionPhoto } from "./vision";
 import { chunkText } from "./chunking";
-import { embedAll, vectorLiteral } from "./embed";
+import { embedAll } from "./embed";
 import { tagCapture, type CaptureTags } from "./tagging";
 import { generateNoteTitle } from "./prompts";
 import type { Session } from "./auth";
@@ -113,7 +113,7 @@ export async function runCapturePipeline(
               (capture_id, vault_id, chunk_index, text, embedding)
             VALUES
               (${cap.id}, ${cap.vault_id}, ${chunks[i].index},
-               ${chunks[i].text}, ${vectorLiteral(vectors[i])}::vector)
+               ${chunks[i].text}, ${vec(vectors[i])})
           `;
         }
       });

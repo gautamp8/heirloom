@@ -7,8 +7,21 @@ import {
 } from "node:crypto";
 import argon2 from "argon2";
 import type { Session } from "./auth";
-import { sqlAdmin } from "./db";
+import { sqlAdmin, vec } from "./db";
 import { resolveBlob } from "./storage";
+
+/** Vector columns serialize to the pgvector text format `[a,b,c,...]`.
+ *  Parse back to a number[] so the portable `vec()` helper can rebind
+ *  it under either backend. */
+function parseVec(s: string | null): number[] | null {
+  if (!s) return null;
+  try {
+    const arr = JSON.parse(s) as unknown;
+    return Array.isArray(arr) ? (arr as number[]) : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Encrypted vault bundle (.hloom v1)
@@ -373,11 +386,13 @@ export async function importVault(
     }[]) {
       const nid = capIdMap[ch.capture_id];
       if (!nid) continue;
+      const embArr = parseVec(ch.embedding);
+      if (!embArr) continue;
       await tx`
         INSERT INTO transcript_chunks
           (capture_id, vault_id, chunk_index, text, embedding, start_ms, end_ms)
         VALUES (${nid}, ${session.vault_id}, ${ch.chunk_index}, ${ch.text},
-                ${ch.embedding}::vector, ${ch.start_ms}, ${ch.end_ms})
+                ${vec(embArr)}, ${ch.start_ms}, ${ch.end_ms})
       `;
     }
     counts.chunks = plaintext.rows.transcript_chunks.length;
@@ -406,12 +421,13 @@ export async function importVault(
       description: string | null;
       embedding: string | null;
     }[]) {
+      const leArr = parseVec(le.embedding);
       await tx`
         INSERT INTO life_events
           (vault_id, kind, label, event_date, recurrence, description, embedding)
         VALUES (${session.vault_id}, ${le.kind}, ${le.label}, ${le.event_date},
                 ${le.recurrence}, ${le.description},
-                ${le.embedding ? tx`${le.embedding}::vector` : null})
+                ${leArr ? vec(leArr) : null})
       `;
     }
     counts.life_events = plaintext.rows.life_events.length;

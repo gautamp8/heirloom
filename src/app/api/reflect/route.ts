@@ -1,5 +1,5 @@
 import { streamObject } from "ai";
-import { withRls } from "@/lib/db";
+import { withRls, vec } from "@/lib/db";
 import { embedOne } from "@/lib/embed";
 import { fetchTopK } from "@/lib/retrieval";
 import { ollama, SYNTHESIS_MODEL } from "@/lib/ollama";
@@ -284,14 +284,13 @@ async function saveReflection(
   },
   grounded: boolean,
 ): Promise<string> {
-  const lit = `[${qEmb.join(",")}]`;
   return withRls(session.user_id, session.role, async (tx) => {
     const [row] = await tx<{ id: string }[]>`
       INSERT INTO reflections (vault_id, user_id, question, question_embedding,
                                answer_json, grounded)
       VALUES (${session.vault_id}, ${session.user_id}, ${question},
-              ${lit}::vector,
-              ${JSON.stringify(resp)}::jsonb, ${grounded})
+              ${vec(qEmb)},
+              ${tx.json(resp as Parameters<typeof tx.json>[0])}, ${grounded})
       RETURNING id
     `;
     return row.id;

@@ -1,6 +1,6 @@
 import argon2 from "argon2";
-import { withRls } from "./db";
-import { embedOne, vectorLiteral } from "./embed";
+import { withRls, vec } from "./db";
+import { embedOne } from "./embed";
 import { generatePassphrase, normalisePassphrase } from "./passphrase";
 import type { Session } from "./auth";
 
@@ -61,9 +61,9 @@ export async function saveSelf(
   await withRls(session.user_id, session.role, async (tx) => {
     await tx`UPDATE users SET display_name = ${name} WHERE id = ${session.user_id}`;
 
-    const vec =
+    const faceVec =
       opts.face_embedding && opts.face_embedding.length === 128
-        ? vectorLiteral(opts.face_embedding)
+        ? vec(opts.face_embedding)
         : null;
 
     // One self-person per vault. Upsert by relation='self'.
@@ -71,10 +71,10 @@ export async function saveSelf(
       SELECT id FROM people WHERE vault_id = ${session.vault_id} AND relation = 'self'
     `;
     if (existing) {
-      if (vec) {
+      if (faceVec) {
         await tx`
           UPDATE people SET display_name = ${name},
-                            reference_embedding = ${vec}::vector,
+                            reference_embedding = ${faceVec},
                             confirmed = TRUE
            WHERE id = ${existing.id}
         `;
@@ -84,12 +84,12 @@ export async function saveSelf(
         `;
       }
     } else {
-      if (vec) {
+      if (faceVec) {
         await tx`
           INSERT INTO people (vault_id, display_name, relation, user_id,
                               reference_embedding, confirmed)
           VALUES (${session.vault_id}, ${name}, 'self', ${session.user_id},
-                  ${vec}::vector, TRUE)
+                  ${faceVec}, TRUE)
         `;
       } else {
         await tx`
@@ -126,7 +126,7 @@ export async function saveLifeEvents(
 
   await withRls(session.user_id, session.role, async (tx) => {
     for (const e of enriched) {
-      const vec = e.embedding ? vectorLiteral(e.embedding) : null;
+      const embVec = e.embedding ? vec(e.embedding) : null;
       await tx`
         INSERT INTO life_events
           (vault_id, kind, label, event_date, recurrence, description, embedding)
@@ -134,7 +134,7 @@ export async function saveLifeEvents(
           (${session.vault_id}, ${e.kind}, ${e.label},
            ${e.event_date ?? null}, ${e.recurrence ?? null},
            ${e.description ?? null},
-           ${vec ? tx`${vec}::vector` : null})
+           ${embVec})
       `;
     }
   });
@@ -209,7 +209,7 @@ export async function saveNominees(
              subject_person_id, embedding)
           VALUES
             (${session.vault_id}, 'birth', ${text}, ${n.birthday}, 'yearly',
-             ${person.id}, ${vectorLiteral(emb)}::vector)
+             ${person.id}, ${vec(emb)})
         `;
       }
     }
@@ -276,7 +276,7 @@ export async function saveSealedLetters(
            intent_embedding, conditions)
         VALUES
           (${cap.id}, ${session.vault_id}, ${nominee?.id ?? null},
-           ${d.occasion_prompt}, ${vectorLiteral(intent_vec)}::vector,
+           ${d.occasion_prompt}, ${vec(intent_vec)},
            ${tx.json(conditions)})
       `;
       inserted += 1;

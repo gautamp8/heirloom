@@ -1,6 +1,6 @@
 import type postgres from "postgres";
-import { sqlAdmin } from "./db";
-import { embedOne, vectorLiteral } from "./embed";
+import { sqlAdmin, cosineSim } from "./db";
+import { embedOne } from "./embed";
 import type { Session } from "./auth";
 import { sendToUser } from "./notifications";
 
@@ -196,11 +196,10 @@ async function fetchPending(
   probe_embedding: number[] | null,
 ): Promise<PendingRow[]> {
   if (probe_embedding && probe_embedding.length === 768) {
-    const vec = vectorLiteral(probe_embedding);
     return tx<PendingRow[]>`
       SELECT id, capture_id, to_nominee_id, occasion_prompt, conditions,
              CASE WHEN intent_embedding IS NULL THEN NULL
-                  ELSE 1 - (intent_embedding <=> ${vec}::vector)
+                  ELSE ${cosineSim("intent_embedding", probe_embedding)}
              END AS intent_similarity
         FROM sealed_letters
        WHERE vault_id = ${vault_id}
