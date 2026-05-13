@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CaptureSheet } from "./capture-sheet";
 import type { HomeCapture } from "../page";
@@ -27,6 +27,25 @@ export function Home(props: {
   const [recent, setRecent] = useState(props.recent);
   const [prompt, setPrompt] = useState(props.prompt.text);
   const [shuffling, setShuffling] = useState(false);
+  const [draftCount, setDraftCount] = useState(0);
+
+  useEffect(() => {
+    // Check for any local drafts that didn't make it to the server.
+    // Loaded lazily so the bundle isn't pulled on every home render.
+    let cancelled = false;
+    (async () => {
+      try {
+        const { countDrafts } = await import("@/lib/drafts");
+        const n = await countDrafts();
+        if (!cancelled) setDraftCount(n);
+      } catch {
+        /* IndexedDB unavailable */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [recent.length]);
 
   async function shufflePrompt() {
     setShuffling(true);
@@ -144,6 +163,16 @@ export function Home(props: {
             Reflect →
           </span>
         </Link>
+
+        {/* Local-draft notice — surfaces any in-flight captures still in
+            IndexedDB that the server hasn't acknowledged yet. */}
+        {draftCount > 0 && (
+          <p className="mt-5 font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted">
+            {draftCount === 1
+              ? "1 draft is safe in your browser"
+              : `${draftCount} drafts are safe in your browser`}
+          </p>
+        )}
 
         {/* Recent */}
         <h3 className="mt-7 mb-3 font-mono text-[10px] tracking-[0.18em] uppercase text-ink-muted font-medium flex items-center justify-between">

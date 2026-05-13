@@ -297,17 +297,37 @@ function VoiceCapture({
   async function commit() {
     setState("uploading");
     const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-    const fd = new FormData();
-    fd.set("file", new File([blob], "capture.webm", { type: "audio/webm" }));
     const durationMs =
       startedAtRef.current > 0 ? Date.now() - startedAtRef.current : elapsedMs;
+
+    // Persist a draft BEFORE attempting network upload. If the network
+    // hiccups or the tab closes, the recording survives in IndexedDB
+    // and can be resumed from the home banner.
+    let draftId: number | undefined;
+    try {
+      const { saveDraft } = await import("@/lib/drafts");
+      draftId = await saveDraft({
+        kind: "audio",
+        blob,
+        body: null,
+        title: null,
+        prompt: null,
+        duration_ms: durationMs,
+        faces: null,
+      });
+    } catch (e) {
+      console.warn("[drafts] save failed", e);
+    }
+
+    const fd = new FormData();
+    fd.set("file", new File([blob], "capture.webm", { type: "audio/webm" }));
     fd.set(
       "metadata",
       JSON.stringify({ kind: "audio", duration_ms: durationMs }),
     );
     const r = await fetch("/api/capture", { method: "POST", body: fd });
     if (!r.ok) {
-      setError("Upload failed.");
+      setError("Upload failed. The recording is safe in your browser.");
       setState("idle");
       return;
     }
@@ -331,10 +351,19 @@ function VoiceCapture({
       };
       setTags(t);
     });
-    es.addEventListener("ready", (ev) => {
+    es.addEventListener("ready", async (ev) => {
       const { capture } = JSON.parse((ev as MessageEvent).data) as {
         capture: HomeCapture & { transcript_snippet?: string };
       };
+      // Pipeline succeeded — clear the local draft.
+      if (draftId !== undefined) {
+        try {
+          const { clearDraft } = await import("@/lib/drafts");
+          await clearDraft(draftId);
+        } catch (e) {
+          console.warn("[drafts] clear failed", e);
+        }
+      }
       onSaved({ ...capture, transcript_snippet: capture.transcript_snippet ?? null });
       es.close();
     });
@@ -475,6 +504,25 @@ function NoteCapture({
     if (!text.trim()) return;
     setState("saving");
     setError(null);
+
+    // Persist the note locally before the network call so a closed tab
+    // or dropped connection doesn't drop the writing.
+    let draftId: number | undefined;
+    try {
+      const { saveDraft } = await import("@/lib/drafts");
+      draftId = await saveDraft({
+        kind: "note",
+        blob: null,
+        body: text.trim(),
+        title: titleEditable ? title.trim() || null : null,
+        prompt: prompt ?? null,
+        duration_ms: null,
+        faces: null,
+      });
+    } catch (e) {
+      console.warn("[drafts] save failed", e);
+    }
+
     const r = await fetch("/api/capture", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -485,7 +533,7 @@ function NoteCapture({
       }),
     });
     if (!r.ok) {
-      setError("Save failed.");
+      setError("Save failed. The note is safe in your browser.");
       setState("typing");
       return;
     }
@@ -503,10 +551,18 @@ function NoteCapture({
       };
       setTags(t);
     });
-    es.addEventListener("ready", (ev) => {
+    es.addEventListener("ready", async (ev) => {
       const { capture } = JSON.parse((ev as MessageEvent).data) as {
         capture: HomeCapture & { transcript_snippet?: string };
       };
+      if (draftId !== undefined) {
+        try {
+          const { clearDraft } = await import("@/lib/drafts");
+          await clearDraft(draftId);
+        } catch (e) {
+          console.warn("[drafts] clear failed", e);
+        }
+      }
       setState("ready");
       onSaved({ ...capture, transcript_snippet: capture.transcript_snippet ?? null });
       es.close();
@@ -643,6 +699,24 @@ function PhotoCapture({
     if (!file) return;
     setState("saving");
     setError(null);
+
+    // Persist the photo + face data locally before the network call.
+    let draftId: number | undefined;
+    try {
+      const { saveDraft } = await import("@/lib/drafts");
+      draftId = await saveDraft({
+        kind: "photo",
+        blob: file,
+        body: null,
+        title: titleEditable ? title.trim() || null : null,
+        prompt: prompt ?? null,
+        duration_ms: null,
+        faces,
+      });
+    } catch (e) {
+      console.warn("[drafts] save failed", e);
+    }
+
     const fd = new FormData();
     fd.set("file", file);
     fd.set(
@@ -656,7 +730,7 @@ function PhotoCapture({
     );
     const r = await fetch("/api/capture", { method: "POST", body: fd });
     if (!r.ok) {
-      setError("Save failed.");
+      setError("Save failed. The photo is safe in your browser.");
       setState("previewing");
       return;
     }
@@ -680,10 +754,18 @@ function PhotoCapture({
       };
       setTags(t);
     });
-    es.addEventListener("ready", (ev) => {
+    es.addEventListener("ready", async (ev) => {
       const { capture } = JSON.parse((ev as MessageEvent).data) as {
         capture: HomeCapture & { transcript_snippet?: string };
       };
+      if (draftId !== undefined) {
+        try {
+          const { clearDraft } = await import("@/lib/drafts");
+          await clearDraft(draftId);
+        } catch (e) {
+          console.warn("[drafts] clear failed", e);
+        }
+      }
       setState("ready");
       onSaved({ ...capture, transcript_snippet: capture.transcript_snippet ?? null });
       es.close();
