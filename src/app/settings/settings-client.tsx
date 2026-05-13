@@ -95,27 +95,7 @@ export function SettingsClient({ initial }: { initial: Initial }) {
 
       <NotificationsSection />
 
-      <section className="flex flex-col gap-4">
-        <h2 className="eyebrow">Vault</h2>
-        <p className="p-body max-w-[480px]">
-          Export the entire archive as a single passphrase-encrypted
-          <code className="font-mono text-[13px] text-ink mx-1">.hloom</code>
-          file. The recipient can import it into their own Heirloom and the
-          archive lives on their hardware afterward — no cloud roundtrip
-          needed.
-        </p>
-        <details className="rounded-[12px] border border-rule p-4 bg-bg-raised max-w-[520px]">
-          <summary className="font-serif italic text-[15px] text-ink cursor-pointer">
-            Export &middot; details
-          </summary>
-          <p className="p-meta mt-2">
-            Command line: POST <code className="font-mono">/api/vault/export</code>{" "}
-            with JSON{" "}
-            <code className="font-mono">&#123;&quot;passphrase&quot;:&nbsp;...&#125;</code>{" "}
-            returns the bundle. UI affordance coming next.
-          </p>
-        </details>
-      </section>
+      <VaultSection />
     </div>
   );
 }
@@ -755,4 +735,251 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
   const out = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
   return out;
+}
+
+function VaultSection() {
+  return (
+    <section className="flex flex-col gap-6">
+      <div className="flex flex-col gap-3">
+        <h2 className="eyebrow">Vault</h2>
+        <p className="p-body max-w-[520px]">
+          Export the entire archive as a single passphrase-encrypted
+          <code className="font-mono text-[13px] text-ink mx-1">.hloom</code>
+          file, or import a bundle someone shared with you. The bundle is
+          self-contained — argon2id + ChaCha20-Poly1305 over a gzipped JSON
+          snapshot of every row and blob.
+        </p>
+      </div>
+
+      <ExportPanel />
+      <ImportPanel />
+    </section>
+  );
+}
+
+function ExportPanel() {
+  const [passphrase, setPassphrase] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function doExport() {
+    if (passphrase.length < 6) {
+      setMsg("Passphrase must be at least 6 characters.");
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await fetch("/api/vault/export", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ passphrase }),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        setMsg(err?.error?.message ?? `Export failed (${r.status}).`);
+        return;
+      }
+      const dispo = r.headers.get("content-disposition") ?? "";
+      const m = dispo.match(/filename="([^"]+)"/);
+      const filename =
+        m?.[1] ?? `heirloom-${new Date().toISOString().slice(0, 10)}.hloom`;
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setMsg(`Saved ${filename}. Keep the passphrase somewhere safe.`);
+      setPassphrase("");
+    } catch (e) {
+      console.warn(e);
+      setMsg("Export failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-[12px] border border-rule p-5 bg-bg-raised max-w-[560px] flex flex-col gap-3">
+      <h3 className="font-serif text-[17px] text-ink">Export</h3>
+      <p className="p-meta">
+        The passphrase encrypts the bundle. Whoever imports it later needs
+        the same words.
+      </p>
+      <label className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted">
+        Passphrase
+      </label>
+      <input
+        type="password"
+        value={passphrase}
+        onChange={(e) => setPassphrase(e.target.value)}
+        autoComplete="new-password"
+        placeholder="six words is plenty"
+        className="w-full font-serif text-[17px] text-ink bg-transparent border-b border-rule-strong outline-none focus:border-ink py-2"
+      />
+      <div className="flex items-center gap-3 mt-1">
+        <button
+          type="button"
+          className="btn"
+          onClick={doExport}
+          disabled={busy || passphrase.length < 6}
+        >
+          {busy ? "Encrypting…" : "Export bundle"}
+        </button>
+        {msg && <p className="p-meta">{msg}</p>}
+      </div>
+    </div>
+  );
+}
+
+function ImportPanel() {
+  const router = useRouter();
+  const [file, setFile] = useState<File | null>(null);
+  const [passphrase, setPassphrase] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [summary, setSummary] = useState<Record<string, number> | null>(null);
+  const [confirming, setConfirming] = useState(false);
+
+  async function doImport() {
+    if (!file) {
+      setMsg("Pick a .hloom file first.");
+      return;
+    }
+    if (passphrase.length < 6) {
+      setMsg("Enter the passphrase that was used at export time.");
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    setSummary(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("passphrase", passphrase);
+      const r = await fetch("/api/vault/import", { method: "POST", body: fd });
+      const data = (await r.json().catch(() => ({}))) as {
+        ok?: boolean;
+        counts?: Record<string, number>;
+        error?: { message?: string };
+      };
+      if (!r.ok || !data.ok) {
+        if (r.status === 401) setMsg("Wrong passphrase, or the bundle is corrupt.");
+        else if (r.status === 413) setMsg("Bundle is too large (>200 MB).");
+        else setMsg(data?.error?.message ?? `Import failed (${r.status}).`);
+        return;
+      }
+      setSummary(data.counts ?? null);
+      setMsg("Imported. Reload the home to see restored memories.");
+      setFile(null);
+      setPassphrase("");
+      setConfirming(false);
+      router.refresh();
+    } catch (e) {
+      console.warn(e);
+      setMsg("Import failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-[12px] border border-rule p-5 bg-bg-raised max-w-[560px] flex flex-col gap-3">
+      <h3 className="font-serif text-[17px] text-ink">Import</h3>
+      <p className="p-meta">
+        Drop a <code className="font-mono">.hloom</code> bundle here.
+        Existing captures in this vault are preserved — imported rows are
+        merged in.
+      </p>
+
+      <label className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted">
+        Bundle
+      </label>
+      <input
+        type="file"
+        accept=".hloom,application/json"
+        onChange={(e) => {
+          setFile(e.target.files?.[0] ?? null);
+          setMsg(null);
+          setSummary(null);
+        }}
+        className="font-mono text-[12px] text-ink-soft file:font-mono file:text-[10px] file:tracking-[0.16em] file:uppercase file:bg-paper file:border file:border-rule file:rounded-md file:py-1.5 file:px-3 file:mr-3 file:cursor-pointer file:text-ink"
+      />
+      {file && (
+        <p className="p-meta">
+          Selected: <span className="text-ink">{file.name}</span> ·{" "}
+          {(file.size / (1024 * 1024)).toFixed(1)} MB
+        </p>
+      )}
+
+      <label className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted mt-2">
+        Passphrase
+      </label>
+      <input
+        type="password"
+        value={passphrase}
+        onChange={(e) => setPassphrase(e.target.value)}
+        autoComplete="current-password"
+        placeholder="words used at export time"
+        className="w-full font-serif text-[17px] text-ink bg-transparent border-b border-rule-strong outline-none focus:border-ink py-2"
+      />
+
+      <div className="flex items-center gap-3 mt-1">
+        {!confirming ? (
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              if (!file || passphrase.length < 6) {
+                doImport();
+                return;
+              }
+              setConfirming(true);
+            }}
+            disabled={busy || !file || passphrase.length < 6}
+          >
+            {busy ? "Decrypting…" : "Import bundle"}
+          </button>
+        ) : (
+          <>
+            <span className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted">
+              Merge into this vault?
+            </span>
+            <button
+              type="button"
+              className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-fade hover:text-ink underline"
+              onClick={() => setConfirming(false)}
+              disabled={busy}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={doImport}
+              disabled={busy}
+            >
+              {busy ? "Importing…" : "Yes, import"}
+            </button>
+          </>
+        )}
+        {msg && <p className="p-meta">{msg}</p>}
+      </div>
+
+      {summary && (
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-1 mt-3 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-fade">
+          {Object.entries(summary).map(([k, v]) => (
+            <div key={k} className="contents">
+              <dt>{k.replace(/_/g, " ")}</dt>
+              <dd className="text-ink">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </div>
+  );
 }
