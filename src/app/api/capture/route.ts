@@ -1,6 +1,7 @@
 import { sql, withRls } from "@/lib/db";
 import { writeBlob } from "@/lib/storage";
 import { runCapturePipeline } from "@/lib/pipeline";
+import { storeFaceAppearances, type FaceInput } from "@/lib/faces";
 import {
   HttpError,
   errorResponse,
@@ -63,13 +64,38 @@ async function commitMedia(req: Request, session: Session): Promise<string> {
   const captured_at =
     typeof meta.captured_at === "string" ? new Date(meta.captured_at) : new Date();
 
+  // Faces are detected client-side via face-api.js; we receive bbox+embedding.
+  // For non-photo kinds the field is ignored.
+  const faces: FaceInput[] =
+    kind === "photo" && Array.isArray(meta.faces)
+      ? (meta.faces as FaceInput[]).filter(
+          (f) =>
+            f &&
+            typeof f === "object" &&
+            Array.isArray(f.embedding) &&
+            f.embedding.length === 128 &&
+            f.bbox &&
+            typeof f.bbox.x === "number",
+        )
+      : [];
+
+  const title =
+    typeof meta.title === "string" && meta.title.trim() ? meta.title.trim() : null;
+
   return withRls(session.user_id, session.role, async (tx) => {
     const [row] = await tx<{ id: string }[]>`
-      INSERT INTO captures (vault_id, kind, status, blob_url, duration_ms, captured_at)
+      INSERT INTO captures (vault_id, kind, status, blob_url, duration_ms, captured_at, title)
       VALUES (${session.vault_id}, ${kind}, 'processing', ${blob_url},
-              ${duration_ms}, ${captured_at})
+              ${duration_ms}, ${captured_at}, ${title})
       RETURNING id
     `;
+    if (faces.length > 0) {
+      await storeFaceAppearances(tx, {
+        capture_id: row.id,
+        vault_id: session.vault_id,
+        faces,
+      });
+    }
     return row.id;
   });
 }

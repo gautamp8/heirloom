@@ -21,7 +21,7 @@ export function Home(props: {
   // prompt to seed the capture with. Voice/Note chips open with no prompt
   // (free-form). The prompt-card buttons open with the prompt-of-day.
   const [sheet, setSheet] = useState<{
-    mode: "voice" | "note";
+    mode: "voice" | "note" | "photo";
     prompt?: string;
   } | null>(null);
   const [recent, setRecent] = useState(props.recent);
@@ -123,7 +123,12 @@ export function Home(props: {
             icon={<IconNote />}
             onClick={() => setSheet({ mode: "note" })}
           />
-          <CapChip label="Photo" sub="With caption" icon={<IconPhoto />} disabled />
+          <CapChip
+            label="Photo"
+            sub="With caption"
+            icon={<IconPhoto />}
+            onClick={() => setSheet({ mode: "photo" })}
+          />
           <CapChip label="Video" sub="Short clip" icon={<IconVideo />} disabled />
         </div>
 
@@ -205,14 +210,25 @@ function CapChip(props: {
 function CapRow({ cap }: { cap: HomeCapture }) {
   const time = relativeTime(new Date(cap.captured_at));
   const isAudio = cap.kind === "audio";
+  const isPhoto = cap.kind === "photo";
   return (
     <li className="flex items-start gap-3 py-3 border-b border-rule">
-      <span
-        className="w-10 h-10 rounded-[10px] grid place-items-center bg-paper-2 text-wax flex-shrink-0"
-        aria-hidden
-      >
-        {isAudio ? <IconMic /> : cap.kind === "note" ? <IconNote /> : <IconPhoto />}
-      </span>
+      {isPhoto ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={`/api/blob/${cap.id}`}
+          alt={cap.title ?? "Photograph"}
+          className="w-10 h-10 rounded-[10px] object-cover flex-shrink-0 bg-paper-2"
+          loading="lazy"
+        />
+      ) : (
+        <span
+          className="w-10 h-10 rounded-[10px] grid place-items-center bg-paper-2 text-wax flex-shrink-0"
+          aria-hidden
+        >
+          {isAudio ? <IconMic /> : cap.kind === "note" ? <IconNote /> : <IconPhoto />}
+        </span>
+      )}
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2">
           <span className="cap-time font-mono text-[9px] tracking-[0.12em] uppercase text-ink-muted">

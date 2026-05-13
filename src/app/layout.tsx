@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Source_Serif_4, Geist, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { ServiceWorkerRegister } from "./_components/sw-register";
 
 const sourceSerif = Source_Serif_4({
   variable: "--font-source-serif",
@@ -27,12 +28,28 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Heirloom",
   description: "A private place for the memories you mean to leave behind.",
+  manifest: "/manifest.webmanifest",
+  applicationName: "Heirloom",
+  appleWebApp: {
+    capable: true,
+    title: "Heirloom",
+    statusBarStyle: "default",
+  },
+  icons: {
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1f1b14",
+  themeColor: "#faf7f0",
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
   viewportFit: "cover",
 };
 
@@ -46,7 +63,10 @@ export default function RootLayout({
       lang="en"
       className={`${sourceSerif.variable} ${geist.variable} ${jetbrainsMono.variable}`}
     >
-      <body className="min-h-dvh bg-paper text-ink">{children}</body>
+      <body className="min-h-dvh bg-paper text-ink">
+        {children}
+        <ServiceWorkerRegister />
+      </body>
     </html>
   );
 }

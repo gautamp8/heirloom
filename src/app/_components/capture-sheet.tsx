@@ -8,7 +8,7 @@ type Stage = "uploaded" | "transcribed" | "embedded" | "tagged" | "ready" | "fai
 
 /** Stage-aware copy. Calm verbs, no productivity-app urgency. */
 function pipelineLabel(
-  kind: "audio" | "note",
+  kind: "audio" | "note" | "photo",
   stage: Stage | null,
 ): string {
   if (kind === "audio") {
@@ -26,6 +26,23 @@ function pipelineLabel(
         return "Saved. This is the beginning.";
       case "failed":
         return "Something went wrong. The recording is still kept.";
+    }
+  }
+  if (kind === "photo") {
+    switch (stage) {
+      case null:
+      case "uploaded":
+        return "Holding the photograph…";
+      case "transcribed":
+        return "Looking at the photograph…";
+      case "embedded":
+        return "Tracing the threads…";
+      case "tagged":
+        return "Almost there…";
+      case "ready":
+        return "Saved. This is the beginning.";
+      case "failed":
+        return "Something went wrong. The photograph is still kept.";
     }
   }
   switch (stage) {
@@ -102,7 +119,7 @@ function TranscriptSkeleton() {
 }
 
 export function CaptureSheet(props: {
-  mode: "voice" | "note";
+  mode: "voice" | "note" | "photo";
   /** Optional. When set the sheet shows it as the topic the user is
    *  responding to (from the prompt-of-day card). When null the capture
    *  is free-form and the prompt block is hidden. */
@@ -110,6 +127,11 @@ export function CaptureSheet(props: {
   onClose: () => void;
   onSaved: (cap: HomeCapture) => void;
 }) {
+  const headers: Record<typeof props.mode, string> = {
+    voice: "Speak a memory",
+    note: "Write a memory",
+    photo: "Hold a photograph",
+  };
   return (
     <div
       className="fixed inset-0 z-50 flex items-end bg-black/30"
@@ -126,7 +148,7 @@ export function CaptureSheet(props: {
           <div className="w-9 h-1 rounded-full bg-rule-strong mb-3" />
           <div className="w-full flex items-center justify-between">
             <p className="font-serif italic text-[20px] text-ink">
-              {props.mode === "voice" ? "Speak a memory" : "Write a memory"}
+              {headers[props.mode]}
             </p>
             <button
               className="text-ink-muted hover:text-ink p-1.5 px-2.5 rounded-md"
@@ -147,13 +169,14 @@ export function CaptureSheet(props: {
               </p>
             </div>
           )}
-          {props.mode === "voice" ? (
-            <VoiceCapture
-              prompt={props.prompt}
-              onSaved={props.onSaved}
-            />
-          ) : (
+          {props.mode === "voice" && (
+            <VoiceCapture prompt={props.prompt} onSaved={props.onSaved} />
+          )}
+          {props.mode === "note" && (
             <NoteCapture prompt={props.prompt} onSaved={props.onSaved} />
+          )}
+          {props.mode === "photo" && (
+            <PhotoCapture prompt={props.prompt} onSaved={props.onSaved} />
           )}
         </div>
       </div>
@@ -552,6 +575,243 @@ function NoteCapture({
             </div>
           ) : (
             state !== "ready" && <TagChipSkeleton />
+          )}
+        </div>
+      )}
+
+      {error && <p className="p-body text-wax">{error}</p>}
+    </div>
+  );
+}
+
+/* ============================================================
+   Photo capture — file picker / camera capture + commit
+   ============================================================ */
+
+function PhotoCapture({
+  prompt,
+  onSaved,
+}: {
+  prompt: string | null;
+  onSaved: (cap: HomeCapture) => void;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [titleEditable] = useState(!prompt);
+  const [title, setTitle] = useState("");
+  const [state, setState] = useState<
+    "picking" | "previewing" | "saving" | "processing" | "ready"
+  >("picking");
+  const [stage, setStage] = useState<Stage | null>(null);
+  const [caption, setCaption] = useState<string | null>(null);
+  const [tags, setTags] = useState<{ kind: string; value: string }[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [faceState, setFaceState] = useState<"idle" | "scanning" | "done">("idle");
+  const [faces, setFaces] = useState<
+    { bbox: { x: number; y: number; w: number; h: number }; embedding: number[] }[]
+  >([]);
+  const dots = useBreathDots();
+
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
+
+  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (preview) URL.revokeObjectURL(preview);
+    setFile(f);
+    setPreview(URL.createObjectURL(f));
+    setState("previewing");
+    setError(null);
+    setFaces([]);
+    setFaceState("scanning");
+    try {
+      const { extractFaces } = await import("@/lib/face-client");
+      const detected = await extractFaces(f);
+      setFaces(detected);
+    } catch (err) {
+      console.warn("[faces] detection failed", err);
+    } finally {
+      setFaceState("done");
+    }
+  }
+
+  async function commit() {
+    if (!file) return;
+    setState("saving");
+    setError(null);
+    const fd = new FormData();
+    fd.set("file", file);
+    fd.set(
+      "metadata",
+      JSON.stringify({
+        kind: "photo",
+        captured_at: new Date(file.lastModified || Date.now()).toISOString(),
+        title: titleEditable ? title.trim() || null : null,
+        faces,
+      }),
+    );
+    const r = await fetch("/api/capture", { method: "POST", body: fd });
+    if (!r.ok) {
+      setError("Save failed.");
+      setState("previewing");
+      return;
+    }
+    const { capture_id } = (await r.json()) as { capture_id: string };
+    setState("processing");
+
+    const es = new EventSource(`/api/capture/${capture_id}/status`);
+    es.addEventListener("stage", (ev) => {
+      const { stage: s } = JSON.parse((ev as MessageEvent).data) as { stage: Stage };
+      setStage(s);
+    });
+    es.addEventListener("transcript", (ev) => {
+      // The pipeline currently re-uses the 'transcript' SSE event to surface
+      // the photo caption (single text field, same wire shape).
+      const { text } = JSON.parse((ev as MessageEvent).data) as { text: string };
+      setCaption(text);
+    });
+    es.addEventListener("tags", (ev) => {
+      const { tags: t } = JSON.parse((ev as MessageEvent).data) as {
+        tags: { kind: string; value: string }[];
+      };
+      setTags(t);
+    });
+    es.addEventListener("ready", (ev) => {
+      const { capture } = JSON.parse((ev as MessageEvent).data) as {
+        capture: HomeCapture & { transcript_snippet?: string };
+      };
+      setState("ready");
+      onSaved({ ...capture, transcript_snippet: capture.transcript_snippet ?? null });
+      es.close();
+    });
+    es.addEventListener("error", () => {
+      es.close();
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {state === "picking" && (
+        <label
+          className="block w-full border border-dashed border-rule-strong rounded-[14px] p-10 text-center cursor-pointer hover:border-ink-muted transition-colors bg-bg-raised"
+          aria-label="Choose a photograph"
+        >
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={onPick}
+          />
+          <span className="block font-serif italic text-[18px] text-ink mb-1">
+            Choose a photograph
+          </span>
+          <span className="block font-mono text-[10px] tracking-[0.18em] uppercase text-ink-fade">
+            Camera or photo library
+          </span>
+        </label>
+      )}
+
+      {preview && state !== "picking" && (
+        <div className="relative w-full rounded-[14px] overflow-hidden border border-rule bg-paper-2 max-h-[58vh] flex items-center justify-center">
+          <div className="relative inline-block max-w-full max-h-[58vh]">
+            <img
+              src={preview}
+              alt="Selected photograph"
+              className="max-w-full max-h-[58vh] object-contain block"
+            />
+            {faces.map((f, i) => (
+              <span
+                key={i}
+                aria-hidden
+                className="absolute border rounded-[3px] pointer-events-none"
+                style={{
+                  left: `${f.bbox.x * 100}%`,
+                  top: `${f.bbox.y * 100}%`,
+                  width: `${f.bbox.w * 100}%`,
+                  height: `${f.bbox.h * 100}%`,
+                  borderColor: "rgba(125,42,26,0.85)",
+                  boxShadow: "0 0 0 1px rgba(255,255,255,0.4) inset",
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {state === "previewing" && faceState !== "idle" && (
+        <p className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted">
+          {faceState === "scanning"
+            ? `Looking for faces${dots}`
+            : faces.length === 0
+              ? "No faces detected"
+              : faces.length === 1
+                ? "1 face detected"
+                : `${faces.length} faces detected`}
+        </p>
+      )}
+
+      {state === "previewing" && titleEditable && (
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="A title, if one wants to come"
+          maxLength={80}
+          className="w-full font-serif text-[22px] font-light text-ink bg-transparent border-none outline-none placeholder:text-ink-muted placeholder:italic"
+          aria-label="Title"
+        />
+      )}
+
+      {state === "previewing" && (
+        <div className="flex items-center justify-between">
+          <button
+            className="btn-ghost"
+            onClick={() => {
+              if (preview) URL.revokeObjectURL(preview);
+              setFile(null);
+              setPreview(null);
+              setState("picking");
+            }}
+          >
+            Choose another
+          </button>
+          <button className="btn" onClick={commit}>
+            Save to vault
+          </button>
+        </div>
+      )}
+
+      {(state === "saving" || state === "processing" || state === "ready") && (
+        <div className="flex flex-col gap-3 mt-2">
+          <p className="p-meta">
+            {state === "ready"
+              ? pipelineLabel("photo", "ready")
+              : pipelineLabel("photo", stage) + dots.slice(0, dots.length - 1)}
+          </p>
+          {caption && (
+            <p className="font-serif italic text-[15px] leading-[1.5] text-ink-soft">
+              {caption}
+            </p>
+          )}
+          {tags.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {tags.map((t) => (
+                <span
+                  key={`${t.kind}:${t.value}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-rule font-sans text-[11px] text-ink-soft bg-bg-raised"
+                >
+                  <span className="text-wax">·</span>
+                  {t.value}
+                </span>
+              ))}
+            </div>
+          ) : (
+            state !== "ready" && !caption && <TagChipSkeleton />
           )}
         </div>
       )}

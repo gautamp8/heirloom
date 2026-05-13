@@ -11,6 +11,7 @@ type StageRow = {
   kind: string;
   body: string | null;
   title: string | null;
+  caption: string | null;
   blob_url: string | null;
   duration_ms: number | null;
   captured_at: Date;
@@ -30,7 +31,7 @@ async function readStage(
 }> {
   const row = await withRls(session.user_id, session.role, async (tx) => {
     const [r] = await tx<StageRow[]>`
-      SELECT c.id, c.status, c.kind, c.body, c.title, c.blob_url,
+      SELECT c.id, c.status, c.kind, c.body, c.title, c.caption, c.blob_url,
              c.duration_ms, c.captured_at, c.created_at,
              t.text AS transcript_text,
              (SELECT COUNT(*)::int FROM transcript_chunks tc WHERE tc.capture_id = c.id) AS chunk_count,
@@ -51,7 +52,11 @@ async function readStage(
   }
   if (row.tag_count > 0) return { stage: "tagged", status: row.status, capture: row };
   if (row.chunk_count > 0) return { stage: "embedded", status: row.status, capture: row };
-  if (row.transcript_text) return { stage: "transcribed", status: row.status, capture: row };
+  // For audio, "transcribed" fires when transcripts row exists.
+  // For photos, the equivalent moment is when caption is populated.
+  if (row.transcript_text || row.caption) {
+    return { stage: "transcribed", status: row.status, capture: row };
+  }
   return { stage: "uploaded", status: row.status, capture: row };
 }
 
@@ -86,8 +91,13 @@ export async function GET(
           if (stage !== lastStage) {
             lastStage = stage;
             send("stage", { stage });
-            if (stage === "transcribed" && capture?.transcript_text) {
-              send("transcript", { text: capture.transcript_text });
+            if (
+              stage === "transcribed" &&
+              (capture?.transcript_text || capture?.caption)
+            ) {
+              send("transcript", {
+                text: capture.transcript_text ?? capture.caption ?? "",
+              });
             }
             if (stage === "tagged" || stage === "ready") {
               const tags = await withRls(
@@ -107,8 +117,8 @@ export async function GET(
               ? {
                   ...capture,
                   transcript_snippet:
-                    (capture.body ?? capture.transcript_text ?? "").slice(0, 240) ||
-                    null,
+                    (capture.body ?? capture.transcript_text ?? capture.caption ?? "")
+                      .slice(0, 240) || null,
                 }
               : null;
             send("ready", { capture: augmented });

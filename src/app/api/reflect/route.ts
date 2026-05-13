@@ -3,6 +3,7 @@ import { withRls } from "@/lib/db";
 import { embedOne } from "@/lib/embed";
 import { fetchTopK } from "@/lib/retrieval";
 import { ollama, SYNTHESIS_MODEL } from "@/lib/ollama";
+import { fireLetterConditions } from "@/lib/letter-conditions";
 import {
   EMPTY_STATE_ANSWER,
   REFLECTION_SIMILARITY_THRESHOLD,
@@ -70,6 +71,29 @@ export async function POST(req: Request) {
           // 2) Embed the question
           const qEmb = await embedOne(question);
 
+          // 2b) Check if any sealed letters were sealed for a moment like this.
+          //     Fires BEFORE the grounding gate so the letter surfaces even
+          //     when there's no other grounded answer.
+          if (session.role === "nominee") {
+            try {
+              const fired = await fireLetterConditions(session, {
+                trigger_kind: "semantic",
+                query: question,
+                embedding: qEmb,
+              });
+              for (const l of fired) {
+                send("sealed_letter", {
+                  letter_id: l.letter_id,
+                  capture_id: l.capture_id,
+                  occasion_prompt: l.occasion_prompt,
+                  trigger: l.trigger,
+                });
+              }
+            } catch (e) {
+              console.warn("[/api/reflect] letter conditions failed", e);
+            }
+          }
+
           // 3) Retrieve top-k
           const chunks = await fetchTopK(qEmb, session, 8);
           const topSim = chunks[0]?.similarity ?? 0;
@@ -86,6 +110,20 @@ export async function POST(req: Request) {
               {
                 answer: EMPTY_STATE_ANSWER,
                 claims: [],
+                diagnostics: {
+                  retrieved_count: chunks.length,
+                  top_similarity: topSim,
+                  threshold: REFLECTION_SIMILARITY_THRESHOLD,
+                  rejected_for: chunks.length === 0
+                    ? "no_chunks"
+                    : "similarity_below_threshold",
+                  grounded: false,
+                  retrieved_chunks: chunks.slice(0, 8).map((c) => ({
+                    capture_id: c.capture_id,
+                    similarity: c.similarity,
+                    snippet: c.text.slice(0, 160),
+                  })),
+                },
               },
               false,
             );
@@ -160,6 +198,22 @@ export async function POST(req: Request) {
               {
                 answer: EMPTY_STATE_ANSWER,
                 claims: [],
+                diagnostics: {
+                  retrieved_count: chunks.length,
+                  top_similarity: topSim,
+                  threshold: REFLECTION_SIMILARITY_THRESHOLD,
+                  rejected_for: firstPerson
+                    ? "first_person"
+                    : !cite.ok
+                      ? "invalid_citation"
+                      : "no_claims",
+                  grounded: false,
+                  retrieved_chunks: chunks.slice(0, 8).map((c) => ({
+                    capture_id: c.capture_id,
+                    similarity: c.similarity,
+                    snippet: c.text.slice(0, 160),
+                  })),
+                },
               },
               false,
             );
@@ -173,7 +227,21 @@ export async function POST(req: Request) {
             session,
             question,
             qEmb,
-            final,
+            {
+              ...final,
+              diagnostics: {
+                retrieved_count: chunks.length,
+                top_similarity: topSim,
+                threshold: REFLECTION_SIMILARITY_THRESHOLD,
+                rejected_for: null,
+                grounded: true,
+                retrieved_chunks: chunks.slice(0, 8).map((c) => ({
+                  capture_id: c.capture_id,
+                  similarity: c.similarity,
+                  snippet: c.text.slice(0, 160),
+                })),
+              },
+            },
             true,
           );
           send("done", { reflection_id });
@@ -202,7 +270,9 @@ async function saveReflection(
   session: { user_id: string; vault_id: string; role: "creator" | "nominee" },
   question: string,
   qEmb: number[],
-  resp: ReflectionAnswer,
+  resp: ReflectionAnswer & {
+    diagnostics?: Record<string, unknown>;
+  },
   grounded: boolean,
 ): Promise<string> {
   const lit = `[${qEmb.join(",")}]`;

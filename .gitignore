@@ -49,3 +49,4 @@ __pycache__/
 # Local storage (audio/photo/video blobs for v1 dev)
 storage/
 .shots/
+.tmp-screenshots/

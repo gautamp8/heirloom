@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Image from "next/image";
 import { cookies } from "next/headers";
 import { readSession } from "@/lib/auth";
+import { getOnboardingStatus } from "@/lib/onboarding";
 import { Home } from "./_components/home";
 import { NomineeHome } from "./_components/nominee-home";
 
@@ -24,6 +25,14 @@ type NomineeHomePayload = {
     letter_body: string | null;
   };
   released_captures: ReleasedCapture[];
+  newly_fired_letters: {
+    letter_id: string;
+    capture_id: string;
+    occasion_prompt: string;
+    trigger: string;
+  }[];
+  daily_memory: ReleasedCapture | null;
+  themed_albums: { theme: string; count: number; cover_id: string }[];
   stats: { captures: number };
 };
 
@@ -52,6 +61,12 @@ export type ReleasedCapture = {
 export default async function Root() {
   const session = await readSession();
   if (!session) redirect("/portal");
+
+  // Fresh creators (no onboarded_at) go through the 4-step welcome first.
+  if (session.role === "creator") {
+    const status = await getOnboardingStatus(session);
+    if (!status.onboarded) redirect("/onboarding");
+  }
 
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"}/api/me/home`,
@@ -92,6 +107,9 @@ export default async function Root() {
         <NomineeHome
           framing={data.framing}
           released={data.released_captures}
+          newlyFired={data.newly_fired_letters ?? []}
+          dailyMemory={data.daily_memory ?? null}
+          albums={data.themed_albums ?? []}
           stats={data.stats}
         />
       </main>

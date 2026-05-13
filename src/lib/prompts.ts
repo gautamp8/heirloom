@@ -124,3 +124,120 @@ function cleanSentence(t: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+/**
+ * Generate 5–7 occasion-prompts for the onboarding "seed letters" step.
+ * Each prompt describes a moment when a sealed letter should reach a
+ * specific nominee. Returns an array of `{ to, prompt, condition_hint }`
+ * — `condition_hint` is a free-text trigger that the condition engine
+ * will later map into one of {date, life_event, state, semantic_match}.
+ */
+export type SeedLetterDraft = {
+  to: string; // nominee display name
+  prompt: string; // occasion prompt for the creator
+  trigger: string; // short text describing when it should unlock
+};
+
+const FALLBACK_SEED_LETTERS = (nomineeName: string): SeedLetterDraft[] => [
+  {
+    to: nomineeName,
+    prompt: `What you want ${nomineeName} to hear when they're feeling defeated.`,
+    trigger: "When they feel lost",
+  },
+  {
+    to: nomineeName,
+    prompt: `Something for ${nomineeName} on their wedding day.`,
+    trigger: "On their wedding day",
+  },
+  {
+    to: nomineeName,
+    prompt: `On the first anniversary they spend without you, what should they remember?`,
+    trigger: "On the anniversary of loss",
+  },
+  {
+    to: nomineeName,
+    prompt: `The first thing you want ${nomineeName} to know when they open this archive.`,
+    trigger: "On first opening this archive",
+  },
+  {
+    to: nomineeName,
+    prompt: `For when ${nomineeName} misses you.`,
+    trigger: "When they miss you",
+  },
+];
+
+export async function generateSeedLetterPrompts(opts: {
+  nominees: { name: string; relation?: string | null }[];
+  creatorName: string;
+}): Promise<SeedLetterDraft[]> {
+  const first = opts.nominees[0];
+  if (!first) return [];
+
+  const list = opts.nominees
+    .map((n) => `${n.name}${n.relation ? ` (${n.relation})` : ""}`)
+    .join(", ");
+
+  const prompt = `${SAFETY_PREAMBLE}
+
+You are helping ${opts.creatorName} seed the archive with a handful of
+sealed-letter occasions — moments when each nominee should hear something
+specific from them. Write 5 occasion prompts. Each prompt should:
+- Be addressed to ONE specific nominee by name.
+- Describe a clear moment (a feeling, a milestone, a date).
+- Be open enough that the creator could record a 30-second response.
+- Bias toward emotional grounding rather than advice ("for when you're
+  lost", "on your wedding day", "the first thing to know when you open
+  this") over generic ("share your wisdom").
+
+Nominees to write for: ${list}.
+
+Output strict JSON only, an array of 5 objects with keys "to" (string,
+the nominee's name), "prompt" (string, the occasion), and "trigger"
+(string, a 2-4 word phrase describing when it should unlock — e.g. "When
+they feel lost", "On their wedding day", "On their 18th birthday", "On
+the anniversary of loss", "When they miss you"). No prose around the JSON.`;
+
+  try {
+    const { text } = await generateText({
+      model: ollama(SYNTHESIS_MODEL),
+      prompt,
+      temperature: 0.7,
+      maxOutputTokens: 600,
+      abortSignal: AbortSignal.timeout(20000),
+    });
+    const parsed = extractJsonArray(text);
+    const drafts = parsed
+      .filter(
+        (
+          o: unknown,
+        ): o is { to: string; prompt: string; trigger?: string } =>
+          !!o &&
+          typeof (o as { to?: unknown }).to === "string" &&
+          typeof (o as { prompt?: unknown }).prompt === "string",
+      )
+      .map((o) => ({
+        to: o.to.trim(),
+        prompt: cleanSentence(o.prompt),
+        trigger: cleanSentence((o.trigger ?? "When the moment comes").toString()),
+      }))
+      .slice(0, 7);
+    if (drafts.length >= 3) return drafts;
+    return FALLBACK_SEED_LETTERS(first.name);
+  } catch {
+    return FALLBACK_SEED_LETTERS(first.name);
+  }
+}
+
+/** Extract the first JSON array from a model response that may have prose. */
+function extractJsonArray(s: string): unknown[] {
+  const trimmed = s.trim();
+  const start = trimmed.indexOf("[");
+  const end = trimmed.lastIndexOf("]");
+  if (start < 0 || end <= start) return [];
+  try {
+    const value = JSON.parse(trimmed.slice(start, end + 1));
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+}

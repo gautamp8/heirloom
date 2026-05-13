@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 0.0.0.0",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -H 0.0.0.0",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
@@ -13,6 +13,7 @@
     "ai": "^6.0.177",
     "argon2": "^0.44.0",
     "dexie": "^4.4.2",
+    "face-api.js": "^0.22.2",
     "framer-motion": "^12.38.0",
     "jose": "^6.2.3",
     "next": "16.2.6",
