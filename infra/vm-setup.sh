@@ -14,6 +14,7 @@ set -euo pipefail
 
 PUBLIC_HOST="${PUBLIC_HOST:?must provide PUBLIC_HOST=heirloom-xxx.region.cloudapp.azure.com}"
 DB_PASS="${DB_PASS:-$(openssl rand -hex 16)}"
+DB_ADMIN_PASS="${DB_ADMIN_PASS:-$(openssl rand -hex 16)}"
 JWT_SECRET="${JWT_SECRET:-$(openssl rand -hex 32)}"
 
 heading() { printf "\n\033[1;35m=== %s ===\033[0m\n" "$1"; }
@@ -94,6 +95,9 @@ BEGIN
     END IF;
 END
 \$\$;
+-- Set a password on the postgres superuser too — sqlAdmin connects
+-- over TCP from the Heirloom node process and needs password auth.
+ALTER USER postgres WITH PASSWORD '$DB_ADMIN_PASS';
 SQL
 sudo -u postgres psql -d heirloom <<'SQL'
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -174,7 +178,7 @@ cat > /opt/heirloom/.env <<EOF
 NODE_ENV=production
 PORT=3000
 DATABASE_URL=postgres://heirloom_app:$DB_PASS@127.0.0.1:5432/heirloom
-DATABASE_ADMIN_URL=postgres://postgres@127.0.0.1:5432/heirloom?host=/var/run/postgresql
+DATABASE_ADMIN_URL=postgres://postgres:$DB_ADMIN_PASS@127.0.0.1:5432/heirloom
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 JWT_SECRET=$JWT_SECRET
 NEXT_PUBLIC_BASE_URL=https://$PUBLIC_HOST
