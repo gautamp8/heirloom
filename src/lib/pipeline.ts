@@ -121,13 +121,49 @@ export async function runCapturePipeline(
       });
     }
 
-    // 3-4) Tag + auto-title via Gemma 4, in parallel.
-    //   - Tag and title are independent — both read `text`, neither
-    //     touches the other's output. Sequential cost on CPU is ~2x
-    //     each Gemma call (~5-10s each). Parallel cost is max(t,t).
-    //   - Requires OLLAMA_NUM_PARALLEL >= 2 to actually run them
-    //     concurrently; otherwise Ollama serializes them and we just
-    //     get clearer code with no perf change.
+    // 3) Auto-release the capture to every nominee in the vault, UNLESS
+    //    this is the body of a sealed letter (those release via the
+    //    condition engine when their moment arrives).
+    //
+    //    v1 model: the creator's "regular" memories (audio/note/photo)
+    //    are visible to everyone the creator named in onboarding.
+    //    Sealed letters are the deliberate exception. Per-capture
+    //    privacy controls are a v1.1 item.
+    await withRls(session.user_id, session.role, async (tx) => {
+      const [sealed] = await tx<{ exists: boolean }[]>`
+        SELECT EXISTS (
+          SELECT 1 FROM sealed_letters WHERE capture_id = ${cap.id}
+        ) AS exists
+      `;
+      if (!sealed?.exists) {
+        const nominees = await tx<{ id: string }[]>`
+          SELECT id FROM nominees WHERE vault_id = ${cap.vault_id}
+        `;
+        for (const n of nominees) {
+          await tx`
+            INSERT INTO nominee_releases
+              (vault_id, capture_id, nominee_id, trigger, released_at, label)
+            VALUES (${cap.vault_id}, ${cap.id}, ${n.id}, 'scheduled', now(),
+                    'auto-released on capture')
+            ON CONFLICT DO NOTHING
+          `;
+        }
+      }
+    });
+
+    // 4) Status -> ready NOW, before the slow Gemma calls.
+    //    This is the key UX move on CPU: the user sees the capture
+    //    saved immediately, the SSE closes, the capture sheet shows
+    //    "Saved." Tags and auto-title fill in in the background — the
+    //    user will see them on the next home load. Without this swap
+    //    every note takes 15-30 s end-to-end on CPU; with it, the
+    //    user-perceived latency is just chunk+embed (~1-2 s).
+    await withRls(session.user_id, session.role, async (tx) => {
+      await tx`UPDATE captures SET status = 'ready' WHERE id = ${cap.id}`;
+    });
+
+    // 5) Tag + auto-title via Gemma 4, in parallel — POST-READY.
+    //    Independent calls; with OLLAMA_NUM_PARALLEL >= 2 they overlap.
     const wantTitle = !cap.title && text.trim().length >= 12;
     const [tags, generatedTitle] = await Promise.all([
       tagCapture(text, cap.kind).catch((e) => {
@@ -161,42 +197,6 @@ export async function runCapturePipeline(
       if (generatedTitle) {
         await tx`UPDATE captures SET title = ${generatedTitle} WHERE id = ${cap.id} AND title IS NULL`;
       }
-    });
-
-    // 5) Auto-release to every nominee in the vault, UNLESS this capture
-    //    is the body of a sealed letter (those release via the condition
-    //    engine when their moment arrives, not on capture-ready).
-    //
-    //    v1 model: the creator's "regular" memories (audio/note/photo)
-    //    are visible to everyone the creator named in onboarding. The
-    //    sealed-letter pattern is the deliberate exception — those stay
-    //    sealed until their condition fires. Per-capture privacy controls
-    //    ("share with only Maya", "private until 2030") are a v1.1 item.
-    await withRls(session.user_id, session.role, async (tx) => {
-      const [sealed] = await tx<{ exists: boolean }[]>`
-        SELECT EXISTS (
-          SELECT 1 FROM sealed_letters WHERE capture_id = ${cap.id}
-        ) AS exists
-      `;
-      if (!sealed?.exists) {
-        const nominees = await tx<{ id: string }[]>`
-          SELECT id FROM nominees WHERE vault_id = ${cap.vault_id}
-        `;
-        for (const n of nominees) {
-          await tx`
-            INSERT INTO nominee_releases
-              (vault_id, capture_id, nominee_id, trigger, released_at, label)
-            VALUES (${cap.vault_id}, ${cap.id}, ${n.id}, 'scheduled', now(),
-                    'auto-released on capture')
-            ON CONFLICT DO NOTHING
-          `;
-        }
-      }
-    });
-
-    // 6) Status -> ready
-    await withRls(session.user_id, session.role, async (tx) => {
-      await tx`UPDATE captures SET status = 'ready' WHERE id = ${cap.id}`;
     });
   } catch (err) {
     console.error("[pipeline] failed for", captureId, err);

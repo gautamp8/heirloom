@@ -89,6 +89,16 @@ export function ReflectionRoom() {
           next.claims = [...next.claims, { text: d.text, citations: d.citations }];
           break;
         }
+        case "answer_partial": {
+          // Gemma streams the prose answer character-by-character. We
+          // mirror it into state immediately so the user sees text
+          // forming, not a 30 s whitespace gap.
+          const d = ev.data as { text: string };
+          if (typeof d.text === "string" && d.text.length > next.answer.length) {
+            next.answer = d.text;
+          }
+          break;
+        }
         case "answer": {
           const d = ev.data as { text: string };
           next.answer = d.text;
@@ -114,8 +124,12 @@ export function ReflectionRoom() {
   // produced anything yet. Gemma 4 e4b can take 5–10s on first synthesis,
   // so this state needs to feel like the system is paying attention rather
   // than frozen.
+  // Listening = we have grounded matches but Gemma hasn't produced
+  // a single character yet. The moment ANY partial answer text lands
+  // the skeleton goes away and the prose itself shows the model is
+  // working.
   const isListening =
-    s.status === "answering" && s.claims.length === 0 && !s.answer;
+    s.status === "answering" && s.claims.length === 0 && s.answer.length === 0;
 
   return (
     <div className="flex-1 flex flex-col relative z-10">

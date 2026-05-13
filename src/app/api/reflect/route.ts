@@ -94,8 +94,14 @@ export async function POST(req: Request) {
             }
           }
 
-          // 3) Retrieve top-k
-          const chunks = await fetchTopK(qEmb, session, 8);
+          // 3) Retrieve top-k.
+          //    On CPU inference the dominant cost is prompt evaluation,
+          //    not generation. Each chunk we include adds ~150-200 input
+          //    tokens, ~0.5-1s of prompt-eval on the D8as_v5 box. Top-5
+          //    is enough to ground most queries while keeping
+          //    time-to-first-token under 20-30 s on CPU. The transparency
+          //    page still records the top chunks that influenced the gate.
+          const chunks = await fetchTopK(qEmb, session, 5);
           const topSim = chunks[0]?.similarity ?? 0;
           send("retrieved", { hit_count: chunks.length, top_similarity: topSim });
 
@@ -148,9 +154,26 @@ export async function POST(req: Request) {
             temperature: 0.3,
           });
 
-          // 6) Stream claims as they arrive
+          // 6) Stream the answer + claims as they arrive.
+          //
+          //    Two parallel streams matter to the UI:
+          //      - `answer_partial`: the prose answer text as Gemma writes
+          //        it character-by-character. Without this, the user sees
+          //        skeleton -> long whitespace -> sudden complete answer
+          //        on slow CPUs. With it, the prose grows visibly.
+          //      - `claim`: once a claim has BOTH text AND validated
+          //        citations, surface its citation chip.
+          let lastAnswer = "";
           const sentClaims = new Set<number>();
           for await (const partial of partialObjectStream) {
+            const partialAnswer = typeof partial.answer === "string"
+              ? partial.answer
+              : "";
+            if (partialAnswer.length > lastAnswer.length) {
+              lastAnswer = partialAnswer;
+              send("answer_partial", { text: partialAnswer });
+            }
+
             if (!partial.claims) continue;
             partial.claims.forEach((c, i) => {
               if (
@@ -161,7 +184,6 @@ export async function POST(req: Request) {
                 c.citations.length === 0
               )
                 return;
-              // Defensive: only forward claims whose citations are present
               const validCitations = c.citations.filter((id): id is string =>
                 typeof id === "string" && chunks.some((ch) => ch.capture_id === id),
               );

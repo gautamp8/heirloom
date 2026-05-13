@@ -142,6 +142,31 @@ systemctl enable --now ollama
 sleep 5
 ok "ollama serving on 127.0.0.1:11434"
 
+# Warm-up unit — fires a tiny inference + embed after Ollama starts so
+# the first real user request doesn't pay the ~10-15 s cold-load tax.
+# Keeps both models resident inside OLLAMA_KEEP_ALIVE=30m.
+cat > /etc/systemd/system/ollama-warmup.service <<'WARMUP'
+[Unit]
+Description=Pre-warm Gemma 4 + EmbeddingGemma after Ollama starts
+Requires=ollama.service
+After=ollama.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c "until curl -fsS http://127.0.0.1:11434/api/version >/dev/null; do sleep 2; done; \
+    curl -sS http://127.0.0.1:11434/api/chat -H content-type:application/json \
+      -d '{\"model\":\"gemma4:e4b\",\"messages\":[{\"role\":\"user\",\"content\":\"ok\"}],\"stream\":false,\"think\":false,\"options\":{\"num_predict\":4}}' > /dev/null; \
+    curl -sS http://127.0.0.1:11434/api/embed -H content-type:application/json \
+      -d '{\"model\":\"embeddinggemma\",\"input\":\"hello\"}' > /dev/null"
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+WARMUP
+systemctl daemon-reload
+systemctl enable --now ollama-warmup
+ok "ollama-warmup unit registered"
+
 note "Pulling gemma4:e4b (9.6 GB) — this takes ~5 minutes"
 sudo -u ollama ollama pull gemma4:e4b
 note "Pulling embeddinggemma (621 MB)"
