@@ -41,6 +41,69 @@ four-step welcome (name + selfie → life anchors → nominees → seed letters)
 subsequent visits land on the creator home. `/dev` is the role-switcher
 console for testing the nominee + executor surfaces side-by-side.
 
+## Self-host on a cloud VM (optional)
+
+Local is the recommended path. The cloud option exists for the specific
+case where a non-technical loved one needs to receive the archive and
+can't run Ollama themselves — they visit one URL on their phone or
+laptop and the archive is right there.
+
+Same code, same architecture, just on a VM you control. Nothing about
+the product changes; only where the binaries run.
+
+```bash
+# Provision an Azure VM (no GPU required — single-VM, all-on-one)
+RG=heirloom-rg LOCATION=eastus2 VM=heirloom-vm
+DNS_NAME=heirloom-$(openssl rand -hex 3)
+
+az group create -n "$RG" -l "$LOCATION"
+az vm create -g "$RG" -n "$VM" \
+    --image Ubuntu2204 --size Standard_D8as_v5 \
+    --admin-username heirloom --ssh-key-values ~/.ssh/id_rsa.pub \
+    --public-ip-sku Standard --public-ip-address-allocation Static \
+    --public-ip-address-dns-name "$DNS_NAME" \
+    --os-disk-size-gb 64 --storage-sku Premium_LRS
+az vm open-port -g "$RG" -n "$VM" --port 80  --priority 900
+az vm open-port -g "$RG" -n "$VM" --port 443 --priority 901
+
+# Bootstrap the stack on the VM (installs Ollama, Postgres, Whisper,
+# Caddy w/ Let's Encrypt; pulls gemma4:e4b ~9.6 GB)
+scp infra/vm-setup.sh heirloom@<vm-ip>:/tmp/
+ssh heirloom@<vm-ip> \
+    "sudo PUBLIC_HOST=$DNS_NAME.eastus2.cloudapp.azure.com bash /tmp/vm-setup.sh"
+
+# Ship the source and build
+rsync -az --exclude=node_modules/ --exclude=.next/ \
+    --exclude=storage/ --exclude=.tmp-screenshots/ \
+    ./ heirloom@<vm-ip>:/opt/heirloom/app/
+scp infra/build-and-start.sh heirloom@<vm-ip>:/tmp/
+ssh heirloom@<vm-ip> 'sudo bash /tmp/build-and-start.sh'
+```
+
+The full runbook — provider alternatives (Hetzner, Mac mini at home),
+operational commands, backup recipe, CPU-vs-GPU expectations — lives in
+[`docs/DEPLOY-AZURE-VM.md`](./docs/DEPLOY-AZURE-VM.md).
+
+**Things to know if you self-host:**
+
+- v1 is **single-creator per VM**. The first person through onboarding
+  becomes the creator; concurrent visitors see each other's data. Share
+  the URL only with the recipient you intend until per-user signup
+  lands.
+- CPU inference is **slow**. A Reflection answer that streams in 3 s on
+  an M4 Pro takes 30–90 s on a D8as_v5 with no GPU. Acceptable for
+  a small audience; not acceptable for a public launch.
+- **Nothing phones home.** The only outbound HTTPS the running app
+  makes is Caddy → Let's Encrypt for certificate renewal, and Ollama →
+  ollama.com on the first model pull. Everything else stays on the box.
+- **You are the admin.** SSH access = full access to every recording
+  and transcript. Treat keys accordingly.
+- **For the most private multi-device path, use the `.hloom` export
+  instead.** `POST /api/vault/export` produces a single passphrase-
+  encrypted file (argon2id + ChaCha20-Poly1305) that imports into a
+  recipient's own local Heirloom. The data never touches a third party
+  decrypted.
+
 ## Architecture
 
 ```
