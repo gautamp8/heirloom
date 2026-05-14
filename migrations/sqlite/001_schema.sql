@@ -248,3 +248,15 @@ CREATE TABLE IF NOT EXISTS auth_tokens (
     expires_at      TEXT NOT NULL,
     used_at         TEXT
 );
+
+CREATE TABLE IF NOT EXISTS voice_profiles (
+    id              TEXT PRIMARY KEY DEFAULT (gen_uuid()),
+    vault_id        TEXT NOT NULL REFERENCES vaults(id) ON DELETE CASCADE,
+    voice_id        TEXT NOT NULL,
+    blob_url        TEXT NOT NULL,
+    reference_text  TEXT NOT NULL,
+    duration_ms     INTEGER,
+    sample_rate     INTEGER,
+    created_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (vault_id)
+);

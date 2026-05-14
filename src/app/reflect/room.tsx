@@ -259,13 +259,112 @@ export function ReflectionRoom() {
             <p className="font-serif italic text-[17px] leading-[1.6] text-ink-soft text-wrap-pretty">
               {drawer.snippet}
             </p>
-            <p className="p-meta mt-4">
-              capture id · {drawer.capture_id.slice(0, 8)}
-            </p>
+            <div className="mt-4 flex items-center gap-4">
+              <SpeakButton text={drawer.snippet} />
+              <p className="p-meta">
+                capture id · {drawer.capture_id.slice(0, 8)}
+              </p>
+            </div>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+/** Renders an inline "play in voice" affordance for any verbatim string
+ *  from the archive. Resolves the creator's voice profile lazily; hides
+ *  itself entirely if no profile is on file (so it never asks a question
+ *  the archive can't answer). */
+function SpeakButton({ text }: { text: string }) {
+  const [state, setState] = useState<"hidden" | "idle" | "loading" | "playing" | "error">(
+    "hidden",
+  );
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch("/api/voice/profile", { cache: "no-store" });
+        if (!r.ok) return;
+        const d = (await r.json()) as {
+          profile: unknown;
+          tts_available: boolean;
+        };
+        if (!cancelled && d.profile && d.tts_available) setState("idle");
+      } catch {
+        /* leave hidden */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (state === "hidden") return null;
+
+  async function play() {
+    setState("loading");
+    try {
+      const r = await fetch("/api/voice/speak", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (!r.ok) {
+        setState("error");
+        return;
+      }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.addEventListener("ended", () => {
+        setState("idle");
+        URL.revokeObjectURL(url);
+      });
+      await audio.play();
+      setState("playing");
+    } catch {
+      setState("error");
+    }
+  }
+
+  function stop() {
+    audioRef.current?.pause();
+    audioRef.current = null;
+    setState("idle");
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={state === "playing" ? stop : play}
+      disabled={state === "loading"}
+      className="inline-flex items-center gap-1.5 font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink disabled:opacity-50"
+    >
+      <svg
+        width="11"
+        height="11"
+        viewBox="0 0 12 12"
+        fill="currentColor"
+        aria-hidden
+      >
+        {state === "playing" ? (
+          <rect x="2" y="2" width="8" height="8" />
+        ) : (
+          <path d="M3 2l7 4-7 4z" />
+        )}
+      </svg>
+      {state === "loading"
+        ? "Listening…"
+        : state === "playing"
+          ? "Stop"
+          : state === "error"
+            ? "Couldn't play"
+            : "Hear in their voice"}
+    </button>
   );
 }
 

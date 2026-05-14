@@ -1,0 +1,4 @@
+infra/tts-server/.venv/
+infra/tts-server/test/*.wav
+infra/tts-server/test/*.aiff
+infra/tts-server/voice/

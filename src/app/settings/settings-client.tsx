@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type LifeEvent = {
@@ -92,6 +92,8 @@ export function SettingsClient({ initial }: { initial: Initial }) {
       <LifeEventsSection initial={initial.life_events} onChanged={() => router.refresh()} />
 
       <NomineesSection initial={initial.nominees} onChanged={() => router.refresh()} />
+
+      <VoiceSection />
 
       <NotificationsSection />
 
@@ -982,4 +984,299 @@ function ImportPanel() {
       )}
     </div>
   );
+}
+
+const VOICE_SCRIPT = `Sometimes I think about the things I'd want to tell you when you're older. The smell of the kitchen on a Sunday morning — bread, coffee, my mother's hands. The way the porch light always came on at five. Walking through the park in October, the leaves catching the orange light. If you ever feel small, or scared, or just unsure — remember that we paid attention. We watched the years come and go, and we wrote some of them down for you.`;
+
+type VoiceState =
+  | { kind: "idle" }
+  | { kind: "checking" }
+  | { kind: "unavailable"; reason: string }
+  | { kind: "no-profile" }
+  | { kind: "have-profile"; duration_ms: number | null; created_at: string }
+  | { kind: "recording"; durationMs: number }
+  | { kind: "uploading" }
+  | { kind: "error"; message: string };
+
+function VoiceSection() {
+  const [state, setState] = useState<VoiceState>({ kind: "checking" });
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const mediaRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const startedAtRef = useRef<number>(0);
+
+  useEffect(() => {
+    refresh();
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function refresh() {
+    setState({ kind: "checking" });
+    try {
+      const r = await fetch("/api/voice/profile", { cache: "no-store" });
+      const data = (await r.json()) as {
+        profile: {
+          id: string;
+          duration_ms: number | null;
+          created_at: string;
+        } | null;
+        tts_available: boolean;
+      };
+      if (!data.tts_available) {
+        setState({
+          kind: "unavailable",
+          reason: "The voice engine isn't running on this device yet.",
+        });
+        return;
+      }
+      if (data.profile) {
+        setState({
+          kind: "have-profile",
+          duration_ms: data.profile.duration_ms,
+          created_at: data.profile.created_at,
+        });
+      } else {
+        setState({ kind: "no-profile" });
+      }
+    } catch {
+      setState({
+        kind: "unavailable",
+        reason: "Couldn't reach the voice engine.",
+      });
+    }
+  }
+
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      mr.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+      };
+      mediaRef.current = mr;
+      startedAtRef.current = Date.now();
+      mr.start();
+      setState({ kind: "recording", durationMs: 0 });
+
+      const tick = () => {
+        if (!mediaRef.current || mediaRef.current.state !== "recording") return;
+        setState({
+          kind: "recording",
+          durationMs: Date.now() - startedAtRef.current,
+        });
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    } catch {
+      setState({ kind: "error", message: "Microphone access was denied." });
+    }
+  }
+
+  async function stopAndUpload() {
+    const mr = mediaRef.current;
+    if (!mr) return;
+    setState({ kind: "uploading" });
+    await new Promise<void>((resolve) => {
+      mr.addEventListener("stop", () => resolve(), { once: true });
+      mr.stop();
+    });
+    const blob = new Blob(chunksRef.current, { type: "audio/wav" });
+    const wav = await webmBlobToWav(blob);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(URL.createObjectURL(wav));
+
+    const fd = new FormData();
+    fd.append("audio", wav, "reference.wav");
+    fd.append("reference_text", VOICE_SCRIPT);
+    const r = await fetch("/api/voice/clone", { method: "POST", body: fd });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      setState({
+        kind: "error",
+        message: err?.error?.message ?? `Upload failed (${r.status}).`,
+      });
+      return;
+    }
+    refresh();
+  }
+
+  async function playSample() {
+    try {
+      const r = await fetch("/api/voice/speak", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          text: "Hello. Thank you for taking the time to listen to this archive.",
+        }),
+      });
+      if (!r.ok) return;
+      const blob = await r.blob();
+      const audio = new Audio(URL.createObjectURL(blob));
+      audio.play();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="eyebrow">Your voice</h2>
+      <p className="p-body max-w-[520px]">
+        Heirloom can read your archive aloud in your own voice. Record the
+        short passage below — once. Future captures, letters, and reflection
+        sources can be played back in your voice on demand.
+      </p>
+
+      <details className="rounded-[12px] border border-rule p-4 bg-bg-raised max-w-[560px]">
+        <summary className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-muted cursor-pointer">
+          What the archive does with this
+        </summary>
+        <p className="p-meta mt-2 max-w-[480px]">
+          Your recording stays on this device. We use it to clone the timbre
+          of your voice so the archive can read your own words aloud later.
+          The system <strong>never</strong> generates new sentences in your
+          voice — only your actual writing, recordings, and the verbatim
+          source text behind a Reflection answer.
+        </p>
+      </details>
+
+      {state.kind === "checking" && (
+        <p className="p-meta">Checking the voice engine…</p>
+      )}
+
+      {state.kind === "unavailable" && (
+        <p className="p-meta">
+          {state.reason} The desktop app spawns it automatically; on the
+          server build set <code className="font-mono">HEIRLOOM_TTS_URL</code>.
+        </p>
+      )}
+
+      {state.kind === "have-profile" && (
+        <div className="flex flex-col gap-3 max-w-[560px]">
+          <p className="p-meta">
+            A voice sample is on file ({Math.round((state.duration_ms ?? 0) / 1000)}
+            s recorded).
+          </p>
+          <div className="flex gap-3 items-center">
+            <button type="button" className="btn" onClick={playSample}>
+              Hear a test
+            </button>
+            <button
+              type="button"
+              className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-fade hover:text-ink underline"
+              onClick={() => setState({ kind: "no-profile" })}
+            >
+              Re-record
+            </button>
+          </div>
+        </div>
+      )}
+
+      {(state.kind === "no-profile" ||
+        state.kind === "recording" ||
+        state.kind === "uploading" ||
+        state.kind === "error") && (
+        <div className="flex flex-col gap-4 max-w-[560px]">
+          <blockquote className="font-serif italic text-[17px] leading-[1.5] text-ink-soft border-l-2 border-rule pl-4 text-wrap-pretty">
+            “{VOICE_SCRIPT}”
+          </blockquote>
+
+          <div className="flex items-center gap-4">
+            {state.kind === "recording" ? (
+              <button type="button" className="btn" onClick={stopAndUpload}>
+                Stop ({Math.floor(state.durationMs / 1000)}s)
+              </button>
+            ) : state.kind === "uploading" ? (
+              <button type="button" className="btn" disabled>
+                Cloning your voice…
+              </button>
+            ) : (
+              <button type="button" className="btn" onClick={startRecording}>
+                Start recording
+              </button>
+            )}
+
+            {previewUrl && state.kind !== "recording" && (
+              // eslint-disable-next-line jsx-a11y/media-has-caption
+              <audio src={previewUrl} controls className="h-8" />
+            )}
+          </div>
+
+          {state.kind === "error" && (
+            <p className="p-meta text-wax">{state.message}</p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** MediaRecorder gives us webm/opus on Chrome; the TTS sidecar's
+ *  soundfile loader handles WAV best. Decode-then-encode via Web
+ *  Audio so we always upload a clean WAV. */
+async function webmBlobToWav(blob: Blob): Promise<Blob> {
+  const arrayBuffer = await blob.arrayBuffer();
+  const ctx = new (window.AudioContext || (window as unknown as {
+    webkitAudioContext: typeof AudioContext;
+  }).webkitAudioContext)();
+  const audio = await ctx.decodeAudioData(arrayBuffer);
+  const wav = audioBufferToWav(audio);
+  await ctx.close();
+  return new Blob([wav], { type: "audio/wav" });
+}
+
+function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
+  const numCh = 1;
+  const sampleRate = buffer.sampleRate;
+  const samples = mixToMono(buffer);
+  const out = new ArrayBuffer(44 + samples.length * 2);
+  const v = new DataView(out);
+  let p = 0;
+  const wstr = (s: string) => {
+    for (let i = 0; i < s.length; i++) v.setUint8(p++, s.charCodeAt(i));
+  };
+  const wu16 = (n: number) => {
+    v.setUint16(p, n, true);
+    p += 2;
+  };
+  const wu32 = (n: number) => {
+    v.setUint32(p, n, true);
+    p += 4;
+  };
+  wstr("RIFF");
+  wu32(36 + samples.length * 2);
+  wstr("WAVE");
+  wstr("fmt ");
+  wu32(16);
+  wu16(1);
+  wu16(numCh);
+  wu32(sampleRate);
+  wu32(sampleRate * numCh * 2);
+  wu16(numCh * 2);
+  wu16(16);
+  wstr("data");
+  wu32(samples.length * 2);
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    v.setInt16(p, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    p += 2;
+  }
+  return out;
+}
+
+function mixToMono(buffer: AudioBuffer): Float32Array {
+  if (buffer.numberOfChannels === 1) return buffer.getChannelData(0);
+  const out = new Float32Array(buffer.length);
+  for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+    const data = buffer.getChannelData(ch);
+    for (let i = 0; i < data.length; i++) out[i] += data[i] / buffer.numberOfChannels;
+  }
+  return out;
 }
