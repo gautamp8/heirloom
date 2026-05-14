@@ -130,7 +130,11 @@ export async function GET() {
              AND nr.released_at <= now()
         )
         SELECT ct.value AS theme, CAST(COUNT(*) AS INTEGER) AS count,
-               MIN(ct.capture_id) AS cover_id
+               (SELECT ct2.capture_id
+                  FROM capture_tags ct2
+                  JOIN release_caps r2 ON r2.id = ct2.capture_id
+                 WHERE ct2.kind = 'topic' AND ct2.value = ct.value
+                 LIMIT 1) AS cover_id
           FROM capture_tags ct
           JOIN release_caps r ON r.id = ct.capture_id
          WHERE ct.kind = 'topic'

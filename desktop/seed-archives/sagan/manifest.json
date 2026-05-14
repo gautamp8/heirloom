@@ -1,0 +1,82 @@
+{
+  "name": "Carl Sagan",
+  "tagline": "Astronomer, author, advocate for our pale blue dot.",
+  "dates": "1934–1996",
+  "voice_reference": "audio/reference.wav",
+  "voice_reference_text": "Look again at that dot. That's here. That's home. That's us. On it everyone you love, everyone you know, everyone you ever heard of, every human being who ever was, lived out their lives.",
+  "voice_reference_is_placeholder": true,
+  "voice_reference_note": "PLACEHOLDER. Drop a 15–30s WAV of Carl Sagan reading anything into audio/reference.wav and rebuild — Sagan's actual recordings are estate-controlled and not redistributable in this repo.",
+  "framing_letter": {
+    "from_name": "Carl Sagan",
+    "to_name": "the reader",
+    "body": "Look again at that dot. That's here. That's home. That's us. On it everyone you love, everyone you know, every human being who ever was, lived out their lives. To me, it underscores our responsibility to deal more kindly with one another, and to preserve and cherish the pale blue dot, the only home we've ever known."
+  },
+  "captures": [
+    {
+      "title": "Pale Blue Dot",
+      "kind": "note",
+      "captured_at": "1994-01-01",
+      "body": "Look again at that dot. That's here. That's home. That's us. On it everyone you love, everyone you know, everyone you ever heard of, every human being who ever was, lived out their lives. The aggregate of our joy and suffering, thousands of confident religions, ideologies, and economic doctrines, every hunter and forager, every hero and coward, every creator and destroyer of civilization, every king and peasant, every young couple in love, every mother and father, hopeful child, inventor and explorer, every teacher of morals, every corrupt politician, every \"superstar,\" every \"supreme leader,\" every saint and sinner in the history of our species lived there — on a mote of dust suspended in a sunbeam.\n\nThe Earth is a very small stage in a vast cosmic arena. Think of the rivers of blood spilled by all those generals and emperors so that, in glory and triumph, they could become the momentary masters of a fraction of a dot. Think of the endless cruelties visited by the inhabitants of one corner of this pixel on the scarcely distinguishable inhabitants of some other corner, how frequent their misunderstandings, how eager they are to kill one another, how fervent their hatreds.\n\nOur posturings, our imagined self-importance, the delusion that we have some privileged position in the Universe, are challenged by this point of pale light. Our planet is a lonely speck in the great enveloping cosmic dark. In our obscurity, in all this vastness, there is no hint that help will come from elsewhere to save us from ourselves.\n\nThe Earth is the only world known so far to harbor life. There is nowhere else, at least in the near future, to which our species could migrate. Visit, yes. Settle, not yet. Like it or not, for the moment the Earth is where we make our stand.\n\nIt has been said that astronomy is a humbling and character-building experience. There is perhaps no better demonstration of the folly of human conceits than this distant image of our tiny world. To me, it underscores our responsibility to deal more kindly with one another, and to preserve and cherish the pale blue dot, the only home we've ever known.",
+      "source_url": "https://www.planetary.org/worlds/pale-blue-dot",
+      "license": "Excerpt from Carl Sagan, Pale Blue Dot: A Vision of the Human Future in Space (1994). Reproduced under fair use for non-commercial archival demonstration."
+    },
+    {
+      "title": "Science as a way of thinking",
+      "kind": "note",
+      "captured_at": "1996-05-27",
+      "body": "Science is more than a body of knowledge. It's a way of thinking. A way of skeptically interrogating the universe with a fine understanding of human fallibility. If we are not able to ask skeptical questions, to interrogate those who tell us that something is true, to be skeptical of those in authority, then we're up for grabs for the next charlatan — political or religious — who comes ambling along. It's a thing that Jefferson laid great stress on. It wasn't enough, he said, to enshrine some rights in a Constitution or Bill of Rights. The people had to be educated, and they had to practice their skepticism and their education. Otherwise we don't run the government — the government runs us.",
+      "source_url": "https://www.youtube.com/watch?v=U8HEwO-2L4w",
+      "license": "Carl Sagan, final televised interview with Charlie Rose, May 1996. Reproduced under fair use for non-commercial archival demonstration."
+    },
+    {
+      "title": "We are star stuff",
+      "kind": "note",
+      "captured_at": "1980-01-01",
+      "body": "The nitrogen in our DNA, the calcium in our teeth, the iron in our blood, the carbon in our apple pies were made in the interiors of collapsing stars. We are made of starstuff. We are a way for the cosmos to know itself.",
+      "source_url": "https://en.wikiquote.org/wiki/Carl_Sagan",
+      "license": "Carl Sagan, Cosmos: A Personal Voyage (1980). Reproduced under fair use for non-commercial archival demonstration."
+    },
+    {
+      "title": "On Apollo and looking back",
+      "kind": "note",
+      "captured_at": "1994-01-01",
+      "body": "All those who returned from a flight to the Moon, and especially those who looked back at the Earth from lunar distance, described coming home as a different kind of homecoming. The view from the Moon spoke clearly to many of them. They saw a small blue world, just an oasis of blue and white in the deep dark of space. It is so strikingly familiar; it is so strikingly small.",
+      "source_url": "https://www.planetary.org/worlds/pale-blue-dot",
+      "license": "Excerpt from Pale Blue Dot. Reproduced under fair use."
+    },
+    {
+      "title": "Sagan at The Planetary Society, 1980",
+      "kind": "photo",
+      "captured_at": "1980-01-01",
+      "blob": "photos/sagan-planetary-society-1980.jpg",
+      "caption": "Carl Sagan in 1980, the year he founded The Planetary Society with Bruce Murray and Louis Friedman. He was in his mid-forties — already the public face of planetary exploration, already arguing that humanity's first duty was to its own pale blue dot.",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Carl_Sagan_Planetary_Society.JPG",
+      "license": "Wikimedia Commons — CC BY-SA 3.0 / public domain elements."
+    },
+    {
+      "title": "The Pale Blue Dot",
+      "kind": "photo",
+      "captured_at": "1990-02-14",
+      "blob": "photos/pale-blue-dot.png",
+      "caption": "The Earth photographed by Voyager 1 on February 14, 1990 from 3.7 billion miles away. Sagan had asked NASA to turn the spacecraft's camera back toward home. The pale blue speck a bit right of center is everyone you have ever loved.",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Pale_Blue_Dot_cropped_2.png",
+      "license": "NASA/JPL-Caltech — public domain."
+    },
+    {
+      "title": "The Sounds of Earth",
+      "kind": "photo",
+      "captured_at": "1977-08-20",
+      "blob": "photos/golden-record.jpg",
+      "caption": "The Voyager Golden Record, attached to the two Voyager spacecraft in 1977. Sagan chaired the committee that chose the sounds — greetings in 55 languages, whale song, Bach, Chuck Berry, the laughter of a child. He wanted whoever found it, billions of years from now, to know that we loved each other and that we tried.",
+      "source_url": "https://commons.wikimedia.org/wiki/File:The_Sounds_of_Earth_-_GPN-2000-001976.jpg",
+      "license": "NASA — public domain."
+    }
+  ],
+  "sealed_letters": [
+    {
+      "occasion_prompt": "When you feel insignificant",
+      "trigger_hint": "When they feel small or alone",
+      "body": "I want to tell you something I have come to believe.\n\nThe nitrogen in your DNA, the calcium in your teeth, the iron in your blood — they were forged in the interiors of stars that collapsed billions of years before you were born. You are, quite literally, made of starlight that ran out of fuel.\n\nWhen you feel small, remember that smallness has a context. There was a time when the universe didn't have the atoms that would one day become you, and there will be a time when it doesn't again. The whole of you — your hands, your laugh, the doubt you're carrying right now — was assembled out of cosmic debris over an unimaginable span of time, and given a fraction of a moment to look back at where it came from.\n\nThat fraction of a moment is now. You are the universe noticing itself.\n\nThat is not a small thing.\n\n— Carl"
+    }
+  ]
+}
