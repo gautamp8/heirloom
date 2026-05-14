@@ -31,7 +31,7 @@ export async function GET() {
       session.user_id,
       session.role,
       (tx) => tx<{ n: number }[]>`
-        SELECT CAST(COUNT(*) AS INTEGER) AS n FROM captures WHERE vault_id = ${session.vault_id}
+        SELECT CAST(COUNT(*) AS INTEGER) AS n FROM captures WHERE vault_id = ${session.vault_id} AND is_profile = false
       `.then((rows) => rows[0]?.n ?? 0),
     );
 

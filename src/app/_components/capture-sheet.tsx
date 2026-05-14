@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { VoiceInput } from "./voice-input";
 import type { HomeCapture } from "../page";
 
 type Stage = "uploaded" | "transcribed" | "embedded" | "tagged" | "ready" | "failed";
@@ -581,18 +582,21 @@ function NoteCapture({
       )}
       <textarea
         className="w-full font-serif text-[17px] leading-[1.55] text-ink bg-transparent border-none outline-none resize-none min-h-[240px] placeholder:text-ink-muted placeholder:italic"
-        placeholder="Take your time. Begin when you're ready."
+        placeholder="Take your time. Begin when you're ready. Or tap the mic and speak it."
         value={text}
         onChange={(e) => setText(e.target.value)}
         autoFocus={!titleEditable}
         disabled={state !== "typing"}
       />
       <div className="flex items-center justify-between">
-        <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-fade">
-          {text.length === 0
-            ? "0 words"
-            : `${text.trim().split(/\s+/).length} words`}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-fade">
+            {text.length === 0
+              ? "0 words"
+              : `${text.trim().split(/\s+/).length} words`}
+          </span>
+          <VoiceInput value={text} onTextAppend={setText} disabled={state !== "typing"} />
+        </div>
         <button
           className="btn"
           onClick={commit}

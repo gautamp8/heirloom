@@ -49,12 +49,13 @@ export async function GET() {
           FROM captures c
           LEFT JOIN transcripts t ON t.capture_id = c.id
           WHERE c.vault_id = ${session.vault_id}
+            AND c.is_profile = false
           ORDER BY c.captured_at DESC
           LIMIT 12
         `;
         const [counts] = await tx<{ captures: number; nominees: number }[]>`
           SELECT
-            (SELECT CAST(COUNT(*) AS INTEGER) FROM captures WHERE vault_id = ${session.vault_id}) AS captures,
+            (SELECT CAST(COUNT(*) AS INTEGER) FROM captures WHERE vault_id = ${session.vault_id} AND is_profile = false) AS captures,
             (SELECT CAST(COUNT(*) AS INTEGER) FROM nominees WHERE vault_id = ${session.vault_id}) AS nominees
         `;
         const recentTopics = await tx<{ value: string }[]>`

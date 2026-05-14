@@ -1,6 +1,7 @@
 import argon2 from "argon2";
 import { withRls, vec } from "./db";
 import { embedOne } from "./embed";
+import { syncIdentityIndexForSession } from "./identity-index";
 import { generatePassphrase, normalisePassphrase } from "./passphrase";
 import type { Session } from "./auth";
 
@@ -99,6 +100,7 @@ export async function saveSelf(
       }
     }
   });
+  await syncIdentityIndexForSession(session);
 }
 
 /** Step 2: life events. Each event's label+description is embedded so
@@ -138,6 +140,7 @@ export async function saveLifeEvents(
       `;
     }
   });
+  await syncIdentityIndexForSession(session);
   return enriched.length;
 }
 
@@ -214,6 +217,7 @@ export async function saveNominees(
       }
     }
   });
+  await syncIdentityIndexForSession(session);
   return { inserted, nominees: out };
 }
 
@@ -282,6 +286,7 @@ export async function saveSealedLetters(
       inserted += 1;
     });
   }
+  if (inserted > 0) await syncIdentityIndexForSession(session);
   return { inserted };
 }
 
@@ -292,6 +297,7 @@ export async function markOnboarded(session: Session): Promise<void> {
        WHERE id = ${session.vault_id} AND onboarded_at IS NULL
     `;
   });
+  await syncIdentityIndexForSession(session);
 }
 
 /** Regenerate a nominee's passphrase. The previous one is unrecoverable
@@ -408,13 +414,14 @@ export async function updateDisplayName(
        WHERE vault_id = ${session.vault_id} AND relation = 'self'
     `;
   });
+  await syncIdentityIndexForSession(session);
 }
 
 export async function deleteLifeEvent(
   session: Session,
   id: string,
 ): Promise<boolean> {
-  return withRls(session.user_id, session.role, async (tx) => {
+  const removed = await withRls(session.user_id, session.role, async (tx) => {
     const rows = await tx<{ id: string }[]>`
       DELETE FROM life_events
        WHERE id = ${id} AND vault_id = ${session.vault_id}
@@ -422,4 +429,6 @@ export async function deleteLifeEvent(
     `;
     return rows.length > 0;
   });
+  if (removed) await syncIdentityIndexForSession(session);
+  return removed;
 }

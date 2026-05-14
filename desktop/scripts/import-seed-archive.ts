@@ -230,6 +230,14 @@ async function main() {
     console.log(`  sealed letter: ${letter.occasion_prompt}`);
   }
 
+  // Identity index — bio facts (name, dates, nominees, letter occasions)
+  // get their own hidden profile capture so retrieval can answer
+  // "who is X?" / "when were you born?" without the creator needing
+  // to write those facts as a note themselves.
+  const { syncIdentityIndexAdmin } = await import("../../src/lib/identity-index");
+  const idx = await syncIdentityIndexAdmin(sql, vaultId);
+  console.log(`\n  identity index: ${idx.chunks} chunks`);
+
   console.log(`\nDone.`);
   console.log(`  nominee passphrase: ${passphrase}`);
   console.log(`  open /portal, click "I have a sealed letter", enter that phrase.`);

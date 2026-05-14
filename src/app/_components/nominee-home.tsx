@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { SpeakButton } from "./speak-button";
+import { VoiceInput } from "./voice-input";
 import type { ReleasedCapture } from "../page";
 
 type NewlyFired = {
@@ -17,7 +18,7 @@ type NewlyFired = {
 
 type Album = { theme: string; count: number; cover_id: string };
 
-const MOOD_CHIPS = [
+const DEFAULT_MOOD_CHIPS = [
   "I miss you",
   "I need advice",
   "On hard days",
@@ -31,6 +32,7 @@ export function NomineeHome(props: {
   dailyMemory: ReleasedCapture | null;
   albums: Album[];
   stats: { captures: number };
+  moodChips?: string[];
 }) {
   const router = useRouter();
   const rest = props.released.filter(
@@ -104,7 +106,10 @@ export function NomineeHome(props: {
           )}
 
           {/* Mood affordance — fires state triggers for sealed letters */}
-          <MoodCard onUnlock={() => router.refresh()} />
+          <MoodCard
+            chips={props.moodChips ?? DEFAULT_MOOD_CHIPS}
+            onUnlock={() => router.refresh()}
+          />
 
           {/* Themed albums */}
           {props.albums.length > 0 && (
@@ -216,7 +221,14 @@ function DailyHero({ capture }: { capture: ReleasedCapture }) {
   );
 }
 
-function MoodCard({ onUnlock }: { onUnlock: () => void }) {
+function MoodCard({
+  chips,
+  onUnlock,
+}: {
+  chips: string[];
+  onUnlock: () => void;
+}) {
+  const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [showInput, setShowInput] = useState(false);
@@ -239,9 +251,14 @@ function MoodCard({ onUnlock }: { onUnlock: () => void }) {
         occasion: f.occasion_prompt,
         trigger: f.trigger,
       }));
-      setUnlocked(fired);
-      // If anything fired, refresh to show the new release in the feed
-      if (fired.length > 0) setTimeout(onUnlock, 1200);
+      if (fired.length > 0) {
+        setUnlocked(fired);
+        setTimeout(onUnlock, 1200);
+        return;
+      }
+      // No sealed letter fired — pivot to Reflection with the chip text as
+      // the query so the tap always lands somewhere meaningful.
+      router.push(`/reflect?q=${encodeURIComponent(state)}`);
     } finally {
       setBusy(null);
     }
@@ -261,7 +278,7 @@ function MoodCard({ onUnlock }: { onUnlock: () => void }) {
         Tell the archive what kind of moment you&rsquo;re in.
       </p>
       <div className="flex flex-wrap gap-2">
-        {MOOD_CHIPS.map((c) => (
+        {chips.map((c) => (
           <button
             key={c}
             type="button"
@@ -281,7 +298,7 @@ function MoodCard({ onUnlock }: { onUnlock: () => void }) {
         </button>
       </div>
       {showInput && (
-        <div className="mt-3 flex gap-2">
+        <div className="mt-3 flex gap-2 items-center">
           <input
             type="text"
             value={text}
@@ -290,6 +307,7 @@ function MoodCard({ onUnlock }: { onUnlock: () => void }) {
             maxLength={120}
             className="flex-1 font-serif italic text-[15px] text-ink bg-transparent border-b border-rule-strong outline-none py-1.5 placeholder:text-ink-muted"
           />
+          <VoiceInput value={text} onTextAppend={setText} />
           <button
             className="btn"
             disabled={!text.trim() || !!busy}

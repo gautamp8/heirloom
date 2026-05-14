@@ -36,6 +36,7 @@ export default async function AlbumPage({
           JOIN capture_tags ct ON ct.capture_id = c.id
           LEFT JOIN transcripts t ON t.capture_id = c.id
          WHERE c.vault_id = ${session.vault_id}
+           AND c.is_profile = false
            AND ct.kind = 'topic'
            AND lower(ct.value) = lower(${theme})
          ORDER BY c.captured_at DESC

@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import Image from "next/image";
 import { cookies } from "next/headers";
 import { readSession } from "@/lib/auth";
 import { getOnboardingStatus } from "@/lib/onboarding";
+import { BrandMark } from "./_components/brand-mark";
 import { Home } from "./_components/home";
 import { NomineeHome } from "./_components/nominee-home";
 
@@ -85,22 +85,11 @@ export default async function Root() {
   const data = (await res.json()) as CreatorHome | NomineeHomePayload;
 
   if (data.role === "nominee") {
+    const moodChips = pickMoodChips(data.framing.from_name);
     return (
       <main className="stage relative min-h-dvh flex flex-col">
         <div className="px-6 pt-6 pb-2 flex items-center justify-between relative z-10">
-          <div className="flex items-center gap-2.5">
-            <Image
-              src="/seal.png"
-              alt=""
-              aria-hidden
-              width={22}
-              height={22}
-              className="w-[22px] h-[22px] object-contain"
-            />
-            <span className="font-serif italic text-[18px] text-ink">
-              Heirloom
-            </span>
-          </div>
+          <BrandMark href={null} />
           <span className="eyebrow">Archive</span>
         </div>
 
@@ -111,6 +100,7 @@ export default async function Root() {
           dailyMemory={data.daily_memory ?? null}
           albums={data.themed_albums ?? []}
           stats={data.stats}
+          moodChips={moodChips}
         />
       </main>
     );
@@ -119,19 +109,7 @@ export default async function Root() {
   return (
     <main className="stage relative min-h-dvh flex flex-col">
       <div className="px-6 pt-6 pb-2 flex items-center justify-between relative z-10">
-        <div className="flex items-center gap-2.5">
-          <Image
-            src="/seal.png"
-            alt=""
-            aria-hidden
-            width={22}
-            height={22}
-            className="w-[22px] h-[22px] object-contain"
-          />
-          <span className="font-serif italic text-[18px] text-ink">
-            Heirloom
-          </span>
-        </div>
+        <BrandMark href={null} />
         <a
           href="/settings"
           className="eyebrow hover:text-ink transition-colors"
@@ -152,4 +130,38 @@ export default async function Root() {
 
 async function sessionCookieValue(): Promise<string> {
   return (await cookies()).get("heirloom_session")?.value ?? "";
+}
+
+/** Mood-card chips per known seed archive. Each chip should either match
+ *  a sealed letter trigger (so tapping fires it) or be a phrasing the
+ *  Reflection retrieval will land on confidently. The fallback set are
+ *  generic prompts kept for family archives where we have no special
+ *  hand-tuning. */
+function pickMoodChips(fromName: string): string[] {
+  const key = fromName.toLowerCase().trim();
+  if (key.includes("carl sagan")) {
+    return [
+      "We are stardust",
+      "What is our place in the cosmos?",
+      "Look at Earth from space",
+      "What is science?",
+    ];
+  }
+  if (key.includes("fred rogers")) {
+    return [
+      "I feel afraid",
+      "I miss you",
+      "What did you believe about children?",
+      "Tell me about love",
+    ];
+  }
+  if (key.includes("gandhi")) {
+    return [
+      "I feel powerless",
+      "Tell me about truth",
+      "What is non-violence?",
+      "On hard days",
+    ];
+  }
+  return ["I miss you", "I need advice", "On hard days", "A big moment"];
 }

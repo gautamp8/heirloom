@@ -1,16 +1,31 @@
 import { promises as fs } from "node:fs";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 
-const MODEL_PATH = path.join(
-  process.cwd(),
-  "storage",
-  "whisper-models",
-  "ggml-small.en.bin",
-);
+/** Locate `storage/whisper-models/ggml-small.en.bin`. Order of resolution:
+ *  1. HEIRLOOM_WHISPER_MODEL — explicit override (desktop bundle).
+ *  2. Walk up from process.cwd() — handles standalone server runs from
+ *     `.next/standalone` as well as `pnpm dev` from the repo root. */
+function resolveModelPath(): string {
+  const override = process.env.HEIRLOOM_WHISPER_MODEL;
+  if (override) return override;
+  const rel = path.join("storage", "whisper-models", "ggml-small.en.bin");
+  let dir = process.cwd();
+  for (let i = 0; i < 6; i++) {
+    const candidate = path.join(dir, rel);
+    if (existsSync(candidate)) return candidate;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return path.join(process.cwd(), rel);
+}
 
-const WHISPER_BIN = "/opt/homebrew/bin/whisper-cli";
-const FFMPEG_BIN = "/opt/homebrew/bin/ffmpeg";
+const MODEL_PATH = resolveModelPath();
+
+const WHISPER_BIN = process.env.HEIRLOOM_WHISPER_BIN ?? "/opt/homebrew/bin/whisper-cli";
+const FFMPEG_BIN = process.env.HEIRLOOM_FFMPEG_BIN ?? "/opt/homebrew/bin/ffmpeg";
 
 export type WhisperResult = {
   text: string;

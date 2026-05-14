@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SpeakButton } from "@/app/_components/speak-button";
+import { VoiceInput } from "@/app/_components/voice-input";
 
 type Citation = { capture_id: string; snippet: string };
 
@@ -22,14 +23,28 @@ const EMPTY_STATE: StreamState = {
   claims: [],
 };
 
-export function ReflectionRoom() {
-  const [question, setQuestion] = useState("");
+export function ReflectionRoom({
+  suggestedPrompts = DEFAULT_PROMPTS,
+  initialQuestion = "",
+}: {
+  suggestedPrompts?: string[];
+  initialQuestion?: string;
+}) {
+  const [question, setQuestion] = useState(initialQuestion);
   const [s, setS] = useState<StreamState>(EMPTY_STATE);
   const esRef = useRef<EventSource | null>(null);
   const [drawer, setDrawer] = useState<Citation | null>(null);
 
   useEffect(() => {
     return () => esRef.current?.close();
+  }, []);
+
+  // Auto-ask if Reflect was opened with a ?q= prefill (mood-card tap).
+  useEffect(() => {
+    if (initialQuestion.trim()) {
+      ask();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function ask() {
@@ -134,7 +149,7 @@ export function ReflectionRoom() {
               won&rsquo;t answer at all.
             </p>
             <ul className="mt-10 flex flex-col gap-3">
-              {SUGGESTED_PROMPTS.map((p) => (
+              {suggestedPrompts.map((p) => (
                 <li key={p}>
                   <button
                     className="font-serif italic text-[15px] text-ink-fade hover:text-ink-soft transition-colors"
@@ -227,6 +242,11 @@ export function ReflectionRoom() {
             className="flex-1 bg-transparent font-serif italic text-[17px] text-ink placeholder:text-ink-muted outline-none border-b border-rule focus:border-ink-muted py-2"
             disabled={s.status === "retrieving" || s.status === "answering"}
             autoFocus
+          />
+          <VoiceInput
+            value={question}
+            onTextAppend={setQuestion}
+            disabled={s.status === "retrieving" || s.status === "answering"}
           />
           <button
             type="submit"
@@ -360,7 +380,7 @@ function uniqueCitations(
   return Array.from(seen.values());
 }
 
-const SUGGESTED_PROMPTS = [
+const DEFAULT_PROMPTS = [
   "Tell me about your grandmother.",
   "What did you learn from your father?",
   "What did you wear when you got married?",
