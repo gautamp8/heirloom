@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start -H 0.0.0.0",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "tauri": "tauri --config desktop/src-tauri/tauri.conf.json",
+    "tauri:dev": "HEIRLOOM_BACKEND=sqlite tauri dev --config desktop/src-tauri/tauri.conf.json",
+    "tauri:build": "HEIRLOOM_BACKEND=sqlite tauri build --config desktop/src-tauri/tauri.conf.json"
   },
   "dependencies": {
     "ai": "^6.0.177",
@@ -28,6 +31,8 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/cli": "^2.11.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/react": "^19",

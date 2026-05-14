@@ -53,3 +53,10 @@ storage/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+
+# Tauri build artifacts
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+desktop/dist/
+desktop/bin/*
+!desktop/bin/.gitkeep

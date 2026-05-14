@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "Capabilities for the main Heirloom window",
+  "windows": ["main", "Heirloom"],
+  "permissions": [
+    "core:default",
+    "shell:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        { "name": "ollama", "sidecar": true, "args": true },
+        { "name": "whisper-cli", "sidecar": true, "args": true }
+      ]
+    }
+  ]
+}
