@@ -30,9 +30,9 @@ export async function getOnboardingStatus(
         EXISTS (
           SELECT 1 FROM people p WHERE p.vault_id = v.id AND p.relation = 'self'
         ) AS has_self,
-        (SELECT COUNT(*)::int FROM life_events l WHERE l.vault_id = v.id) AS life_events_count,
-        (SELECT COUNT(*)::int FROM nominees n WHERE n.vault_id = v.id) AS nominees_count,
-        (SELECT COUNT(*)::int FROM sealed_letters s WHERE s.vault_id = v.id) AS sealed_letters_count
+        (SELECT CAST(COUNT(*) AS INTEGER) FROM life_events l WHERE l.vault_id = v.id) AS life_events_count,
+        (SELECT CAST(COUNT(*) AS INTEGER) FROM nominees n WHERE n.vault_id = v.id) AS nominees_count,
+        (SELECT CAST(COUNT(*) AS INTEGER) FROM sealed_letters s WHERE s.vault_id = v.id) AS sealed_letters_count
       FROM vaults v
       WHERE v.id = ${session.vault_id}
     `;

@@ -12,6 +12,9 @@ const nextConfig: NextConfig = {
     "192.168.1.16",
     "192.168.1.16:3000",
   ],
+  // Native node addons used only by the bundled desktop build. They
+  // load .node binaries at runtime and must not be bundled by Turbopack.
+  serverExternalPackages: ["better-sqlite3", "sqlite-vec"],
 };
 
 export default nextConfig;

@@ -34,8 +34,8 @@ async function readStage(
       SELECT c.id, c.status, c.kind, c.body, c.title, c.caption, c.blob_url,
              c.duration_ms, c.captured_at, c.created_at,
              t.text AS transcript_text,
-             (SELECT COUNT(*)::int FROM transcript_chunks tc WHERE tc.capture_id = c.id) AS chunk_count,
-             (SELECT COUNT(*)::int FROM capture_tags ct WHERE ct.capture_id = c.id)      AS tag_count
+             (SELECT CAST(COUNT(*) AS INTEGER) FROM transcript_chunks tc WHERE tc.capture_id = c.id) AS chunk_count,
+             (SELECT CAST(COUNT(*) AS INTEGER) FROM capture_tags ct WHERE ct.capture_id = c.id)      AS tag_count
       FROM captures c
       LEFT JOIN transcripts t ON t.capture_id = c.id
       WHERE c.id = ${captureId}

@@ -210,7 +210,7 @@ async function fetchPending(
   }
   return tx<PendingRow[]>`
     SELECT id, capture_id, to_nominee_id, occasion_prompt, conditions,
-           NULL::numeric AS intent_similarity
+           NULL AS intent_similarity
       FROM sealed_letters
      WHERE vault_id = ${vault_id}
        AND unlocked_at IS NULL

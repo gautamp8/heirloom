@@ -45,7 +45,7 @@ export async function GET() {
           }[]
         >`
           SELECT c.id, c.kind, c.status, c.title, c.body, c.duration_ms, c.captured_at,
-                 LEFT(COALESCE(c.body, t.text, ''), 240) AS transcript_snippet
+                 substr(COALESCE(c.body, t.text, ''), 1, 240) AS transcript_snippet
           FROM captures c
           LEFT JOIN transcripts t ON t.capture_id = c.id
           WHERE c.vault_id = ${session.vault_id}
@@ -54,8 +54,8 @@ export async function GET() {
         `;
         const [counts] = await tx<{ captures: number; nominees: number }[]>`
           SELECT
-            (SELECT COUNT(*)::int FROM captures WHERE vault_id = ${session.vault_id}) AS captures,
-            (SELECT COUNT(*)::int FROM nominees WHERE vault_id = ${session.vault_id}) AS nominees
+            (SELECT CAST(COUNT(*) AS INTEGER) FROM captures WHERE vault_id = ${session.vault_id}) AS captures,
+            (SELECT CAST(COUNT(*) AS INTEGER) FROM nominees WHERE vault_id = ${session.vault_id}) AS nominees
         `;
         const recentTopics = await tx<{ value: string }[]>`
           SELECT DISTINCT value
@@ -107,7 +107,7 @@ export async function GET() {
       >`
         SELECT c.id, c.kind, c.title, c.body, c.caption, c.duration_ms, c.captured_at,
                nr.released_at,
-               LEFT(COALESCE(c.body, t.text, c.caption, ''), 240) AS transcript_snippet
+               substr(COALESCE(c.body, t.text, c.caption, ''), 1, 240) AS transcript_snippet
         FROM captures c
         JOIN nominee_releases nr ON nr.capture_id = c.id
         JOIN nominees n ON n.id = nr.nominee_id
@@ -129,8 +129,8 @@ export async function GET() {
              AND nr.released_at IS NOT NULL
              AND nr.released_at <= now()
         )
-        SELECT ct.value AS theme, COUNT(*)::int AS count,
-               (ARRAY_AGG(ct.capture_id ORDER BY ct.capture_id))[1] AS cover_id
+        SELECT ct.value AS theme, CAST(COUNT(*) AS INTEGER) AS count,
+               MIN(ct.capture_id) AS cover_id
           FROM capture_tags ct
           JOIN release_caps r ON r.id = ct.capture_id
          WHERE ct.kind = 'topic'

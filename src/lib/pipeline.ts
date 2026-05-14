@@ -123,12 +123,12 @@ export async function runCapturePipeline(
     //    capture is the body of a sealed letter (those release via the
     //    condition engine when their moment arrives).
     await withRls(session.user_id, session.role, async (tx) => {
-      const [sealed] = await tx<{ exists: boolean }[]>`
+      const [sealed] = await tx<{ has_letter: number }[]>`
         SELECT EXISTS (
           SELECT 1 FROM sealed_letters WHERE capture_id = ${cap.id}
-        ) AS exists
+        ) AS has_letter
       `;
-      if (!sealed?.exists) {
+      if (!sealed?.has_letter) {
         const nominees = await tx<{ id: string }[]>`
           SELECT id FROM nominees WHERE vault_id = ${cap.vault_id}
         `;

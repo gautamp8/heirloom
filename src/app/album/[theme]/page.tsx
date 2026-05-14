@@ -31,7 +31,7 @@ export default async function AlbumPage({
       return tx<CaptureRow[]>`
         SELECT c.id, c.kind, c.title, c.body, c.caption, c.duration_ms,
                c.captured_at,
-               LEFT(COALESCE(c.body, t.text, c.caption, ''), 240) AS snippet
+               substr(COALESCE(c.body, t.text, c.caption, ''), 1, 240) AS snippet
           FROM captures c
           JOIN capture_tags ct ON ct.capture_id = c.id
           LEFT JOIN transcripts t ON t.capture_id = c.id
@@ -44,7 +44,7 @@ export default async function AlbumPage({
     return tx<CaptureRow[]>`
       SELECT c.id, c.kind, c.title, c.body, c.caption, c.duration_ms,
              c.captured_at,
-             LEFT(COALESCE(c.body, t.text, c.caption, ''), 240) AS snippet
+             substr(COALESCE(c.body, t.text, c.caption, ''), 1, 240) AS snippet
         FROM captures c
         JOIN capture_tags ct ON ct.capture_id = c.id
         JOIN nominee_releases nr ON nr.capture_id = c.id

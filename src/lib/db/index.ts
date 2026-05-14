@@ -13,4 +13,17 @@
  * and stay backend-agnostic.
  */
 
-export { sql, sqlAdmin, withRls, vec, cosineDist, cosineSim } from "./postgres";
+import * as pg from "./postgres";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const sqliteBackend = process.env.HEIRLOOM_BACKEND === "sqlite"
+  ? (require("./sqlite") as typeof pg)
+  : null;
+
+const backend = sqliteBackend ?? pg;
+
+export const sql = backend.sql;
+export const sqlAdmin = backend.sqlAdmin;
+export const withRls = backend.withRls;
+export const vec = backend.vec;
+export const cosineDist = backend.cosineDist;
+export const cosineSim = backend.cosineSim;

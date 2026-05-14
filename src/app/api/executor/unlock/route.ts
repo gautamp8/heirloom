@@ -57,7 +57,7 @@ export async function POST(req: Request) {
       SELECT ec.vault_id,
              ec.nominee_id,
              ec.passphrase_hash,
-             COALESCE((SELECT COUNT(*)::int FROM nominee_releases nr
+             COALESCE((SELECT CAST(COUNT(*) AS INTEGER) FROM nominee_releases nr
                        WHERE nr.vault_id = ec.vault_id
                          AND nr.released_at IS NOT NULL), 0) AS used_count
       FROM executor_credentials ec
@@ -97,7 +97,7 @@ export async function POST(req: Request) {
           AND released_at IS NULL
         RETURNING id
       )
-      SELECT COUNT(*)::int AS released FROM flipped
+      SELECT CAST(COUNT(*) AS INTEGER) AS released FROM flipped
     `;
 
     await sqlAdmin`

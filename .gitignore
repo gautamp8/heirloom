@@ -50,3 +50,6 @@ __pycache__/
 storage/
 .shots/
 .tmp-screenshots/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

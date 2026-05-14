@@ -38,11 +38,11 @@ export default async function DevPage() {
     }[]
   >`
     SELECT
-      (SELECT COUNT(*)::int FROM captures)                                AS captures,
-      (SELECT COUNT(*)::int FROM nominees)                                AS nominees,
-      (SELECT COUNT(*)::int FROM nominee_releases WHERE released_at IS NOT NULL) AS released,
-      (SELECT COUNT(*)::int FROM reflections)                             AS reflections,
-      (SELECT COUNT(*)::int FROM executor_credentials)                    AS executors
+      (SELECT CAST(COUNT(*) AS INTEGER) FROM captures)                                AS captures,
+      (SELECT CAST(COUNT(*) AS INTEGER) FROM nominees)                                AS nominees,
+      (SELECT CAST(COUNT(*) AS INTEGER) FROM nominee_releases WHERE released_at IS NOT NULL) AS released,
+      (SELECT CAST(COUNT(*) AS INTEGER) FROM reflections)                             AS reflections,
+      (SELECT CAST(COUNT(*) AS INTEGER) FROM executor_credentials)                    AS executors
   `;
 
   const snapshot: Snapshot = {
