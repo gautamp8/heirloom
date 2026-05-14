@@ -58,5 +58,6 @@ storage/
 desktop/src-tauri/target/
 desktop/src-tauri/gen/
 desktop/dist/
+desktop/server/
 desktop/bin/*
 !desktop/bin/.gitkeep

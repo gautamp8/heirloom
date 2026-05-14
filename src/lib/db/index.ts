@@ -13,13 +13,10 @@
  * and stay backend-agnostic.
  */
 
-import * as pg from "./postgres";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const sqliteBackend = process.env.HEIRLOOM_BACKEND === "sqlite"
-  ? (require("./sqlite") as typeof pg)
-  : null;
-
-const backend = sqliteBackend ?? pg;
+const backend = process.env.HEIRLOOM_BACKEND === "sqlite"
+  ? (require("./sqlite") as typeof import("./postgres"))
+  : (require("./postgres") as typeof import("./postgres"));
 
 export const sql = backend.sql;
 export const sqlAdmin = backend.sqlAdmin;

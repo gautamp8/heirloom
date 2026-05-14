@@ -12,6 +12,7 @@
  */
 
 import Database, { type Database as DatabaseT } from "better-sqlite3";
+import * as sqliteVec from "sqlite-vec";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -82,7 +83,6 @@ async function getDb(): Promise<DatabaseT> {
   const d = new Database(dbPath);
   d.pragma("journal_mode = WAL");
   d.pragma("foreign_keys = ON");
-  const sqliteVec = await import("sqlite-vec");
   sqliteVec.load(d);
 
   // Shim a few Postgres builtins so cross-backend SQL keeps working.
