@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { SpeakButton } from "./speak-button";
 import type { ReleasedCapture } from "../page";
 
 type NewlyFired = {
@@ -202,21 +203,13 @@ function DailyHero({ capture }: { capture: ReleasedCapture }) {
           {smartSnippet(capture.transcript_snippet, 220)}
         </p>
       )}
-      {capture.kind === "audio" && (
-        <div className="mt-4 flex items-center gap-3">
-          <button
-            className="w-9 h-9 rounded-full grid place-items-center bg-ink text-paper"
-            aria-label="Play original recording"
-            disabled
-            title="Player coming next"
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-              <path d="M2 1.5 10 6 2 10.5z" />
-            </svg>
-          </button>
-          <p className="p-meta">
-            Recording · {formatDuration(capture.duration_ms ?? 0)}
-          </p>
+      {capture.transcript_snippet && (
+        <div className="mt-4">
+          <SpeakButton
+            text={capture.transcript_snippet}
+            variant="big"
+            label="Hear it in their voice"
+          />
         </div>
       )}
     </motion.article>
@@ -374,6 +367,15 @@ function UnlockedLetterCard({
           {smartSnippet(capture.body, 320)}
         </p>
       )}
+      {capture.body && (
+        <div className="mt-4">
+          <SpeakButton
+            text={smartSnippet(capture.body, 600)}
+            variant="big"
+            label="Hear them read this"
+          />
+        </div>
+      )}
       <p className="mt-3 font-mono text-[9px] tracking-[0.18em] uppercase text-ink-fade">
         {fired.trigger}
       </p>
@@ -455,6 +457,11 @@ function ReleasedRow({ cap }: { cap: ReleasedCapture }) {
           <p className="font-serif italic text-[14px] leading-[1.45] text-ink-soft mt-1 text-wrap-pretty">
             {smartSnippet(cap.transcript_snippet)}
           </p>
+        )}
+        {cap.transcript_snippet && (
+          <div className="mt-2">
+            <SpeakButton text={cap.transcript_snippet} />
+          </div>
         )}
       </div>
     </li>

@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { VOICE_SCRIPT, webmBlobToWav } from "@/lib/voice-record";
 
-type Step = "welcome" | "anchors" | "nominees" | "letters";
-const STEPS: Step[] = ["welcome", "anchors", "nominees", "letters"];
+type Step = "welcome" | "voice" | "anchors" | "nominees" | "letters";
+const STEPS: Step[] = ["welcome", "voice", "anchors", "nominees", "letters"];
 
 type LifeEvent = {
   kind: string;
@@ -104,7 +105,7 @@ export function OnboardingFlow() {
         }),
       });
       if (!r.ok) throw new Error("save failed");
-      setStep("anchors");
+      setStep("voice");
     } catch {
       setError("Save failed. Please try again.");
     } finally {
@@ -260,11 +261,17 @@ export function OnboardingFlow() {
               submitting={submitting}
             />
           )}
+          {step === "voice" && (
+            <VoiceStep
+              onBack={() => setStep("welcome")}
+              onContinue={() => setStep("anchors")}
+            />
+          )}
           {step === "anchors" && (
             <AnchorsStep
               events={events}
               setEvents={setEvents}
-              onBack={() => setStep("welcome")}
+              onBack={() => setStep("voice")}
               onContinue={submitAnchors}
               submitting={submitting}
             />
@@ -423,6 +430,167 @@ const EVENT_KINDS = [
   { value: "loss", label: "Loss" },
   { value: "milestone", label: "Milestone" },
 ];
+
+function VoiceStep(props: { onBack: () => void; onContinue: () => void }) {
+  type S =
+    | { kind: "ready" }
+    | { kind: "recording"; durationMs: number }
+    | { kind: "preview"; url: string; blob: Blob }
+    | { kind: "uploading" }
+    | { kind: "done" }
+    | { kind: "error"; message: string };
+  const [state, setState] = useState<S>({ kind: "ready" });
+  const recRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const startedAtRef = useRef<number>(0);
+
+  async function start() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      mr.onstop = () => stream.getTracks().forEach((t) => t.stop());
+      recRef.current = mr;
+      startedAtRef.current = Date.now();
+      mr.start();
+      setState({ kind: "recording", durationMs: 0 });
+      const tick = () => {
+        if (!recRef.current || recRef.current.state !== "recording") return;
+        setState({
+          kind: "recording",
+          durationMs: Date.now() - startedAtRef.current,
+        });
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    } catch {
+      setState({ kind: "error", message: "Microphone access was denied." });
+    }
+  }
+
+  async function stop() {
+    const mr = recRef.current;
+    if (!mr) return;
+    await new Promise<void>((resolve) => {
+      mr.addEventListener("stop", () => resolve(), { once: true });
+      mr.stop();
+    });
+    const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+    const wav = await webmBlobToWav(blob);
+    setState({ kind: "preview", url: URL.createObjectURL(wav), blob: wav });
+  }
+
+  async function save() {
+    if (state.kind !== "preview") return;
+    setState({ kind: "uploading" });
+    const fd = new FormData();
+    fd.append("audio", state.blob, "reference.wav");
+    fd.append("reference_text", VOICE_SCRIPT);
+    const r = await fetch("/api/voice/clone", { method: "POST", body: fd });
+    if (!r.ok) {
+      setState({
+        kind: "error",
+        message: "Couldn't save your voice. The engine may be starting up.",
+      });
+      return;
+    }
+    setState({ kind: "done" });
+    props.onContinue();
+  }
+
+  return (
+    <>
+      <p className="eyebrow mb-3">Step two</p>
+      <h1 className="h-title mb-3">A little of your voice.</h1>
+      <p className="p-body max-w-[520px] mb-2">
+        Read this passage once, in your usual voice. The archive can then read
+        anything you write back to your people in your own voice — verbatim,
+        only the words you actually said or wrote.
+      </p>
+      <p className="p-meta max-w-[520px] mb-6">
+        Optional. You can do this later from Settings — but most people find
+        it easier to record it now, before anything else.
+      </p>
+
+      <blockquote className="font-serif italic text-[19px] leading-[1.55] text-ink-soft border-l-2 border-rule pl-5 mb-8 text-wrap-pretty max-w-[600px]">
+        “{VOICE_SCRIPT}”
+      </blockquote>
+
+      <div className="flex items-center gap-4 mb-4">
+        {state.kind === "ready" && (
+          <button type="button" className="btn" onClick={start}>
+            Start recording
+          </button>
+        )}
+        {state.kind === "recording" && (
+          <button
+            type="button"
+            className="btn flex items-center gap-3"
+            onClick={stop}
+          >
+            <span
+              className="inline-block w-2.5 h-2.5 rounded-full bg-wax"
+              style={{ animation: "pulse 1.4s ease-in-out infinite" }}
+            />
+            Stop ({Math.floor(state.durationMs / 1000)}s)
+          </button>
+        )}
+        {state.kind === "preview" && (
+          <>
+            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+            <audio src={state.url} controls className="h-9" />
+            <button type="button" className="btn" onClick={save}>
+              Save my voice
+            </button>
+            <button
+              type="button"
+              className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink underline"
+              onClick={() => {
+                URL.revokeObjectURL(state.url);
+                setState({ kind: "ready" });
+              }}
+            >
+              Try again
+            </button>
+          </>
+        )}
+        {state.kind === "uploading" && (
+          <p className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted">
+            Saving your voice…
+          </p>
+        )}
+        {state.kind === "error" && (
+          <>
+            <button type="button" className="btn" onClick={() => setState({ kind: "ready" })}>
+              Try again
+            </button>
+            <p className="p-meta">{state.message}</p>
+          </>
+        )}
+      </div>
+
+      <div className="mt-12 flex items-center justify-between">
+        <button
+          type="button"
+          className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink"
+          onClick={props.onBack}
+        >
+          ← Back
+        </button>
+        <button
+          type="button"
+          className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink underline"
+          onClick={props.onContinue}
+        >
+          Skip for now
+        </button>
+      </div>
+    </>
+  );
+}
 
 function AnchorsStep(props: {
   events: LifeEvent[];

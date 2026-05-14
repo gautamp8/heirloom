@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CaptureSheet } from "./capture-sheet";
+import { SpeakButton } from "./speak-button";
 import type { HomeCapture } from "../page";
 
 const TOD_LABELS: Record<"morning" | "afternoon" | "evening", string> = {
@@ -310,6 +311,11 @@ function CapRow({ cap }: { cap: HomeCapture }) {
             {cap.transcript_snippet}
             {cap.transcript_snippet.length === 240 && "…"}
           </p>
+        )}
+        {cap.transcript_snippet && cap.status === "ready" && (
+          <div className="mt-2">
+            <SpeakButton text={cap.transcript_snippet} />
+          </div>
         )}
       </div>
     </li>
