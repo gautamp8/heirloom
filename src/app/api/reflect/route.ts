@@ -180,7 +180,7 @@ export async function POST(req: Request) {
                   const ch = chunks.find((x) => x.capture_id === cid)!;
                   return {
                     capture_id: cid,
-                    snippet: ch.text.slice(0, 220),
+                    snippet: trimToSentence(ch.text, 800),
                     kind: ch.kind,
                     blob_url: ch.blob_url,
                   };
@@ -270,6 +270,23 @@ export async function POST(req: Request) {
   } catch (err) {
     return errorResponse(err);
   }
+}
+
+/** Cap at `max` chars but never mid-sentence. Falls back to the raw
+ *  hard cap when no sentence boundary fits in the window. */
+function trimToSentence(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const window = text.slice(0, max);
+  const lastTerminator = Math.max(
+    window.lastIndexOf(". "),
+    window.lastIndexOf("! "),
+    window.lastIndexOf("? "),
+    window.lastIndexOf(".\n"),
+  );
+  if (lastTerminator > max * 0.6) {
+    return text.slice(0, lastTerminator + 1).trim();
+  }
+  return window.trim() + "…";
 }
 
 async function saveReflection(
