@@ -216,7 +216,7 @@ function DailyHero({ capture }: { capture: ReleasedCapture }) {
           {body}
         </p>
       )}
-      {body && (
+      {body && (capture.kind === "note" || capture.kind === "audio") && (
         <div className="mt-4">
           <SpeakButton text={body} variant="big" label="Hear it in their voice" />
         </div>
@@ -402,7 +402,7 @@ function UnlockedLetterCard({
           {capture.body}
         </p>
       )}
-      {capture.body && (
+      {capture.body && (capture.kind === "note" || capture.kind === "audio") && (
         <div className="mt-4">
           <SpeakButton
             text={capture.body}
@@ -519,7 +519,7 @@ function ReleasedRow({ cap }: { cap: ReleasedCapture }) {
               </p>
             </button>
           )}
-          {fullText && (
+          {fullText && (isAudio || cap.kind === "note") && (
             <div className="mt-2">
               <SpeakButton text={fullText} />
             </div>
@@ -574,9 +574,11 @@ function ReleasedRow({ cap }: { cap: ReleasedCapture }) {
             <p className="font-serif text-[17px] leading-[1.6] text-ink whitespace-pre-wrap text-wrap-pretty">
               {fullText}
             </p>
-            <div className="mt-5">
-              <SpeakButton text={fullText} variant="big" />
-            </div>
+            {(isAudio || cap.kind === "note") && (
+              <div className="mt-5">
+                <SpeakButton text={fullText} variant="big" />
+              </div>
+            )}
           </div>
         </div>
       )}

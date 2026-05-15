@@ -9,7 +9,6 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const CREATOR_EMAIL = "creator@heirloom.local";
 const NOMINEE_EMAIL = "maya@heirloom.local";
 const NOMINEE_NAME = "Maya";
 const NOMINEE_RELATIONSHIP = "Daughter";
@@ -39,19 +38,17 @@ export async function POST() {
   }
   try {
     if (!sqlAdmin) throw new HttpError(500, "admin_db_unavailable");
-    const [creator] = await sqlAdmin<{ id: string }[]>`
-      SELECT id FROM users WHERE email = ${CREATOR_EMAIL}
+    // Pick the most recently created creator vault. The dev nominee
+    // surface targets whichever archive was bootstrapped last.
+    const [vault] = await sqlAdmin<{ id: string }[]>`
+      SELECT id FROM vaults ORDER BY created_at DESC LIMIT 1
     `;
-    if (!creator) {
+    if (!vault) {
       throw new HttpError(
         409,
         "creator_not_bootstrapped - POST /api/dev/bootstrap first",
       );
     }
-    const [vault] = await sqlAdmin<{ id: string }[]>`
-      SELECT id FROM vaults WHERE creator_id = ${creator.id} LIMIT 1
-    `;
-    if (!vault) throw new HttpError(409, "no_vault");
 
     const [nomineeUser] = await sqlAdmin<
       { id: string; email: string; display_name: string }[]

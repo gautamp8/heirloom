@@ -329,7 +329,9 @@ export function ReflectionRoom({
               />
             )}
             <div className="mt-2 mb-5 flex flex-col gap-4">
-              <SpeakButton text={drawer.snippet} variant="big" />
+              {(drawer.kind === "note" || drawer.kind === "audio") && (
+                <SpeakButton text={drawer.snippet} variant="big" />
+              )}
               <p className="font-serif italic text-[17px] leading-[1.6] text-ink-soft text-wrap-pretty">
                 {drawer.snippet}
               </p>
