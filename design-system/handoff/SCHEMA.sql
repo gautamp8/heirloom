@@ -1,6 +1,23 @@
 -- SCHEMA.sql
--- Heirloom v1 Postgres schema. Postgres 16 + pgvector.
--- All tables have RLS policies enforced at the database layer.
+-- Heirloom Postgres baseline. Postgres 16 + pgvector.
+--
+-- Applied first by the bootstrap (./install.sh, infra/vm-setup.sh,
+-- infra/build-and-start.sh), then every file under migrations/*.sql in
+-- numeric order. The SQLite mirror for the desktop bundle lives at
+-- migrations/sqlite/001_schema.sql.
+--
+-- Migrations layered on top of this baseline:
+--   001_complete_rls_policies.sql  - the full RLS policy set (transcripts,
+--                                    chunks, tags, threads, nominees,
+--                                    releases, saved_passages)
+--   002_legacy_features.sql        - people, face_appearances, life_events,
+--                                    sealed_letters, nominee_states,
+--                                    nominees.passphrase_hash
+--   003_vault_onboarded.sql        - vaults.onboarded_at
+--   004_push_subscriptions.sql     - push_subscriptions for Web Push
+--   005_voice_profiles.sql         - voice_profiles for TTS
+--   006_identity_index.sql         - captures.is_profile + the nominee
+--                                    RLS escape hatch for profile chunks
 
 -- =========================================================================
 -- §1  Extensions
@@ -9,12 +26,13 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "vector";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "citext";
 
 -- =========================================================================
 -- §2  Tables
 -- =========================================================================
 
--- Users - both creators and nominees. Role is per-relationship, not per-user.
+-- Users - one row per real person (creator or nominee).
 CREATE TABLE users (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email           CITEXT UNIQUE NOT NULL,
@@ -22,17 +40,17 @@ CREATE TABLE users (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- A "vault" is one creator's archive. One user can own multiple vaults
--- (e.g. one for each grandchild) - though v1 ships single-vault per user.
+-- A "vault" is one creator's archive. v1 ships single-vault per user.
 CREATE TABLE vaults (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     creator_id      UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     name            TEXT NOT NULL DEFAULT 'My Archive',
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    -- vaults.onboarded_at TIMESTAMPTZ is added by migration 003
 );
 
 -- A capture is a single piece of content: audio, photo, note, or video.
-CREATE TYPE capture_kind AS ENUM ('audio', 'photo', 'note', 'video');
+CREATE TYPE capture_kind   AS ENUM ('audio', 'photo', 'note', 'video');
 CREATE TYPE capture_status AS ENUM ('processing', 'ready', 'failed');
 
 CREATE TABLE captures (
@@ -41,13 +59,14 @@ CREATE TABLE captures (
     kind            capture_kind NOT NULL,
     status          capture_status NOT NULL DEFAULT 'processing',
     title           TEXT,                  -- nullable; auto-suggested by Gemma
-    caption         TEXT,                  -- for photo + video
+    caption         TEXT,                  -- for photo + video; also vision caption
     body            TEXT,                  -- for note kind (full text)
-    blob_url        TEXT,                  -- audio/photo/video original
+    blob_url        TEXT,                  -- audio/photo/video original, relative path
     duration_ms     INTEGER,               -- audio/video only
     captured_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    -- captures.is_profile BOOLEAN is added by migration 006
 );
 CREATE INDEX idx_captures_vault_captured ON captures(vault_id, captured_at DESC);
 
@@ -61,7 +80,8 @@ CREATE TABLE transcripts (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Chunks are what we retrieve over. ~512 tokens, ~64-token overlap.
+-- Chunks are what Reflection retrieves over.
+-- EmbeddingGemma 300m output dim = 768.
 CREATE TABLE transcript_chunks (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     capture_id      UUID NOT NULL REFERENCES captures(id) ON DELETE CASCADE,
@@ -70,7 +90,7 @@ CREATE TABLE transcript_chunks (
     text            TEXT NOT NULL,
     start_ms        INTEGER,               -- for audio/video
     end_ms          INTEGER,
-    embedding       VECTOR(768) NOT NULL,  -- EmbeddingGemma 300m output dim
+    embedding       VECTOR(768) NOT NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_chunks_embedding ON transcript_chunks
@@ -78,7 +98,7 @@ CREATE INDEX idx_chunks_embedding ON transcript_chunks
     WITH (m = 16, ef_construction = 64);
 CREATE INDEX idx_chunks_vault ON transcript_chunks(vault_id);
 
--- Tags emitted by Gemma 4 E4B at commit time.
+-- Tags emitted by Gemma 4 e4b at commit time.
 CREATE TYPE tag_kind AS ENUM ('emotion', 'topic', 'person', 'place');
 
 CREATE TABLE capture_tags (
@@ -90,12 +110,12 @@ CREATE TABLE capture_tags (
 );
 CREATE INDEX idx_tags_value ON capture_tags(kind, value);
 
--- Threads group multiple captures around a topic ("Stories about your father")
+-- Threads group multiple captures around a topic. Tables exist; no UI yet.
 CREATE TABLE threads (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     vault_id        UUID NOT NULL REFERENCES vaults(id) ON DELETE CASCADE,
     title           TEXT NOT NULL,
-    color           TEXT NOT NULL DEFAULT 'oxblood', -- oxblood|sepia|moss|muted
+    color           TEXT NOT NULL DEFAULT 'oxblood',  -- oxblood|sepia|moss|muted
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -107,22 +127,25 @@ CREATE TABLE thread_captures (
 );
 
 -- Nominees are people who will receive the archive (or pieces of it).
-CREATE TYPE nominee_role AS ENUM ('recipient', 'executor');
+-- nominees.passphrase_hash + passphrase_set_at are added by migration 002.
+CREATE TYPE nominee_role    AS ENUM ('recipient', 'executor');
 CREATE TYPE release_trigger AS ENUM ('scheduled', 'by_request', 'executor_unlock');
 
 CREATE TABLE nominees (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     vault_id            UUID NOT NULL REFERENCES vaults(id) ON DELETE CASCADE,
-    user_id             UUID REFERENCES users(id),    -- null until they claim
+    user_id             UUID REFERENCES users(id),
     name                TEXT NOT NULL,
     relationship        TEXT,
     email               CITEXT,
     role                nominee_role NOT NULL DEFAULT 'recipient',
-    letter_body         TEXT,                          -- the sealed letter
+    letter_body         TEXT,                          -- the framing letter
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- One row per (nominee × capture_or_thread) release assignment.
+-- One row per (nominee × capture_or_thread) release assignment. Captures
+-- auto-release to every nominee at pipeline-end by default; sealed
+-- letters release through the condition engine.
 CREATE TABLE nominee_releases (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     nominee_id          UUID NOT NULL REFERENCES nominees(id) ON DELETE CASCADE,
@@ -130,35 +153,38 @@ CREATE TABLE nominee_releases (
     capture_id          UUID REFERENCES captures(id) ON DELETE CASCADE,
     thread_id           UUID REFERENCES threads(id) ON DELETE CASCADE,
     trigger             release_trigger NOT NULL,
-    release_at          TIMESTAMPTZ,                   -- when 'scheduled'
-    released_at         TIMESTAMPTZ,                   -- when actually released
-    label               TEXT,                          -- "for your 25th birthday"
+    release_at          TIMESTAMPTZ,
+    released_at         TIMESTAMPTZ,
+    label               TEXT,
     CHECK ((capture_id IS NOT NULL) <> (thread_id IS NOT NULL))
 );
 CREATE INDEX idx_releases_nominee ON nominee_releases(nominee_id, released_at);
+CREATE UNIQUE INDEX idx_releases_capture_nominee
+    ON nominee_releases(nominee_id, capture_id)
+    WHERE capture_id IS NOT NULL;
 
 -- Executor passphrase storage. One row per vault. Argon2id hash only.
 CREATE TABLE executor_credentials (
     vault_id            UUID PRIMARY KEY REFERENCES vaults(id) ON DELETE CASCADE,
     nominee_id          UUID NOT NULL REFERENCES nominees(id),
-    passphrase_hash     TEXT NOT NULL,    -- argon2id, never plaintext
+    passphrase_hash     TEXT NOT NULL,
     used_at             TIMESTAMPTZ,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Reflection sessions - append-only, scoped to a single nominee asking.
+-- Reflection sessions - append-only, scoped per user (the asking party).
 CREATE TABLE reflections (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     vault_id            UUID NOT NULL REFERENCES vaults(id) ON DELETE CASCADE,
     user_id             UUID NOT NULL REFERENCES users(id),
     question            TEXT NOT NULL,
     question_embedding  VECTOR(768),
-    answer_json         JSONB,             -- {claims: [{text, citations}], status}
-    grounded            BOOLEAN NOT NULL,  -- false → returned empty state
+    answer_json         JSONB,                  -- {answer, claims, diagnostics, ...}
+    grounded            BOOLEAN NOT NULL,       -- false → empty state
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Saved passages (nominee bookmarks)
+-- Saved passages (nominee bookmarks). Table exists; no UI yet.
 CREATE TABLE saved_passages (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -168,7 +194,8 @@ CREATE TABLE saved_passages (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Magic-link auth (short-lived; cleaned by cron)
+-- Magic-link auth tokens. Designed; not used in current build (sessions
+-- are issued at portal-passphrase entry). Kept for forward-compat.
 CREATE TABLE auth_tokens (
     token_hash      TEXT PRIMARY KEY,
     user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -191,11 +218,11 @@ ALTER TABLE nominee_releases       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reflections            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE saved_passages         ENABLE ROW LEVEL SECURITY;
 
--- The application connects as a `heirloom_app` role and sets two session GUCs
--- per request: app.user_id and app.role ('creator' or 'nominee')
--- See API_CONTRACTS.md §2 for how FastAPI sets these.
+-- The application connects as a `heirloom_app` role and sets two session
+-- GUCs per request: app.user_id and app.role ('creator' or 'nominee'). See
+-- API_CONTRACTS.md §2 and src/lib/db/postgres.ts (`withRls`).
 
--- Creator can read/write their own vault's captures
+-- Creator can read/write everything in their own vault.
 CREATE POLICY creator_captures ON captures
     FOR ALL TO heirloom_app
     USING (
@@ -206,7 +233,9 @@ CREATE POLICY creator_captures ON captures
         )
     );
 
--- Nominee can read released captures only
+-- Nominee can read released captures only. Migration 006 adds an
+-- alternative path for is_profile = true captures so retrieval can
+-- answer identity questions without a release row.
 CREATE POLICY nominee_captures ON captures
     FOR SELECT TO heirloom_app
     USING (
@@ -220,12 +249,12 @@ CREATE POLICY nominee_captures ON captures
         )
     );
 
--- Identical pattern applies to transcripts, transcript_chunks, capture_tags
--- (joined through capture_id → captures.id, same gate).
--- Threads + thread_captures: gated by vault membership for creators,
--- and by membership in nominee_releases for nominees.
+-- The full creator + nominee policy set for transcripts / chunks / tags /
+-- threads / nominees / nominee_releases / saved_passages lives in
+-- migrations/001_complete_rls_policies.sql.
 
--- Reflections: nominee can read+write their own; creator can read all in their vault
+-- Reflections: every user reads + writes their own; the creator reads
+-- everything in their vault (audit).
 CREATE POLICY reflection_owner ON reflections
     FOR ALL TO heirloom_app
     USING (user_id = current_setting('app.user_id')::uuid);
@@ -241,20 +270,21 @@ CREATE POLICY reflection_creator_read ON reflections
     );
 
 -- =========================================================================
--- §4  Constraints worth flagging
+-- §4  Triggers
 -- =========================================================================
 
--- Captures are immutable after status='ready'. Enforced by trigger.
+-- Captures are immutable after status='ready' for body/caption/blob/duration.
+-- Title + tags remain editable post-ready.
 CREATE OR REPLACE FUNCTION captures_immutable_after_ready()
 RETURNS TRIGGER AS $$
 BEGIN
     IF OLD.status = 'ready' AND (
-        NEW.body IS DISTINCT FROM OLD.body OR
-        NEW.caption IS DISTINCT FROM OLD.caption OR
-        NEW.blob_url IS DISTINCT FROM OLD.blob_url OR
+        NEW.body        IS DISTINCT FROM OLD.body OR
+        NEW.caption     IS DISTINCT FROM OLD.caption OR
+        NEW.blob_url    IS DISTINCT FROM OLD.blob_url OR
         NEW.duration_ms IS DISTINCT FROM OLD.duration_ms
     ) THEN
-        RAISE EXCEPTION 'Captures are immutable after ready. Create a revision instead.';
+        RAISE EXCEPTION 'Captures are immutable after ready.';
     END IF;
     NEW.updated_at = now();
     RETURN NEW;
@@ -265,5 +295,9 @@ CREATE TRIGGER trg_captures_immutable
     BEFORE UPDATE ON captures
     FOR EACH ROW EXECUTE FUNCTION captures_immutable_after_ready();
 
--- Executor passphrase cannot be set twice without explicit rotation
+-- Executor passphrase cannot be set twice without explicit rotation.
 ALTER TABLE executor_credentials ADD CONSTRAINT one_per_vault UNIQUE (vault_id);
+
+-- The rest of the schema (people, face_appearances, life_events,
+-- sealed_letters, nominee_states, push_subscriptions, voice_profiles,
+-- captures.is_profile) is layered on by migrations/00[2-6]*.sql.

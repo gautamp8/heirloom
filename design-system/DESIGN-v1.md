@@ -2,7 +2,7 @@
 
 This file is the **delta** layered on top of `DESIGN.md` and `Heirloom Design System.html`. It captures the v1 build scope and the design patterns we resolved while building the prototypes (`prototypes/`).
 
-> The product narrative is **local-first, on-device, your archive does not leave your machine.** v1 hosts inference on a single GPU host (FastAPI + Postgres + Ollama/Gemma 4 + EmbeddingGemma) because the full on-device runtime is a v2 packaging concern. The architecture is local-capable; the copy, design, and voice in the app reflect the on-device target.
+> The product narrative is **local-first, on-device, your archive does not leave your machine.** Heirloom ships in three deployment shapes from the same Next.js codebase: laptop install via `./install.sh` (Postgres + pgvector + Ollama + whisper-cpp), single-VM self-host (`docs/DEPLOY-AZURE-VM.md`), and a Tauri-bundled macOS `.dmg` (SQLite + sqlite-vec, sidecars supervised by the shell). The TTS sidecar for voice cloning is opt-in on every shape.
 
 ---
 
@@ -21,12 +21,21 @@ This file is the **delta** layered on top of `DESIGN.md` and `Heirloom Design Sy
 - **Reflection (grounded)** - query → top-k retrieval → citation-chip answer → "I don't have that in the archive" empty state
 - **Playback** of original recordings (audio + video)
 
-### Out for v1 (designed, not built)
-- **Voice cloning / TTS** - playback only. Self-clone is the v2 story.
-- **Executor Shamir 2-of-3** - the prototype stays as the v2 narrative.
-- **Annotate-back** (nominee writes a private response into their copy) - v2.
-- **Multi-keeper recovery** - v2.
-- **On-device LLM toggle** - designed as a `mode` flag in the Reflection API; v1 = server Gemma 4, v2 = WebGPU/transformers.js fallback.
+### Shipped after the original v1 cut
+- **Voice cloning / TTS** - LuxTTS/ZipVoice sidecar at `127.0.0.1:11435`, opt-in. The SpeakButton component plays verbatim source material (transcript snippets, sealed-letter bodies, citation snippets) in the creator's cloned voice. See `GUARDRAILS.md` §11.
+- **Identity index** - hidden profile capture per vault so Reflection can answer identity queries without the creator writing those facts as a real note. Migration 006.
+- **Web Push notifications** - sealed-letter unlocks + daily memory via VAPID; iOS PWA install required.
+- **Encrypted .hloom export/import** - argon2id + ChaCha20-Poly1305 over a gzipped JSON envelope; settings → Vault.
+- **macOS desktop bundle** - Tauri 2 shell, sidecars supervised, SQLite + sqlite-vec replacing Postgres.
+
+### Out (designed, not built)
+- **Executor Shamir 2-of-3** - the prototype stays as the post-launch narrative.
+- **Annotate-back** (nominee writes a private response into their copy).
+- **Multi-keeper recovery**.
+- **In-app account deletion** - designed (7-day soft delete + confirmation phrase), not built.
+- **Threads UI** - tables + RLS exist; no surface mounts them yet.
+- **Saved passages UI** - same situation.
+- **Video capture sheet** - chip is rendered disabled; API + pipeline handle `kind='video'`.
 
 ---
 
@@ -97,12 +106,12 @@ UI changes for v1:
 
 Rendered as the prototype shows, enforced server-side:
 
-1. **Retrieve first.** Top-k from pgvector (k=8). If best similarity < `THRESHOLD` (start 0.55, tune from seed data), return the **empty state**: *"I don't have that in the archive. Try asking another way?"* - never synthesize.
-2. **Synthesize with citations.** Every claim in the answer must map to one or more `memory_id`s. The prompt requires the model to emit answers as JSON with a `claims: [{text, citations: [memory_id]}]` array. Render claims as prose with **citation chips** that open the source capture drawer.
-3. **Never speak as the creator.** System prompt forbids first-person impersonation. Answers refer to the creator in third person ("Your mother said…", not "I said…").
-4. **No fabrication on the View side.** Same threshold + same JSON contract for nominees as for creators.
+1. **Retrieve first.** Top-5 from pgvector. If best similarity < `REFLECTION_SIMILARITY_THRESHOLD` (currently 0.40, calibrated against EmbeddingGemma 300m), return the **empty state**: *"I don't have that in the archive. Try asking another way?"* - never synthesize.
+2. **Synthesize with citations.** `streamObject` against the `ReflectionSchema` Zod schema. Every claim must cite at least one retrieved `capture_id`. Per-claim filter during streaming drops fabricated UUIDs silently; final validator catches anything else.
+3. **Never speak as the creator.** `hasFirstPersonOutsideQuotes` runs on the final answer and routes first-person prose to the empty state. Quoted material is exempt - the creator's verbatim words may use "I".
+4. **No fabrication on the View side.** Same threshold, same JSON contract. RLS narrows retrieval to released captures + the vault's identity-index profile capture (the only nominee read outside `nominee_releases`).
 
-This is tested in `tests/grounding/` and `tests/prompt_injection/` (see handoff plan).
+Implementation lives in `src/lib/reflection.ts` + `src/app/api/reflect/route.ts`. The corpus of adversarial questions to test against is in `design-system/handoff/PROMPT_INJECTION_TESTS.md`.
 
 ---
 

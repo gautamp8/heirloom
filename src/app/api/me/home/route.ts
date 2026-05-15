@@ -116,6 +116,7 @@ export async function GET() {
         WHERE n.user_id = ${session.user_id}
           AND nr.released_at IS NOT NULL
           AND nr.released_at <= now()
+          AND c.is_profile = false
         ORDER BY c.captured_at DESC
         LIMIT 50
       `;

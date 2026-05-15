@@ -525,36 +525,32 @@ No spring animations. No springs. No bouncy CSS easings. The product is calm.
 
 ---
 
-## 15 · v1 build sequence
+## 15 · Stack & seed data
 
-This section captures the stack and seed-data choices that bind the design to the build.
+The stack as it actually ships:
 
-### Stack recommendation
+- **Shell**: Next.js 16 (App Router, RSC, Turbopack) as an installable PWA. The macOS .dmg wraps the same code in a Tauri 2 shell with bundled Ollama + Node + whisper-cli sidecars; the embedded server runs at `127.0.0.1:3000` inside the .app. See `desktop/README.md`.
+- **UI**: React + Tailwind v4 (with custom `@theme static` tokens for the warm-paper palette), Framer Motion.
+- **Inference**: Ollama hosting `gemma4:e4b` (synthesis + vision + tagging) and `embeddinggemma` (768-dim embeddings); a custom `heirloom/gemma4-grounded` Modelfile bakes the grounding contract. Whisper-cpp `small.en` runs as a subprocess for audio transcription.
+- **Voice cloning** (opt-in): LuxTTS/ZipVoice FastAPI sidecar at `127.0.0.1:11435`. See `infra/tts-server/`.
+- **Storage**: Postgres 16 + pgvector on the laptop install + the VM; SQLite + sqlite-vec inside the .dmg. Audio/photo/video blobs sit on local disk (`storage/blobs/`).
+- **Audio**: browser `MediaRecorder` API; the canonical wav-encoding helper is `webmBlobToWav` in `src/lib/voice-record.ts`.
+- **Face recognition**: face-api.js in the browser, 128-dim ResNet descriptors. Faces never leave the device.
 
-- **Shell**: Next.js 15 (App Router) deployed as an installable PWA. The on-device Tauri/Electron shell is the v2 packaging target; the v1 PWA installs to the home screen and runs against a single inference host.
-- **UI**: React + Tailwind, with tokens lifted from `Heirloom Design System.html` into a Tailwind preset.
-- **Inference**: Ollama hosting the Gemma 4 synthesis variant + a smaller Gemma 4 variant for tagging + EmbeddingGemma for vectors. Whisper for transcription.
-- **Storage**: Postgres 16 + pgvector for relational + vector data; object storage for audio / photo / video originals.
-- **Audio**: native browser MediaRecorder API; waveform visualization via `wavesurfer.js` or a hand-rolled canvas.
+### Seed archives
 
-### Seed data
+Canonical demo archive is **Carl Sagan** (`desktop/seed-archives/sagan/`): 4 notes (Pale Blue Dot, Star Stuff, Way of Thinking, On Apollo), 3 photos, 1 sealed letter ("When you feel insignificant"), 1 framing letter. The importer is `desktop/scripts/import-seed-archive.ts`. Passphrase convention: `<slug(creator name)> archive · 1990`. Voice references in seed archives are placeholders unless replaced.
 
-The v1 build seeds a synthetic but emotionally coherent corpus of ~25–30 captures spanning ~18 months:
-- ~12 audio (real human voice; the creator's actual recordings)
-- ~6 photos with EXIF
-- ~4 short videos
-- ~8 journal entries
-
-The corpus exercises the full retrieval and grounding contract: it contains topics the Reflection prompts will surface, and it deliberately omits topics so the empty-state path is exercised on real questions.
+The corpus exercises the full retrieval and grounding contract - topics Reflection can ground (Pale Blue Dot, star stuff, science as a way of thinking) and topics it cannot (Antarctica, will, favorite poem) so the empty-state path is exercised on real questions.
 
 ### Risks & mitigations
 
 | Risk | Mitigation |
 |---|---|
-| Gemma 4 audio transcription quality is uneven on quiet recordings | Whisper large-v3 runs the transcription; Gemma 4 handles tagging and synthesis only. Whisper is warmed at server boot to avoid cold-load latency. |
-| Reflection generates a quote not present in retrieval | The grounding contract validates every `claims[*].citations` UUID against the retrieved chunk set; any mismatch routes to the empty state. Tested in `tests/guardrails/`. |
-| First-time visitors to the PWA encounter setup friction | The installable PWA opens to a populated seed archive on the staging deployment, so a visitor can browse, search, and reflect without provisioning anything themselves. |
-| Wax-seal animation feels artificial | CSS + SVG keyframes are the default; a pre-rendered fallback exists if performance on low-end devices degrades the moment. Either path produces the same end-state. |
+| Reflection generates a quote not present in retrieval | The citation validator + per-claim filter + first-person scrubber collapse any failure to the empty state. See `src/lib/reflection.ts`. |
+| CPU inference is slow on a VM | Capture pipeline marks `status='ready'` before the slow tag/title Gemma calls so the user sees "Saved" in 1-2 s. Reflection emits `answer_partial` SSE events so the user sees words forming rather than a long stare. `ollama-warmup.service` pre-warms the model at boot. |
+| Voice cloning could speak Gemma prose | UI-layer contract: `<SpeakButton>` is only mounted over verbatim source material (capture body / transcript / sealed-letter body / citation snippet). Reflection answer text never gets a speak affordance. See `GUARDRAILS.md` §11. |
+| Wax-seal animation feels artificial | CSS keyframes; same end-state regardless of perf. `/dev` exposes a `?stage=` query param so the animation can be debugged frame-by-frame. |
 
 ---
 

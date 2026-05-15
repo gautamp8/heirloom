@@ -1,272 +1,386 @@
 # API_CONTRACTS.md
 
-FastAPI endpoint contracts for Heirloom v1. All endpoints return JSON unless noted. All require `Authorization: Bearer <jwt>` unless tagged `[public]`.
+Next.js route-handler contracts. Every route lives under `src/app/api/`. All return JSON unless noted. All require an authenticated session cookie unless tagged `[public]`.
 
 ---
 
-## §1  JWT shape
+## §1  Session shape
 
 ```ts
-type HeirloomJWT = {
-  sub: string;               // user_id
+type Session = {
+  user_id: string;
+  vault_id: string;            // active vault context
   role: 'creator' | 'nominee';
-  vault_id: string;          // active vault context
-  exp: number;
-  iat: number;
 };
 ```
 
-The role is **per-request context**, not per-user. The same user can call `/reflect` as nominee for vault A and `/capture` as creator for vault B in two separate requests with two separate JWTs (issued at vault-switch time).
+The session is carried as an HS256 JWT in the `heirloom_session` cookie (httpOnly, sameSite=lax, secure in production, 30-day expiry). Issued at:
+- Portal "Begin a new archive" → `POST /api/dev/bootstrap` (in dev) or onboarding completion.
+- Portal "I have a sealed letter" → `POST /api/auth/nominee-passphrase` (passphrase argon2-verified).
+
+Role is per-request context, not per-user. A user who is both a creator (of their own vault) and a nominee (on someone else's vault) gets two separate cookies for the two surfaces.
 
 ---
 
-## §2  FastAPI request middleware
+## §2  Request middleware (effective)
 
-Every authenticated request:
-1. Verifies the JWT.
-2. Opens a Postgres transaction.
-3. `SET LOCAL app.user_id = '<sub>'; SET LOCAL app.role = '<role>';`
+Every authenticated route handler:
+1. Calls `requireSession()` which throws `HttpError(401)` if the cookie is missing/invalid.
+2. Opens a Postgres transaction via `withRls(user_id, role, fn)`.
+3. Inside the transaction: `SET LOCAL app.user_id = ...; SET LOCAL app.role = ...`.
 4. Runs the handler.
 5. Commits or rolls back.
 
-This makes RLS the **single source of truth** for access control. Handlers query freely; Postgres refuses rows the principal cannot see.
+This makes RLS the single source of truth for access control. The SQLite desktop backend bypasses this (single-user) but the function signature is identical so handler code is unchanged.
 
 ---
 
-## §3  Endpoints - Auth
+## §3  Auth
 
-### `POST /auth/magic-link` [public]
-Issue a magic link. Idempotent for known emails; silently no-ops for unknown emails (do not leak account existence).
+### `POST /api/auth/nominee-passphrase` `[public]`
+Exchange a passphrase for a nominee session.
 ```ts
-Request:  { email: string }
-Response: { sent: true }            // always
+Request:  { passphrase: string }
+Response: { ok: true, redirect: string }  // 200, sets cookie
+          { error: 'wrong_passphrase' }    // 401
 ```
+The passphrase is hashed with argon2id and compared against every `nominees.passphrase_hash`. On match, the nominee gets a session scoped to that nominee's `vault_id`. Failures are silent (no leak of which vault the passphrase would have unlocked).
 
-### `POST /auth/verify` [public]
-Exchange a magic-link token for a JWT.
-```ts
-Request:  { token: string, vault_id?: string }
-Response: { jwt: string, user: { id, email, display_name }, vaults: Vault[] }
-```
+### `POST /api/dev/bootstrap` (dev fixtures only)
+Creates / re-opens a creator session for a named display_name. Gated by `HEIRLOOM_ALLOW_DEV_FIXTURES=1`. Used by the `/dev` page and the install script.
 
-### `POST /auth/switch-vault`
-Re-issue a JWT scoped to a different vault the user has access to.
-```ts
-Request:  { vault_id: string }
-Response: { jwt: string }
-```
+### `POST /api/dev/nominee` (dev fixtures only)
+Opens a fixture nominee session against the most recent vault. Used by `/dev` → "Quick nominee (fixture)".
+
+### `POST /api/dev/sign-out`
+Clears the session cookie.
+
+### `POST /api/dev/reset` (dev fixtures only)
+Truncates captures/transcripts/chunks/tags/reflections/nominees/releases/executor credentials for every vault. Users + vaults are kept so IDs stay stable across restarts.
 
 ---
 
-## §4  Endpoints - Capture (creator only)
+## §4  Capture
 
-### `POST /capture`
-Commit a new capture. Multipart for audio/photo/video; JSON for note.
-```ts
-// audio/photo/video - multipart/form-data
-file: Blob
-metadata: {
-  kind: 'audio' | 'photo' | 'video',
-  caption?: string,        // photo + video only
-  duration_ms?: number,    // audio + video
-  captured_at?: string,    // ISO; defaults to now
+### `POST /api/capture` (creator)
+Two shapes:
+
+**Audio / photo / video** - multipart/form-data:
+```
+file:     Blob                                  (audio | image | video)
+metadata: JSON string of {
+  kind:        'audio' | 'photo' | 'video',
+  duration_ms?: number,
+  captured_at?: string (ISO),
+  title?:      string,
+  faces?:      Array<{                          // photo only, from face-api.js
+    bbox: { x, y, w, h },
+    embedding: number[128],
+    descriptor_label?: string
+  }>
 }
+```
 
-// note - JSON
+**Note** - JSON:
+```ts
 { kind: 'note', body: string, title?: string }
-
-Response: { capture_id: string, status: 'processing' }
 ```
 
-### `GET /capture/{id}/status` [SSE]
-Server-Sent Events stream of capture processing.
-```ts
-event: status   data: { stage: 'uploaded' | 'transcribed' | 'embedded' | 'tagged' | 'ready' }
-event: transcript  data: { text: string, partial: boolean }
-event: tags     data: { tags: { emotion: string[], topic: string[] } }
-event: ready    data: { capture: Capture }
-event: error    data: { message: string, recoverable: boolean }
+Response: `{ capture_id: string, status: 'processing' }` (HTTP 202).
+
+The pipeline runs detached. Use `GET /api/capture/[id]/status` (SSE) to watch progress.
+
+**Limits:** 50 MB hard cap on `file.size`. Mime sniffing falls back when `metadata.kind` is missing.
+
+### `GET /api/capture/[id]/status` `[SSE]`
+Server-Sent Events of the pipeline. Events:
+```
+event: stage      data: { stage: 'uploaded'|'transcribed'|'embedded'|'tagged'|'ready'|'failed' }
+event: transcript data: { text }
+event: tags       data: { emotion[], topic[], person[], place[] }
+event: title      data: { title }
+event: ready      data: { capture }
+event: error      data: { message }
 ```
 
-### `GET /capture/{id}`
-Read a single capture (with transcript + tags).
+### `GET /api/capture/[id]`
+Read a single capture (with transcript + tags). RLS-gated.
 
-### `PATCH /capture/{id}`
-Restricted to: `title`, adding to `thread_id`, adding tags. **Body/blob/duration are immutable** (enforced by Postgres trigger).
-
-### `DELETE /capture/{id}`
-Soft-delete. Sets `status='deleted'` and detaches from any nominee_releases.
-
-### `GET /captures?vault_id=...&kind=&thread_id=&limit=&before=`
-Paginated list. Default 20, max 100.
+### `GET /api/blob/[id]`
+Stream the audio/photo/video blob for capture `[id]`. Reads the blob from `storage/blobs/` after RLS confirms the caller can see the capture row.
 
 ---
 
-## §5  Endpoints - Threads (creator only)
+## §5  Nominees
 
-### `POST /thread` `{ title, color? }` → `{ thread_id }`
-### `GET /threads` → `Thread[]`
-### `POST /thread/{id}/add` `{ capture_id, position? }`
-### `POST /thread/{id}/remove` `{ capture_id }`
-### `PATCH /thread/{id}` `{ title?, color? }`
+### `GET /api/nominees`
+List nominees for the current creator's vault.
+
+### `POST /api/nominees`
+Add a nominee.
+```ts
+Request:  { name: string, relationship?: string, email?: string,
+            letter_body?: string, birthday?: string | null }
+Response: { id: string }
+```
+A passphrase is **not** generated by this endpoint; it's generated by the onboarding flow and shown once.
+
+### `POST /api/nominees/[id]/passphrase`
+Generate or rotate the per-nominee passphrase. Returns it once.
+```ts
+Response: { passphrase: string }   // displayed once; argon2id hashed at rest
+```
 
 ---
 
-## §6  Endpoints - Nominees (creator only)
+## §6  Onboarding (creator)
 
-### `POST /nominee`
+Five sequential POSTs from `src/app/onboarding/onboarding-flow.tsx`:
+
+1. `POST /api/onboarding/self` `{ display_name, face_embedding?: number[128] }` - sets display name + optional self-portrait embedding, identity-index sync.
+2. `POST /api/voice/clone` (multipart, optional, step 2) - registers the voice reference.
+3. `POST /api/onboarding/life-events` `{ events: [{kind, label, event_date, recurrence}, ...] }`.
+4. `POST /api/onboarding/nominees` `{ nominees: [{name, relation, birthday}, ...] }` - returns `{ nominees: [{name, passphrase}, ...] }` with the printed-once passphrases.
+5. `POST /api/onboarding/seed-prompts` → returns Gemma-generated occasion prompts as letter drafts.
+6. `POST /api/onboarding/seed-letters` `{ drafts: [{to_nominee_name, occasion_prompt, body, trigger_hint}, ...] }` - persists sealed letters with intent embeddings.
+7. `POST /api/onboarding/complete` - flips `vaults.onboarded_at` so the home stops redirecting to `/onboarding`.
+
+`GET /api/onboarding/status` is used by the home page to decide whether to redirect.
+
+---
+
+## §7  Reflection
+
+### `POST /api/reflect` `[SSE]`
+The central retrieval surface. Body:
 ```ts
-Request: {
-  name: string,
-  relationship?: string,
-  email?: string,
-  role: 'recipient' | 'executor',
-  letter_body?: string,
+{ question: string }   // 1-2000 chars
+```
+
+SSE event stream (in the order they typically arrive):
+```
+event: sealed_letter   data: { letter_id, capture_id, occasion_prompt, trigger }
+                       (nominee only; fires before retrieval)
+event: retrieved       data: { hit_count, top_similarity }
+event: grounded        data: { grounded: boolean }
+                       (false → empty state below, no model call)
+event: claim           data: { index, text, citations: [{capture_id, snippet}] }
+event: answer_partial  data: { text }           // prose extensions during streaming
+event: answer          data: { text }           // final answer
+event: done            data: { reflection_id }
+event: error           data: { message }
+```
+
+There is no `mode` field. Server-side Gemma 4 is the only synthesis path.
+
+### Grounding contract
+- Threshold: `REFLECTION_SIMILARITY_THRESHOLD = 0.40` (calibrated against EmbeddingGemma 300m).
+- Below threshold OR zero retrieved: empty-state `"I don't have that in the archive. Try asking another way?"` served verbatim, no Gemma call, `grounded:false`.
+- Per-claim citation validator runs during streaming; claims with no valid citation are silently dropped.
+- Final answer runs the citation validator + `hasFirstPersonOutsideQuotes` + non-empty-claims check; any failure collapses to the empty state with the rejection reason recorded in `diagnostics`.
+- Every Reflection (grounded or not) persists with full diagnostics for `/transparency`.
+
+---
+
+## §8  Voice
+
+### `GET /api/voice/profile`
+```ts
+Response: {
+  profile: { id, duration_ms, created_at } | null,
+  tts_available: boolean      // sidecar /healthz reachable
 }
-Response: { nominee_id: string }
 ```
+Used by the `SpeakButton` component to decide whether to render itself, and by Settings → Voice to render the right state.
 
-### `GET /nominees` → `Nominee[]`
-
-### `POST /nominee/{id}/release`
-Create or update a release assignment.
+### `POST /api/voice/clone` (creator)
+Multipart: `audio` (wav) + `reference_text` (≥ 20 chars). Stores the wav, registers with the sidecar, upserts the single `voice_profiles` row per vault.
 ```ts
-Request: {
-  capture_id?: string,
-  thread_id?: string,        // one of capture_id|thread_id required
-  trigger: 'scheduled' | 'by_request' | 'executor_unlock',
-  release_at?: string,       // ISO, required if trigger='scheduled'
-  label?: string,
-}
-Response: { release_id: string }
+Response: { ok: true, profile_id, voice_id, duration_seconds }
 ```
+Limits: 12 MB audio cap.
 
-### `POST /nominee/{id}/release-now`
-Manually flip a release to `released_at = now()`. Creator override.
+### `POST /api/voice/speak`
 ```ts
-Request: { release_id: string }
-Response: { released_at: string }
+Request:  { text: string, capture_id?: string }
+Response: streaming audio/wav
 ```
-
-### `POST /nominee/{id}/preview` `[creator]`
-Get the nominee-view payload as it would appear to the named nominee right now. Used by "Preview as Maya".
-```ts
-Response: { home: NomineeHome }   // same shape as /me/home for nominees
-```
+Looks up the vault's `voice_id` (creator via RLS, nominee via admin connection narrowed to `session.vault_id`), then streams from the sidecar `/speak` endpoint. **Verbatim contract is at the UI layer** - the server only checks that there's a voice profile and that the text is non-empty and ≤ 1200 chars. The UI never exposes free-text input to this endpoint outside the source surfaces (capture body / transcript / sealed-letter body / citation snippet).
 
 ---
 
-## §7  Endpoints - Executor (creator + executor)
+## §9  Mic-in-text-fields (dictation)
 
-### `POST /executor/setup` [creator]
-Generate or rotate the executor passphrase. Returns the passphrase **once** - never re-readable.
+### `POST /api/transcribe`
+Multipart `audio` (any ffmpeg-readable; typically webm-from-MediaRecorder transcoded to wav). Returns `{ text }`. Used by `VoiceInput` component (the mic icon attached to every long-form text input - Reflection composer, capture-sheet note editor, nominee mood "Something else…" input). No storage; the temp file is deleted after transcription.
+
+Limit: 25 MB. Auth-gated.
+
+---
+
+## §10  Nominee mood
+
+### `POST /api/nominee/mood` (nominee)
 ```ts
-Request: { nominee_id: string }
+Request:  { state: string }    // 1-120 chars; "I miss you" / "On hard days" / typed
+Response: { fired: [{letter_id, capture_id, occasion_prompt, trigger}, ...] }
+```
+Records the state in `nominee_states` (audit log) and fires any sealed_letters whose `state` or `semantic_match` conditions match. When `fired.length === 0`, the client navigates the nominee to `/reflect?q=<state>` so the tap always lands somewhere - see `MoodCard` in `src/app/_components/nominee-home.tsx`.
+
+---
+
+## §11  Home / view payload
+
+### `GET /api/me/home` (role-aware)
+
+**Creator:**
+```ts
+{
+  role: 'creator',
+  greeting: { time_of_day, display_name },
+  prompt_of_day: { id, text: null },    // text fetched async via /api/prompt/shuffle
+  recent_captures: HomeCapture[],        // last 12, excludes is_profile
+  stats: { captures, nominees }
+}
+```
+
+**Nominee:**
+```ts
+{
+  role: 'nominee',
+  framing: { from_name, to_name, letter_body: string | null },
+  released_captures: ReleasedCapture[],   // up to 50
+  newly_fired_letters: [{letter_id, capture_id, occasion_prompt, trigger}, ...],
+  daily_memory: ReleasedCapture | null,   // deterministic per nominee per day
+  themed_albums: [{theme, count, cover_id}, ...],
+  stats: { captures }
+}
+```
+
+`fireLetterConditions(session, {trigger_kind:'calendar'})` runs at the top of the nominee branch so `first_visit` / `date` / `life_event` letters surface on the same load they fire.
+
+### `GET /api/prompt/shuffle`
+Returns `{ id, text }` for a Gemma-generated prompt-of-day. Cached client-side; the home renders without it and fills in async.
+
+---
+
+## §12  Settings (creator)
+
+### `GET /api/me/profile` / `PATCH /api/me/profile`
+Display name + selfie embedding read/write. PATCH triggers an identity-index resync.
+
+### `GET /api/me/settings`
+Combined settings payload: `{user, life_events, nominees}` for the Settings page server component.
+
+### `GET /api/life-events` / `POST /api/life-events` / `DELETE /api/life-events/[id]`
+CRUD for life events. Embedding generated server-side. Each mutation triggers an identity-index resync.
+
+---
+
+## §13  Executor
+
+### `POST /api/executor/setup` (creator)
+Generates or rotates the executor passphrase for the vault. Returns it ONCE.
+```ts
 Response: { passphrase: string, letter_body: string }
 ```
-The server stores only `argon2id(passphrase)` in `executor_credentials.passphrase_hash`.
+Server stores `argon2id(passphrase)` only; plaintext is never persisted post-generation, never logged.
 
-### `POST /executor/unlock` [public, rate-limited]
-Executor enters their passphrase. On success, atomically releases all assigned captures/threads to all nominees.
+### `POST /api/executor/unlock` `[public, rate-limited]`
 ```ts
-Request: { vault_email_hint: string, passphrase: string }
-Response: { jwt: string, vault_id: string }
+Request:  { vault_email_hint: string, passphrase: string }
+Response: { ok: true }
 ```
-Rate-limited to 5 attempts per IP per hour. After 10 lifetime failed attempts, the credential is locked and an alert is sent to the creator's email.
+On argon2-match: atomically inserts `nominee_releases` rows for every capture in the vault to every nominee. Executors never enter the archive themselves.
+
+Rate limits (in-memory token bucket, single-process):
+- 5 attempts / IP / hour
+- 10 lifetime failed attempts → `executor_credentials.used_at` set to a sentinel and the credential is locked.
 
 ---
 
-## §8  Endpoints - Reflection (nominee + creator self-test)
+## §14  Vault export / import (creator)
 
-### `POST /reflect` [SSE]
+### `POST /api/vault/export`
 ```ts
-Request: {
-  question: string,
-  mode?: 'server' | 'device',   // default 'server'; 'device' returns 501 in v1
-}
-
-// Stream:
-event: retrieved   data: { hit_count: number, top_similarity: number }
-event: grounded    data: { grounded: boolean }       // false → empty state
-event: claim       data: { text: string, citations: [{ capture_id, snippet }] }
-event: done        data: { reflection_id: string }
-event: error       data: { message: string }
+Request:  { passphrase: string }   // ≥ 6 chars
+Response: binary .hloom file (content-type application/octet-stream)
 ```
+Snapshots every row (users/vault/captures/transcripts/chunks/tags/life_events/nominees/sealed_letters/people) + every audio/photo blob into a single encrypted bundle. See `src/lib/vault-export.ts` for the wire format.
 
-### `GET /reflect/{id}`
-Read a past reflection.
-
-### `GET /reflections?limit=` → `Reflection[]` (nominee's own, or creator's vault)
+### `POST /api/vault/import`
+```ts
+Request:  multipart { file: Blob, passphrase: string }
+Response: { vault_id, counts }
+```
+Decrypts, gunzips, and replaces the importing user's vault. Blob URLs are rewritten with fresh `imported-<hex>.<ext>` names so files don't collide.
 
 ---
 
-## §9  Endpoints - Home / View
+## §15  Notifications (push)
 
-### `GET /me/home` (role-aware)
-Single endpoint that returns the home payload for whichever role the JWT carries.
+### `POST /api/notifications/subscribe`
 ```ts
-// creator
+Request:  { subscription: PushSubscriptionJSON }   // from pushManager.subscribe()
+Response: { id }
+```
+Stores the `(user_id, endpoint, p256dh, auth)` quad in `push_subscriptions`.
+
+### `POST /api/notifications/unsubscribe`
+```ts
+Request:  { endpoint: string }
+Response: { ok: true }
+```
+
+### `POST /api/notifications/test`
+Sends a test push to every subscription on the current user. For Settings → Notifications → "Send a test".
+
+### `POST /api/cron/daily-memory` `[X-Cron-Secret gated]`
+Iterates every nominee, picks today's deterministic memory, sends a push. Idempotent per day. Schedule via cron / systemd timer; the runbook in `docs/DEPLOY-AZURE-VM.md` includes the systemd unit.
+
+---
+
+## §16  Health
+
+### `GET /api/health`
+```ts
 Response: {
-  greeting: { time_of_day, display_name },
-  prompt_of_day: { id, text },
-  threads_in_progress: Thread[],
-  recent_captures: Capture[],     // last 6 across all kinds
-  nominees: NomineeCard[],        // includes executor card
-  stats: { captures: number, duration_total_ms: number, nominees: number },
-}
-
-// nominee
-Response: {
-  framing: { from_name: string, body: string },     // "from Elena" strip
-  latest_unlocked: Capture | null,
-  threads: ThreadCard[],
-  sealed: SealedPiece[],
-  saved: SavedPassage[],
+  ok: boolean,
+  postgres: 'ok' | 'down',
+  ollama: {
+    status: 'ok' | 'down',
+    version?: string,
+    models?: string[],
+    synthesisAvailable: boolean,
+    embeddingAvailable: boolean
+  }
 }
 ```
-
-### `GET /me/explore` (role-aware)
-Browse by tag / time / thread.
+Used by the Tauri shell's startup poll and by self-host monitoring.
 
 ---
 
-## §10  Endpoints - Saved passages (nominee)
-
-### `POST /saved` `{ capture_id, excerpt, note? }`
-### `GET /saved` → `SavedPassage[]`
-### `DELETE /saved/{id}`
-
----
-
-## §11  Error envelope
+## §17  Error envelope
 
 All non-2xx responses use:
 ```ts
 {
   error: {
-    code: string,             // 'unauthorized' | 'rate_limited' | 'rls_denied' | ...
-    message: string,          // user-safe; renderer displays directly
-    detail?: object,          // debug-only; stripped in production
+    code: string,             // 'unauthorized' | 'bad_kind' | 'missing_text' | ...
+    message: string,          // user-safe; renderer can display directly
   }
 }
 ```
+The `HttpError(status, code)` thrown helper sets both fields to the same string for brevity.
 
 ---
 
-## §12  TypeScript types (shared)
+## §18  Rate limits
 
-Generated from FastAPI/Pydantic models via `openapi-typescript`. Lives in `frontend/src/lib/api/types.ts`. Single source: the Pydantic models in `backend/app/schemas/`.
-
----
-
-## §13  Rate limits
+Currently enforced in-memory (single-process):
 
 | Endpoint | Limit |
 |---|---|
-| `POST /auth/magic-link` | 5 / email / hour |
-| `POST /auth/verify` | 10 / IP / hour |
-| `POST /executor/unlock` | 5 / IP / hour, 10 lifetime per credential |
-| `POST /reflect` | 60 / user / hour |
-| `POST /capture` | 100 / user / day |
+| `POST /api/executor/unlock` | 5 / IP / hour, 10 lifetime per credential |
 
-Enforced via Redis token bucket (Redis runs as a sidecar on the VM).
+Other endpoints rely on cookie auth + RLS rather than per-endpoint rate-limiting. A reverse proxy in front of the app is the recommended place to add coarser limits for self-hosted instances.

@@ -1,260 +1,295 @@
 # FLOWS.md
 
-Every user-facing flow in Heirloom v1, with **happy path**, **alternate paths**, and **failure modes**. This is the doc to read before writing UI code for any screen.
+Every user-facing flow in Heirloom, with **happy path**, **alternate paths**, and **failure modes**.
 
 Convention:
-- ✅ = happy path
+- + = happy path
 - ↪ = alternate path (valid but not default)
-- ⚠ = failure mode (recoverable)
-- ✋ = hard failure (must be handled, may require support)
+- ! = recoverable failure
+- X = hard failure
 
 ---
 
 ## 1. Creator onboarding (first run)
 
-**Screens:** Portal · Passphrase · Who-you-are · First prompt · First capture · Post-capture · Home
+**Route:** `/onboarding` (redirected to from `/` when `vaults.onboarded_at IS NULL`)
+**Component:** `src/app/onboarding/onboarding-flow.tsx`
+**Steps:** Welcome (name + optional selfie) → Voice (read VOICE_SCRIPT) → Anchors (life events) → Nominees → Letters
 
-✅ User taps the portal, taps continue, sets a passphrase, enters their display name, picks a prompt from three options, records 30s of audio, sees Gemma's streaming transcript, taps "Save to vault", lands on the populated-but-empty creator home with their one capture present.
++ User picks "Begin a new archive" on the portal, types their name (e.g. "Elena"), optionally adds a selfie (face-api.js scans for a face client-side, posts the 128-d embedding to `/api/onboarding/self`), records ~30 s of the VOICE_SCRIPT, adds at least one nominee, picks 0-N Gemma-generated occasion prompts to write seed letters against, lands on the creator home.
 
-↪ User skips the first capture ("not today") → lands on a quiet home with the prompt card still visible and one nudge: *"Begin when you're ready."*
+↪ User skips the voice step → onboarding continues; voice features stay hidden until the user records from Settings → Voice later.
 
-↪ User picks "I'd rather write" on the first prompt screen → routes to the note sheet instead of voice.
+↪ User skips the selfie → onboarding continues; the embedding is null, photo-caption naming falls back to generic "a person".
 
-⚠ Mic permission denied → in-page banner: *"Heirloom needs the mic to record. Open settings to enable, or tap to use a different mode."* Two buttons: `Open settings` · `Use writing instead`.
+↪ User picks zero seed letters → empty-state copy, "Skip and continue" button labels appropriately.
 
-⚠ Passphrase too short (< 12 chars) → inline hint *"A longer phrase keeps your archive safer. Try a memory only you would know."* No error toast.
+! Mic permission denied during voice step → inline error, "Try again" button. Skip option remains available.
 
-✋ Account creation fails (network) → toast *"Couldn't save yet. Your work is kept on this device until we reconnect."* Service worker queues the create-account call.
+! Selfie face-detection finds no face → inline note "No face detected. Try a clearer photo or skip this step." User can retry or proceed.
+
+! `POST /api/voice/clone` fails (TTS sidecar offline) → inline message "Couldn't save your voice. The engine may be starting up." Skip option remains available.
+
+X Network down during a save → error surface, user retries. There is no IndexedDB queue for onboarding writes.
 
 ---
 
 ## 2. Voice capture
 
-**Screen:** Capture Studio (voice sheet)
+**Surface:** Capture sheet, voice mode
+**Components:** `src/app/_components/capture-sheet.tsx` (sheet shell) + voice mode tab
+**API:** `POST /api/capture` (multipart) + `GET /api/capture/[id]/status` (SSE)
 
-✅ User taps the oxblood record button, sees a live waveform breathing in oxblood, streaming transcript appears as italic Source Serif under the waveform, taps stop, sees post-capture review with Gemma-suggested tags and one gentle follow-up question, taps `Save to vault`.
++ User taps the "Voice" chip on the home, sheet slides up, taps the wax-red record button, sees the live timer and waveform, taps stop, the sheet shows calm stage labels ("Saving the recording…", "Listening for the words…", "Tracing the threads…", "Almost there…", "Saved. This is the beginning."), Whisper transcript fills in once embed-stage emits, tags appear as chips, taps close.
 
-↪ User taps the follow-up question → opens a new voice sheet pre-filled with the question as the prompt.
+↪ User taps stop before 3 s → recording is still committed; the pipeline runs with whatever was captured.
 
-↪ User taps `Save later` → capture goes to drafts; visible on home with a small "draft" tag, never auto-published.
+! Mic permission denied → sheet shows banner with link to system settings; "Switch to writing instead" link routes to note mode.
 
-⚠ Whisper transcription fails mid-record → keep recording; show one-line warning under transcript area: *"Transcription paused. The recording is still being kept."* Retry transcription on save.
+! Network drops mid-record → audio is preserved in browser memory; on save, the upload still goes through. There is **no** IndexedDB queue in current code; the user must keep the tab open until upload completes.
 
-⚠ Connection drops mid-record → continue recording locally to IndexedDB. On reconnect, upload + transcribe in the background. Capture appears as `processing` on home with a soft spinner.
-
-⚠ Recording exceeds 5 minutes → soft cap warning at 5:00: *"This is becoming a long memory. Consider breaking it into pieces."* Hard cap at 10:00.
-
-✋ Storage quota exceeded (IndexedDB) → block new recordings, show: *"Your archive is full on this device. Connect to release pending uploads."* Provide an `Upload now` button.
-
-✋ Whisper service down → show a warning ribbon at the top of the home: *"Transcription is paused. Recordings are kept; transcripts will appear when we can run them."* User can still record + save.
+X Whisper fails for the entire pipeline (process crash) → capture moves to `status='failed'`; the recording blob is preserved on disk. Surfaces as "failed" on the home row.
 
 ---
 
 ## 3. Photo + caption capture
 
-**Screen:** Capture Studio (photo sheet)
+**Surface:** Capture sheet, photo mode
+**API:** `POST /api/capture` multipart with `kind='photo'`
 
-✅ User taps the photo chip, taps the empty 4:5 frame, system picker opens, user picks a photo, frame fills, types a one-line caption, taps `Save to vault`.
++ User taps "Photo" chip, system picker opens, picks an image. face-api.js scans for faces client-side and attaches `{bbox, embedding}` arrays to the multipart `metadata.faces` field. Pipeline writes the blob, Gemma 4 vision captions it (using recognized people from `face_appearances` joined through `people.display_name`), tags it, marks ready.
 
-↪ User uses `Retake` (mobile only, opens camera) → camera launches, user takes a new shot.
+↪ The photo contains a face that matches a known `people` row (typically the creator from the onboarding selfie, or a nominee whose face has been confirmed) → Gemma 4 caption names them in plain English.
 
-↪ User leaves the caption empty → save is allowed; the capture saves without a caption. The photo *is* the memory.
+! face-api.js fails to load model weights → upload still proceeds with `faces: []`; caption is generic.
 
-⚠ Photo file too large (>20MB) → client-side compression to ~3MB JPEG; preserve original on opt-in *"Keep full-resolution original"*.
-
-⚠ EXIF date present but in future → discard EXIF, use today's date.
-
-⚠ Photo upload fails → kept in IndexedDB; retry queue. Home shows the capture as `processing` with the local thumbnail visible.
-
-✋ User attempts to upload a non-image file → reject in client; show *"Heirloom expects a photo. Try another file."*
+X Non-image file uploaded → server returns `bad_kind`; client surfaces the error.
 
 ---
 
 ## 4. Note capture
 
-**Screen:** Capture Studio (note sheet)
+**Surface:** Capture sheet, note mode
+**API:** `POST /api/capture` JSON
 
-✅ User taps the note chip, types into the borderless textarea, sees autosave + word count update every 2s in mono, taps `Save to vault`.
++ User taps "Note" chip, types into the borderless serif textarea, watches the word count tick in mono, taps "Save to vault". The sheet shows the same pipeline labels as voice (the audio-specific copy is conditional in `pipelineLabel`). Gemma generates a title in the background if the user didn't write one.
 
-↪ User backs out of the sheet → draft auto-saved; reopening the note chip resumes the draft.
+↪ User taps the mic icon next to the title field → records dictation, transcript appends to the body, user edits and saves.
 
-⚠ Network drops during autosave → IndexedDB takes over; visible state stays unchanged; sync on reconnect.
+↪ User backs out of the sheet → an IndexedDB draft is created (count surfaces on the home as "N drafts are safe in your browser").
 
-✋ Note exceeds 50,000 characters → soft warning at 10k, hard limit at 50k. *"This is a long note. Consider saving it and starting a new piece."*
+! Network drops during save → server returns error, user retries. Draft persists in IndexedDB.
 
 ---
 
 ## 5. Video capture
 
-**Screen:** Capture Studio (video sheet)
-
-✅ User taps the video chip, allows camera + mic, sees a 9:16 viewfinder with record dot, taps record, sees recording-time HUD, taps stop at < 2:00, sees post-capture review with auto-captioned still + transcript, taps `Save to vault`.
-
-↪ User uploads existing video from library → same review screen; transcribe + tag flow runs server-side.
-
-⚠ Camera permission denied → inline banner with `Open settings` and `Use voice instead`.
-
-⚠ Video over 2:00 → soft warning *"Heirloom keeps videos short."* Hard cap 5:00.
-
-⚠ Upload of >50MB video → client-side transcode to H.264 720p (browser MediaRecorder). Show progress bar.
-
-✋ Video transcoding fails → keep original; show *"This file was kept but couldn't be prepared for streaming. We'll retry later."*
+Currently **disabled in the UI** (`<CapChip ... disabled />` on the home). The schema, RLS policies, and pipeline branches all support `kind='video'`; the client just doesn't expose a capture sheet for it yet. Re-enabling is straightforward when the work is prioritized.
 
 ---
 
 ## 6. Creator home
 
-**Screen:** Creator Home - Established
+**Route:** `/` (when `session.role === 'creator'`)
+**Component:** `src/app/_components/home.tsx`
+**API:** `GET /api/me/home` + async `GET /api/prompt/shuffle`
 
-✅ User opens the app authenticated, sees greeting block (time-of-day + name), prompt-of-day card, capture-chip grid 2×2, three thread cards, recent-captures mixed feed, nominee cards including executor, tab bar.
++ User opens the app authenticated, sees:
+- BrandMark (seal + "Heirloom" wordmark) top-left, "SETTINGS" link top-right
+- Long-date eyebrow ("FRIDAY, MAY 15")
+- Greeting block "Good morning, **Anisha**" (name in wax italic)
+- "A place to begin" card with Gemma-generated prompt-of-day, "Speak it" primary + "Or write" secondary, "Another" shuffle affordance
+- 2×2 capture chip grid (Voice / Note / Photo / Video disabled)
+- "Ask the archive a question" card linking to `/reflect`
+- Local-drafts count line (if `countDrafts() > 0`)
+- "Recent" header with capture count, list of recent captures with kind-tinted icon, mono timestamp, serif title, italic transcript snippet, small "Their voice" SpeakButton when a voice profile + TTS are both available
 
-↪ User has zero captures yet → first-month variant: prompt card is enlarged, recent-captures section is hidden, threads section says *"Threads appear as your archive grows."*
+↪ Zero captures yet → recent list shows `"Begin when you're ready."`
 
-↪ User has >50 captures → recent-captures shows 6, with `See all →` link to Explore.
+! Prompt-of-day fetch fails or times out → the prompt card shows "Composing a prompt for you…" indefinitely (the home does not currently fall back to a static prompt).
 
-⚠ Prompt-of-day endpoint times out → home renders without the card. Fallback card after 2s: *"Take a moment. Record what's on your mind."* (static text, no AI call).
-
-⚠ Background sync still pending → small mono ribbon at top: *"3 captures still uploading."* Tappable to see queue.
-
-✋ Auth token expired mid-session → silent refresh attempt. If refresh fails, route to the portal with a soft note: *"Your session ended for safety. Re-enter your passphrase."*
+X `/api/me/home` returns non-200 → page renders "Home failed to load: HTTP {status}".
 
 ---
 
 ## 7. Nominee onboarding (first-ever visit)
 
-**Screens:** Envelope · Seal break · Letter unfolds · Welcome · Home
+**Routes:** `/portal` → `/welcome` → `/`
+**Components:** `src/app/portal/`, `src/app/welcome/`
 
-✅ Nominee taps the envelope tile from email, sees envelope with creator's seal, enters the passphrase from the printed/emailed letter, sees the wax seal crack open, the folded letter unfolds with the creator's message, taps `Enter the archive`, sees the cinematic intro with one line of framing copy, lands on the nominee home.
++ Nominee taps "I have a sealed letter" on the portal, sees the closed envelope with the wax seal "H" monogram, types the passphrase the creator handed them in person, taps "Open". On argon2-match, the seal-break animation plays (CSS, ~1.2 s), the letter unfolds, displays the creator's framing letter ("Maya - there is something here for you."), taps "Enter the archive", lands on the nominee home.
 
-↪ Nominee has visited before → skip the envelope + seal break entirely. Go straight to nominee home.
+↪ Subsequent visits skip the envelope entirely - the cookie-bound session routes straight to `/` and the nominee home renders.
 
-⚠ Passphrase wrong → gentle shake animation on the input; *"That isn't the right passphrase. Try again, or contact the executor."* No counter visible. Internally, 5 wrong attempts → rate-limit (5/hr), 20 lifetime → lock and notify executor's email.
+! Wrong passphrase → gentle shake on the input + neutral message. No counter visible. Rate limit (per IP) silently degrades after repeated failures.
 
-⚠ Passphrase entered correctly but no released captures yet (early access) → show: *"Your archive is ready. The first piece will appear here."* + soft countdown to next scheduled release if any.
-
-✋ Vault deleted or executor revoked access → *"This archive is no longer available. Please contact the executor for more information."* No technical detail leaked.
+X Vault deleted on the server side → on next request the cookie still verifies but the framing lookup returns null; the nominee home renders with `from_name: "the creator"` and an empty `released_captures` list.
 
 ---
 
-## 8. Nominee home (post-first-visit)
+## 8. Nominee home
 
-**Screen:** Nominee Home - Post-Loss
+**Route:** `/` (when `session.role === 'nominee'`)
+**Component:** `src/app/_components/nominee-home.tsx`
+**API:** `GET /api/me/home` (which calls `fireLetterConditions({trigger_kind:'calendar'})` at the top)
 
-✅ Nominee opens app, sees framing strip ("From Elena · 'For the days when you need me…'"), latest-unlocked hero (audio waveform + headline + play button), thread cards, sealed-pieces card with future release labels, saved passages, Reflection pill floating above tab bar.
++ Nominee opens the app, sees:
+- BrandMark top-left, "ARCHIVE" eyebrow top-right
+- Framing strip: small seal + "FROM <creator>" eyebrow + the first clause of `letter_body` (italic serif). Animates in on mount.
+- Any `newly_fired_letters` from this load: full gold-bordered "sealed for you" cards with the occasion prompt, the letter body, and a "Hear them read this" big SpeakButton.
+- "Today's memory" hero - the deterministic daily memory (same all day for this nominee, rotates each calendar day). Photo or transcript snippet with a "Hear it in their voice" SpeakButton.
+- "If you need it" mood card with 4 chips + "Something else…" expandable input + dictation mic. Chips are archive-tailored per known seed (Sagan / Rogers / Gandhi); fallback chips are "I miss you / I need advice / On hard days / A big moment".
+- "Themes" 2-column grid (themed_albums) when ≥ 2 captures share a topic tag.
+- "Earlier pieces" list of every other released capture.
+- Floating "Ask the archive a question" pill above the fold, links to `/reflect`.
 
-↪ No saved passages yet → that section is hidden, not shown empty.
+↪ Zero released captures yet → `"Your archive is ready. The first piece will appear here."`
 
-↪ No sealed pieces remaining (everything is released) → sealed-pieces card is hidden.
+↪ A mood-chip tap that fires a sealed letter → the unlocked occasion shows inline ("<occasion> - opened just for you") and the home refreshes after 1200 ms to surface the new unlocked-letter card.
 
-⚠ Latest-unlocked is a note (no audio) → render as a quoted paragraph card with no play button.
+↪ A mood-chip tap that doesn't fire anything → client navigates to `/reflect?q=<chip text>` so the tap always lands somewhere meaningful.
 
-✋ Vault has 0 released captures → fallback to the early-access screen from §7.
+! Daily-memory roll lands on a capture whose blob is missing → photo `<img>` renders broken; the transcript snippet is still readable.
 
 ---
 
 ## 9. Reflection query
 
-**Screen:** Reflection sheet / page
+**Route:** `/reflect`
+**Components:** `src/app/reflect/page.tsx` (server) + `room.tsx` (client SSE consumer)
+**API:** `POST /api/reflect` (SSE via fetch+reader, not EventSource - EventSource doesn't support POST)
 
-✅ Nominee types question, sees streaming "retrieving…" then "found 4 memories", then claims stream in one by one with citation chips. Taps a citation → drawer opens with original audio + transcript. Closes drawer, asks follow-up.
++ User types a question, taps "Ask". The composer disables, the answer area shows:
+- `"Searching the archive..."` while the question is embedded + top-5 retrieval runs
+- `"Found N memories. Listening for an answer..."` once `retrieved` fires with hits above threshold
+- Skeleton lines pulse until `answer_partial` starts arriving
+- Answer streams in (third person serif body)
+- Below a thin rule: "Drawn from N captures · Tap to view the source" + citation chips with mono uppercase labels
+- Tap a chip → 80vh bottom-drawer with the source snippet + a big SpeakButton ("Hear in their voice")
 
-↪ Nominee asks an already-asked question → cached answer renders instantly with a small mono tag *"asked 3 days ago"*. Re-running re-retrieves.
+↪ The page was opened with `?q=` (mood-card pivot or "auto-ask from somewhere else") → auto-submits on mount.
 
-⚠ Top-k retrieval returns 0 hits above threshold → empty state: *"I don't have that in the archive. Try asking another way?"* Three suggested re-phrasings shown as ghost chips.
+↪ Suggested prompts on idle - tailored per known seed archive by creator name. Sagan: "What did you write about the pale blue dot?" etc. Rogers / Gandhi each have their own set. Default fallback for unknown creators: "Tell me about your grandmother." / "What did you learn from your father?" / "What did you wear when you got married?"
 
-⚠ Gemma 4 synthesis errors mid-stream → completed claims remain on screen; show inline *"…couldn't finish. Try again."* with retry button.
+↪ A nominee asks a question whose embedding fires a sealed letter (semantic_match condition under threshold) → a `sealed_letter` SSE event arrives first. The room doesn't currently render this inline (it's surfaced via the home unlocked-letter card on next refresh), but the letter unlocks immediately so it's available on the next `/api/me/home` load.
 
-⚠ Nominee enters a question that violates safety policy (e.g. asks for harmful content) → response is the same empty state; logged as a moderation event (no PII).
+! `retrieved` returns 0 hits OR `top_similarity < 0.40` → `grounded:false` arrives, `answer` event sends the verbatim empty state "I don't have that in the archive. Try asking another way?", model is never called.
 
-✋ Reflection service unavailable → *"Reflection is paused right now. You can still browse the archive."* Tab bar Explore tab remains functional.
+! Final validation fails (citation outside retrieved set, first-person prose, no claims) → answer collapses to the empty state, `grounded` re-fires false, `diagnostics.rejected_for` records the reason (`first_person` / `invalid_citation` / `no_claims`).
+
+! Gemma errors mid-stream → `error` event closes the stream; the room sets `status: 'error'`. Already-streamed text remains visible.
+
+X `/api/reflect` itself 401s → fetch is non-ok, the room shows the same error state. User needs to re-sign-in.
 
 ---
 
 ## 10. Citation drawer
 
-**Component:** capture-detail drawer
+**Component:** inline in `room.tsx`
+**Triggered by:** clicking a citation chip after a grounded answer
 
-✅ Drawer slides up from bottom 80% height. Shows: capture title, captured-at date, tags, transcript with the cited line highlighted, audio scrubber, `Save passage` button, close handle.
++ Drawer slides up from the bottom (80vh max). Shows: "Source capture" eyebrow, big SpeakButton, the cited snippet in italic serif, "capture id · 8-char-prefix" mono line.
 
-↪ Capture is a note → no audio scrubber; show full body text with cited paragraph highlighted.
+↪ Voice profile + TTS available → SpeakButton renders. Tapping plays the snippet through the cloned voice (verbatim only - the snippet, not the Reflection answer prose).
 
-↪ Capture is a photo → show photo + caption; if Reflection cited the caption text, highlight it.
+↪ Voice profile missing or TTS sidecar unreachable → SpeakButton self-hides on mount.
 
-⚠ Original audio blob 404 → show transcript only with a mono note *"Original recording is being prepared."* Queue blob re-fetch.
-
----
-
-## 11. Executor handoff (creator side)
-
-**Screens:** Why this matters · Choose person · Set passphrase · Letter preview
-
-✅ Creator opens executor flow from settings or onboarding nudge, reads the why-screen, picks a nominee (or adds one), generates the passphrase, sees the sealed letter preview, taps `Print` or `Send by email` (out-of-band), confirms saved.
-
-⚠ Creator regenerates passphrase → old one is invalidated immediately. Warning: *"The previous passphrase no longer works. Make sure to share the new one."*
-
-⚠ Creator emails the passphrase to the executor in-app → blocked by client. Soft message: *"For safety, share this passphrase outside the app - print it, write it, or text it directly."*
-
-✋ Creator never sets an executor → no failure; archive simply has no backup release mechanism. Periodic gentle reminder on the home (once a month, dismissible).
+! The cited snippet's blob is missing → SpeakButton still shows but the `/api/voice/speak` request resolves to text-only synthesis from the sidecar (the audio still plays).
 
 ---
 
-## 12. Executor unlock (executor side)
+## 11. Sealed-letter unlock paths
 
-**Screen:** Executor unlock
+Sealed letters unlock through four mechanisms (see `src/lib/letter-conditions.ts`):
 
-✅ Executor visits Heirloom, taps "I'm an executor", enters creator email hint + passphrase, sees confirmation that all releases have been flipped, receives access to a status page (no creator content visible to executor by default).
+1. **first_visit** - fires on first nominee load of `/api/me/home` after the letter was sealed. Surfaces in `newly_fired_letters` on the home payload.
+2. **date / life_event / calendar** - fires when the cron / scheduled-check runs (`POST /api/cron/daily-memory` if the date matches, also re-checked on every nominee home load).
+3. **state** - fires when a nominee taps a mood chip or types into "Something else…" - via `POST /api/nominee/mood`.
+4. **semantic_match** - fires when a nominee asks Reflection a question whose embedding sits within `threshold` (typically 0.55) of the letter's `intent_embedding`. Runs before retrieval inside `POST /api/reflect`.
 
-⚠ Wrong passphrase → same gentle shake + retry as nominee. After 5 wrong: rate-limit. After 10 lifetime: credential locked, creator notified.
-
-✋ Executor tries to unlock after credential is locked → *"This passphrase is no longer valid. Please contact the creator if they are available."*
+Every fired letter inserts a `nominee_releases` row scoped to the right nominee(s), so RLS naturally surfaces the underlying capture downstream. The sealed letter row is also marked `unlocked_at = now()` and `unlocked_by_trigger` records which mechanism fired.
 
 ---
 
-## 13. Preview as nominee (creator only)
+## 12. Executor handoff (creator side)
 
-**Screen:** Nominee home (read-only, watermarked)
+**Route:** `/executor/setup`
+**API:** `POST /api/executor/setup`
 
-✅ Creator picks a nominee from their list, taps `Preview as Maya`, sees the nominee home exactly as Maya would see it today (subject to current release state), with a persistent top-of-screen ribbon: *"Previewing as Maya · Tap to exit"*.
++ Creator opens the page, generates the executor passphrase, sees it once with the warning that it cannot be retrieved. Copies it down (paper, password manager, in-person handoff). Server stores `argon2id(passphrase)` only.
 
-⚠ Creator changes a release while previewing → preview updates live. No save needed.
+! Creator rotates the passphrase → old one is invalidated immediately. Warning surfaces.
+
+---
+
+## 13. Executor unlock (executor side)
+
+**Route:** `/executor/unlock` (public, no session needed)
+**API:** `POST /api/executor/unlock` (rate-limited)
+
++ Executor visits the URL, enters the vault email hint + passphrase. On argon2-match: atomic insert of `nominee_releases` for every capture × every nominee in the vault, `released_at = now()`. Confirmation screen. Executor does NOT enter the archive themselves.
+
+! Wrong passphrase → gentle shake + retry. 5 wrong / IP / hour → rate limit. 10 lifetime → credential locked, executor sees "no longer valid."
 
 ---
 
 ## 14. Settings
 
-**Screen:** Settings
+**Route:** `/settings` (creator only)
+**Components:** `src/app/settings/page.tsx` (server) + `settings-client.tsx`
 
-✅ Sections: Account · Passphrase · Executor · Notifications · About · Sign out.
-
-⚠ Passphrase change → requires the current passphrase. New one is hashed client-side before transmit.
-
-⚠ Sign out → clears JWT, IndexedDB drafts retained (they're tied to user_id and re-appear on next login).
-
-✋ Delete account (under Account) → 7-day soft-delete window. Confirmation phrase required ("I understand my archive will be permanently lost"). During the 7 days, sign-in restores.
-
----
-
-## 15. Offline behavior (summary table)
-
-| Action | Online | Offline |
-|---|---|---|
-| Record audio/video | ✅ live transcript | ✅ records locally, transcribes on reconnect |
-| Save note | ✅ instant | ✅ IndexedDB; sync on reconnect |
-| Browse home | ✅ fresh | ✅ last-cached payload (SW) |
-| Reflection | ✅ | ✋ blocked; show *"Reflection needs a connection."* |
-| Playback released audio | ✅ stream | ⚠ if not cached, blocked with prompt to download |
-| Sign in | ✅ | ✋ blocked |
+Sections (in order):
+1. **You** - display name (auto-save on blur). Triggers identity-index resync.
+2. **Important dates** - add/remove life events. Each save triggers identity-index resync + re-embeds the row.
+3. **Nominees** - list with passphrase-set state. "Reveal passphrase" rotates the passphrase and shows it once.
+4. **Your voice** - state machine: checking → unavailable / no-profile / have-profile / recording / uploading / error. Records the VOICE_SCRIPT against the LuxTTS sidecar. Includes the verbatim contract explainer in a collapsible `<details>` block. Shows a "Play a sample" affordance when a profile exists.
+5. **Notifications** - request permission, subscribe to push, send a test, turn off. Surfaces iOS-PWA-specific guidance when `Notification` is unsupported. Requires `NEXT_PUBLIC_VAPID_PUBLIC_KEY`.
+6. **Vault** - Export panel (passphrase → `.hloom` download) + Import panel (file + passphrase upload).
 
 ---
 
-## 16. Empty states - the canonical list
+## 15. Dev console
 
-1. **No captures yet** (creator home): "Begin when you're ready."
+**Route:** `/dev` (gated by `HEIRLOOM_ALLOW_DEV_FIXTURES=1` in production)
+**Component:** `src/app/dev/page.tsx` + `controls.tsx`
+
+A role-switcher / vault-state dashboard. Lets the developer:
+- Open a creator session (lands on `/onboarding` for fresh users)
+- Open a fixture nominee session against the most recent vault
+- Sign out
+- View vault counts (captures, nominees, released, reflections)
+- Jump to every creator + nominee + executor surface
+- Open the welcome animation frozen at any of its four stages (`?stage=opening|emerging|unfolding|reading`)
+- Reset the vault (truncate captures/transcripts/chunks/tags/reflections/nominees/releases/executor-creds; users + vaults preserved for stable IDs)
+
+Used during development and end-to-end testing. The dev passphrase for the fixture-nominee shortcut is `the long road home`.
+
+---
+
+## 16. Empty states - canonical list
+
+1. **No captures yet** (creator home, Recent list): "Begin when you're ready."
 2. **No released captures yet** (nominee home): "Your archive is ready. The first piece will appear here."
-3. **Reflection no-match**: "I don't have that in the archive. Try asking another way?"
-4. **No saved passages**: section hidden.
-5. **No sealed pieces left**: section hidden.
-6. **No threads**: "Threads appear as your archive grows."
-7. **No nominees**: prompt card in nominees section: "Who is this for?"
+3. **Reflection no-match / failed validation**: "I don't have that in the archive. Try asking another way?" (verbatim, no Gemma call).
+4. **No themed albums** (nominee home): section hidden.
+5. **No earlier pieces** (nominee home): section hidden.
+6. **No prompt-of-day yet** (creator home): "Composing a prompt for you…" placeholder.
+7. **No voice profile** (Settings → Voice): "Record this once" record button.
+8. **TTS sidecar offline** (Settings → Voice): "The voice engine isn't running on this device yet." with a pointer to `install-tts.sh` in the desktop bundle context.
+9. **No nominees on the executor unlock fail**: "This passphrase is no longer valid."
 
 Empty states are warm, never instructional in a help-doc tone. They sound like the rest of the app.
+
+---
+
+## 17. Service-worker offline behaviour
+
+The service worker (`public/sw.js`) installs on first visit and:
+- Pre-caches the app shell (`/`, manifest, icons, seal).
+- Cache-first for fingerprinted `/_next/static/`, fonts, images.
+- Network-first with stale fallback for pages + JSON.
+- Never caches POST/PUT/PATCH/DELETE.
+- SSE streams always go straight to the network (Accept: text/event-stream).
+- Push handler delivers `title + body` notifications; tapping navigates to the supplied URL.
+
+There is **no** background-sync queue for writes in v1. If the network drops mid-capture, the user keeps the tab open; if they don't, the write is lost (audio blobs are committed to IndexedDB drafts only for notes via `src/lib/drafts.ts`).

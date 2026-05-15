@@ -1,161 +1,196 @@
 # PWA.md
 
-Progressive Web App configuration for Heirloom v1. The PWA story matters because the product story is on-device - the installable shell is what makes the demo feel local even when the demo's inference is server-side.
+Progressive Web App configuration for Heirloom.
+
+The PWA is the canonical web target for the laptop install and the self-hosted VM. The desktop bundle (`.dmg`) wraps the same code in a Tauri shell - the PWA story still applies inside the shell because Tauri loads the embedded Next.js server in a WKWebView; the service worker registers and runs there too.
 
 ---
 
 ## §1  Manifest
 
-`frontend/public/manifest.webmanifest`
+`public/manifest.webmanifest` (shipped exactly as-is):
 
 ```json
 {
   "name": "Heirloom",
   "short_name": "Heirloom",
   "description": "A private place for the memories you mean to leave behind.",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#faf7f0",
-  "theme_color": "#1a1612",
-  "categories": ["lifestyle", "productivity"],
+  "theme_color": "#faf7f0",
+  "categories": ["lifestyle", "personalization", "productivity"],
   "icons": [
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "/icons/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ],
-  "screenshots": [
-    { "src": "/screenshots/home.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow" }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
 ```
 
-Icons are derived from `assets/seal.png` (the oxblood monogram). Maskable icon is the monogram on the bone background with safe-area padding.
+Plus `public/apple-touch-icon.png` (180×180) for iOS home-screen installs.
+
+`src/app/layout.tsx` wires the rest of the head:
+- `manifest` link
+- `theme-color = #faf7f0`
+- `apple-mobile-web-app-capable = yes`
+- `apple-mobile-web-app-status-bar-style = default`
+- `apple-mobile-web-app-title = Heirloom`
+- `format-detection = telephone=no`
+- `mobile-web-app-capable = yes`
 
 ---
 
 ## §2  Service worker
 
-Approach: **Workbox + custom fetch handlers** via `next-pwa`. Three runtime strategies:
+`public/sw.js` is a small, hand-rolled service worker (no Workbox, no `next-pwa`). Registered from `src/app/_components/sw-register.tsx`, mounted in `layout.tsx`.
+
+Three runtime strategies:
 
 | Resource | Strategy |
 |---|---|
-| App shell (HTML, JS, CSS) | `StaleWhileRevalidate` |
-| `GET /me/home`, `GET /me/explore` | `NetworkFirst` with 3s timeout, fallback to cached |
-| `GET /capture/{id}` (released only) | `CacheFirst` with 30-day expiry |
-| Audio/video blobs | `CacheFirst` with 100MB LRU cap |
-| `POST /capture`, `POST /reflect` | Network-only, but **queued via Background Sync** if offline |
+| App shell (`/`, manifest, icons, `/seal.png`) | Pre-cached on install (`SHELL_CACHE`) |
+| Fingerprinted Next assets (`/_next/static/`, fonts, `*.png|svg|woff2|ico|webp|jpg`) | Cache-first |
+| Pages + JSON | Network-first, stale fallback to runtime cache |
+| POST/PUT/PATCH/DELETE | Network only (never cached) |
+| SSE streams (`Accept: text/event-stream`) | Network only (bypassed entirely) |
 
-The Background Sync queue is named `heirloom-capture-queue`. The frontend shows the queue size in the home ribbon when > 0.
+There is **no Background Sync queue** for writes in v1. If the network drops mid-capture, the user keeps the tab open and the request retries via the page's own logic; otherwise the write is lost. Note drafts are committed to IndexedDB via `src/lib/drafts.ts` and surface as a count on the home ("N drafts are safe in your browser"). Audio/photo drafts are NOT queued.
+
+The cache version is bumped by changing the `VERSION` constant in `sw.js`; the activate handler purges any cache key not prefixed with the current version and claims all clients.
 
 ---
 
 ## §3  Install prompt UX
 
-Heirloom does **not** auto-prompt to install. The platform `beforeinstallprompt` is captured and held silently. We surface install in two places only:
+Heirloom does **not** auto-prompt to install. There is no in-app "Add to Home Screen" nudge in the current build. iOS users install via Safari Share → "Add to Home Screen"; Android Chrome surfaces its own native install affordance when the manifest criteria are met.
 
-1. **After the user's third capture** - a small mono nudge appears in the home, dismissible forever after one tap: *"Keep Heirloom on your home screen."*
-2. **In Settings → About → Install** - always available.
-
-Never modal. Never blocking. Never on first visit.
+This is intentional: the home screen install matters most for the Web Push experience (iOS requires PWA install before allowing push subscriptions), and Settings → Notifications surfaces the install hint when the user tries to enable push from a non-installed Safari context.
 
 ---
 
-## §4  Offline behavior (canonical table)
+## §4  Web Push (sealed-letter unlocks + daily memory)
 
-See `FLOWS.md` §15 for the full table. Summary:
-- **Reads** of cached content (home, threads, released captures) work offline.
-- **Writes** queue locally; sync on reconnect.
-- **Reflection** requires network in v1. The on-device LLM v2 will lift this.
-- **Sign in** requires network.
+Heirloom can send Web Push notifications for two channels:
+- **Sealed-letter unlocks** (`channel: 'letter'`)
+- **Daily memory** (`channel: 'daily'`)
+
+### Server-side
+
+- **Library:** `web-push` (configured per-request via `webpush.setVapidDetails(subj, pub, priv)` on first send).
+- **Env vars:**
+  - `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (e.g. `mailto:you@example.com`)
+  - `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (the same public key, exposed to the client for `pushManager.subscribe`)
+  - `CRON_SECRET` (header `X-Cron-Secret` for `/api/cron/daily-memory`)
+- **Storage:** `push_subscriptions` table (migration `004_push_subscriptions.sql`). One row per `(user_id, endpoint)`. Columns include `p256dh`, `auth`, `user_agent`, `enabled_daily`, `enabled_letters`.
+- **Dispatcher:** `sendToUser(user_id, channel, payload)` in `src/lib/notifications.ts`. Iterates the user's subscriptions filtered by channel, sends, prunes 404/410 endpoints.
+
+### Client-side
+
+- **Subscribe:** Settings → Notifications → "Turn on notifications" calls `Notification.requestPermission()`, then `navigator.serviceWorker.ready.then(reg => reg.pushManager.subscribe({...}))`, then POSTs the `subscription.toJSON()` to `/api/notifications/subscribe`.
+- **Unsubscribe:** "Turn off" unsubscribes locally + POSTs to `/api/notifications/unsubscribe`.
+- **Test:** "Send a test" → `POST /api/notifications/test`.
+
+### Cron
+
+`POST /api/cron/daily-memory` (gated by `X-Cron-Secret: $CRON_SECRET`) iterates every nominee, picks today's deterministic memory, and sends a daily push. Schedule via cron / systemd timer; the runbook in `docs/DEPLOY-AZURE-VM.md` includes the systemd unit.
+
+### Notification payload
+
+JSON-stringified `{title, body, url?, tag?}`. The service worker `push` handler shows a notification with title/body; the `notificationclick` handler navigates to `data.url` (or `/`) and focuses an existing window if possible.
+
+**Privacy:** payloads carry a title + short body only - never the contents of a memory. Tapping opens the app; the actual memory is fetched after the user is authenticated.
+
+### iOS gotcha
+
+iOS PWA push requires the user to "Add to Home Screen" first **AND** be running iOS 16.4+. Safari needs to launch the PWA from the home-screen icon, not from a tab. The Notifications section in Settings detects unsupported environments and surfaces the install instruction:
+
+> "This browser doesn't support push notifications. On iOS, install Heirloom to your Home Screen first (Share → Add to Home Screen) - Safari needs iOS 16.4 or newer."
 
 ---
 
-## §5  IndexedDB schema (client-side)
+## §5  Offline behaviour (summary)
+
+Reads of cached content (home, released captures, recent navigation) work offline via the service worker's stale fallback.
+
+Writes (capture, reflection, mood, settings) are **network only**. Reflection in particular requires a live connection to Ollama; there's no client-side fallback.
+
+iOS Safari fires the `online` / `offline` events but the service worker doesn't take any explicit action on network loss; the page-level `fetch()` calls fail and the surface shows its error state.
+
+| Action | Online | Offline |
+|---|---|---|
+| Record audio / photo / note | + | works locally up to save; the multipart POST fails if no network |
+| Save note (with body) | + | + IndexedDB draft, surfaces on home as a count |
+| Browse home | + fresh | + stale fallback from runtime cache |
+| Browse capture details | + | + cached pages if previously visited |
+| Reflection | + | X requires Ollama |
+| TTS playback | + (if TTS sidecar reachable) | X requires TTS sidecar |
+| Sign in (portal passphrase) | + | X requires server |
+
+---
+
+## §6  IndexedDB (client storage)
+
+`src/lib/drafts.ts` uses IndexedDB via a small wrapper to hold note drafts the user dismissed without saving:
 
 ```ts
-// frontend/src/lib/idb.ts
-interface HeirloomDB {
-  drafts: {                            // unsaved captures in progress
-    id: string;
-    kind: 'audio'|'photo'|'note'|'video';
-    blob?: Blob;
-    body?: string;
-    caption?: string;
-    started_at: number;
-  };
-  upload_queue: {                      // committed captures awaiting upload
-    id: string;
-    payload: FormData | object;
-    attempts: number;
-    last_error?: string;
-  };
-  home_cache: {
-    role: 'creator'|'nominee';
-    vault_id: string;
-    payload: HomePayload;
-    fetched_at: number;
-  };
+interface DraftRecord {
+  id: string;
+  kind: 'note';
+  body: string;
+  title?: string;
+  saved_at: number;
 }
 ```
 
-A single Dexie DB. Schema versioned with the app.
+The home page calls `countDrafts()` on mount and surfaces a one-line ribbon: "N drafts are safe in your browser." Drafts have no UI flow for resuming yet - the count is informational. Resuming is on the post-launch list.
+
+Audio + photo drafts are **not** queued. The drafts table only covers notes for now.
 
 ---
 
-## §6  Notifications (v1: opt-in, scoped)
+## §7  Performance budgets
 
-Web Push registered only after the user enters Settings → Notifications and explicitly opts in. Two notification kinds in v1:
-- **A new piece has been released to you** (nominees)
-- **A scheduled release is approaching** (creators, 24h ahead)
-
-VAPID keys generated per-deployment. Subscriptions stored in a new `push_subscriptions` table (not in v1 SCHEMA.sql - add when implementing).
-
----
-
-## §7  Install assets to produce
-
-- `/icons/icon-192.png`, `/icons/icon-512.png`, `/icons/icon-maskable.png`
-- `/icons/apple-touch-icon-180.png`
-- `/screenshots/home.png`, `/screenshots/capture.png` (1080×1920)
-- `/favicon.ico` (32×32 from seal monogram)
-- `/og-image.png` (1200×630, seal centered on paper)
-
-Generate with `scripts/build-icons.ts` (sharp-based, runs from `assets/seal.png`).
-
----
-
-## §8  Performance budgets
-
-| Metric | Budget |
+| Metric | Target |
 |---|---|
-| First Contentful Paint | < 1.4s on Slow 4G |
-| Largest Contentful Paint | < 2.4s on Slow 4G |
+| First Contentful Paint | < 1.4 s on 4G |
+| Largest Contentful Paint | < 2.4 s on 4G |
 | Cumulative Layout Shift | < 0.05 |
-| Time to Interactive | < 3.0s |
-| JS bundle (initial) | < 180KB gzipped |
-| Total transfer (initial) | < 350KB gzipped |
+| Time to Interactive | < 3.0 s |
+| JS bundle (initial) | aim < 200 KB gzipped |
 
-Self-hosted Source Serif + Geist (woff2 only, latin subset). No CDN fonts.
-
----
-
-## §9  iOS PWA gotchas to handle
-
-- Status bar: `apple-mobile-web-app-status-bar-style = black-translucent`
-- 100vh: use `100dvh` or the iOS-safe `--vh` trick
-- Audio recording on iOS Safari: only inside a user-gesture handler; first call to `getUserMedia` MUST be synchronous from the tap
-- File picker: `accept="image/*"` triggers camera-or-library sheet on iOS; `capture="user"` to force front camera
-- Service worker scope: must be `/`; iOS treats deeper scopes inconsistently
+Self-hosted fonts (Source Serif 4, Geist, JetBrains Mono) via `next/font` with latin subsets only. The seal PNG is the largest single image asset and is pre-cached by the service worker.
 
 ---
 
-## §10  Testing the PWA
+## §8  Tauri-shell considerations
 
-Lighthouse PWA score target: **≥ 95**. CI runs Lighthouse on every PR to a staging deployment.
+When wrapped in the macOS .dmg, the same PWA code runs inside a WKWebView. Two differences worth knowing:
 
-Manual tests:
-- Install on real iPhone (Safari → Share → Add to Home Screen). Open standalone. Record audio. Kill network. Verify capture queues. Restore network. Verify upload.
-- Install on real Android (Chrome → Install prompt). Verify maskable icon.
+1. The service worker registers and runs as usual. The Tauri shell starts the Next.js server on `127.0.0.1:3000` and navigates the WKWebView there; the SW scope is `/`.
+2. Web Push **does not work in the WKWebView** (Apple's macOS push permission is locked to native apps + Safari). Notifications inside the desktop bundle would need a native bridge into Tauri; not built. The .dmg ships without push; the iOS PWA install gets push.
+
+---
+
+## §9  iOS PWA gotchas
+
+- `100vh` is unreliable; use `100dvh` or the `--vh` CSS variable trick.
+- Audio recording requires the first `getUserMedia` call to be synchronous within the user-gesture handler.
+- File picker: `accept="image/*"` triggers the camera-or-library sheet; `capture="user"` forces the front camera (used in the onboarding selfie step).
+- Service worker scope must be `/`; nested scopes behave inconsistently across iOS versions.
+- The home-screen icon picks up `apple-touch-icon.png` (180×180), not the maskable manifest icon.
+
+---
+
+## §10  Testing
+
+There is no Lighthouse CI yet. Manual checks:
+
+- Install on real iPhone (Safari Share → Add to Home Screen). Open from home screen. Record a note offline. Check the draft count surfaces. Restore network. Save.
+- Install on Android Chrome via the native install prompt. Verify maskable icon renders.
 - Desktop Chrome install. Verify window chrome looks right.
+
+When CI lands, the targets are Lighthouse PWA ≥ 95, Accessibility ≥ 95.
