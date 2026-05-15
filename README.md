@@ -175,8 +175,7 @@ laptop, with no external API.
 - **Dev console.** `/dev` is a role-switcher console for testing the
   nominee + executor surfaces side-by-side without re-onboarding.
 - **Vault reset.** `POST /api/dev/reset` wipes captures, embeddings,
-  releases, and people while preserving the creator's identity row -
-  useful between demo runs.
+  releases, and people while preserving the creator's identity row.
 
 ## Try it locally
 

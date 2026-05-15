@@ -11,9 +11,8 @@ export const dynamic = "force-dynamic";
  *   { nominee_email?: string, nominee_name?: string,
  *     capture_id?: string, title?: string, body?: string }
  *
- * Dev/demo trigger that picks one released capture for the nominee and
- * fires the same "today's memory" push the daily-memory cron sends. Use
- * to cue the notification on camera.
+ * Dev trigger that picks one released capture for the nominee and
+ * fires the same "today's memory" push the daily-memory cron sends.
  */
 export async function POST(req: Request) {
   try {
@@ -80,8 +79,6 @@ export async function POST(req: Request) {
         capture_id = r.capture_id;
         title = title ?? r.title;
       }
-      // Fall through with no capture - the endpoint still fires a push
-      // so we can verify the push pipeline before captures exist.
     }
 
     const payload: PushPayload = {

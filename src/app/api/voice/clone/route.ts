@@ -6,10 +6,9 @@ import { encodeReference } from "@/lib/tts";
 export const dynamic = "force-dynamic";
 
 const MAX_REFERENCE_BYTES = 12 * 1024 * 1024; // 12 MB ≈ 4 min of 16-bit mono 24 kHz
-// LuxTTS clones from up to 15s of prompt audio. Anything below ~10s drifts
-// to a generic voice on longer synthesised lines, so we require enough
-// reference material to capture timbre properly.
-const MIN_REFERENCE_SECONDS = 10;
+// LuxTTS clones from up to 15s of prompt audio; require at least 8s
+// so timbre is captured cleanly.
+const MIN_REFERENCE_SECONDS = 8;
 
 /**
  * POST /api/voice/clone

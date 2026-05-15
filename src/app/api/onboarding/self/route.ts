@@ -4,12 +4,8 @@ import { withRls } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-/**
- * POST /api/onboarding/self
- *
- * Used by onboarding (requires display_name + optional face_embedding)
- * and Settings (face_embedding-only updates after onboarding has run).
- */
+/** POST /api/onboarding/self — set the creator's display_name
+ *  and/or the reference face_embedding for self-recognition. */
 export async function POST(req: Request) {
   try {
     const session = await requireSession();

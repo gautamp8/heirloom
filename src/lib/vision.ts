@@ -3,18 +3,12 @@ import { SYNTHESIS_MODEL } from "./ollama";
 
 const OLLAMA_BASE = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
 
-export type RecognizedPerson = {
-  display_name: string;
-  bbox: { x: number; y: number; w: number; h: number };
-  similarity?: number;
-};
+export type RecognizedPerson = { display_name: string };
 
-/**
- * Describe a photo via Gemma 4 vision. When `people` is provided, the
- * system prompt names them so the caption reads "Elena in a yellow
- * dress" instead of "a woman in a yellow dress". Returns a single
- * short paragraph in archival, third-person voice.
- */
+/** Describe a photo via Gemma 4 vision. When `people` is provided,
+ *  the system prompt names them so the caption reads "Anisha holding
+ *  a cup" instead of "a woman holding a cup". Returns a single short
+ *  paragraph in archival, third-person voice. */
 export async function captionPhoto(
   absPath: string,
   opts: { people?: RecognizedPerson[] } = {},

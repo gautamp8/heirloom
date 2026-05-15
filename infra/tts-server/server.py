@@ -18,6 +18,7 @@ import hashlib
 import io
 import logging
 import os
+import re
 import threading
 import time
 from pathlib import Path
@@ -47,33 +48,22 @@ def _device() -> str:
 
 
 def _sanitize_for_tts(text: str) -> str:
-    """Calm the prosody. Flow-matching TTS over-emphasises lone bangs,
-    ellipses, and shouty caps; the verbatim contract is about the words,
-    not the punctuation, so we normalise it before synthesis."""
-    import re
+    """Normalise punctuation that flow-matching TTS over-emphasises:
+    multi-bangs, single exclamations, ellipses, curly quotes, and
+    shouty all-caps."""
     t = text.strip()
-    # Drop trailing dramatic punctuation: !!! -> ., !? -> ., !!! -> .
     t = re.sub(r"[!?]{2,}", ".", t)
-    # Single exclamation -> period (keeps the sentence but kills the shout)
     t = t.replace("!", ".")
-    # Ellipses to a single beat
     t = re.sub(r"\.\.\.+|…", ".", t)
-    # Curly quotes normalised
     t = t.replace("“", '"').replace("”", '"')
     t = t.replace("‘", "'").replace("’", "'")
-    # ALL-CAPS WORDS softened (preserve normal cased proper nouns)
-    def _decap(m: "re.Match[str]") -> str:
-        w = m.group(0)
-        return w if len(w) <= 2 else w.capitalize()
-    t = re.sub(r"\b[A-Z]{3,}\b", _decap, t)
-    # Collapse repeated whitespace
-    t = re.sub(r"\s+", " ", t).strip()
-    return t
+    t = re.sub(r"\b[A-Z]{3,}\b", lambda m: m.group(0).capitalize(), t)
+    return re.sub(r"\s+", " ", t).strip()
 
 
 def _seed_for(voice_id: str, text: str) -> int:
     """Deterministic seed so repeated synthesis of the same line is
-    bit-identical to the first run. Mod by 2^31 to fit torch's int range."""
+    bit-identical to the first run."""
     h = hashlib.sha256(f"{voice_id}|{text}".encode("utf-8")).digest()
     return int.from_bytes(h[:4], "big") & 0x7FFFFFFF
 
@@ -103,23 +93,17 @@ class TTSEngine:
         if voice_id in self._prompt_cache:
             return
         t0 = time.time()
-        # LuxTTS recommends ~15s of prompt as the upper bound for best
-        # performance; shorter prompts (≤5s) drift to a generic voice on
-        # any synthesised utterance longer than ~6s. Use up to 15s of
-        # whatever the user actually recorded.
+        # LuxTTS recommends up to 15s of prompt for stable timbre.
         info = sf.info(str(audio_path))
         prompt_seconds = max(3.0, min(15.0, info.duration))
-        encoded = self._model.encode_prompt(
+        self._prompt_cache[voice_id] = self._model.encode_prompt(
             prompt_audio=str(audio_path),
             duration=prompt_seconds,
             rms=0.01,
         )
-        self._prompt_cache[voice_id] = encoded
         log.info(
             "encoded voice=%s prompt=%.1fs in %.1fs",
-            voice_id,
-            prompt_seconds,
-            time.time() - t0,
+            voice_id, prompt_seconds, time.time() - t0,
         )
 
     def speak(self, voice_id: str, text: str) -> tuple[np.ndarray, int]:
@@ -128,7 +112,6 @@ class TTSEngine:
         cache_path = CACHE_DIR / f"{voice_id}_{seed:08x}.wav"
         if cache_path.exists():
             wav, sr = sf.read(str(cache_path), dtype="float32")
-            log.info("synth cache hit voice=%s seed=%08x", voice_id, seed)
             return wav, sr
 
         if voice_id not in self._prompt_cache:
@@ -139,7 +122,6 @@ class TTSEngine:
 
         self._ensure_loaded()
         t0 = time.time()
-        # Deterministic flow-matching: same seed -> identical waveform.
         torch.manual_seed(seed)
         if torch.backends.mps.is_available():
             torch.mps.manual_seed(seed)
@@ -159,11 +141,8 @@ class TTSEngine:
             wav = wav.squeeze()
         sf.write(str(cache_path), wav, 48000, format="WAV")
         log.info(
-            "synth voice=%s len=%.1fs in %.1fs seed=%08x (cached)",
-            voice_id,
-            len(wav) / 48000,
-            time.time() - t0,
-            seed,
+            "synth voice=%s len=%.1fs in %.1fs",
+            voice_id, len(wav) / 48000, time.time() - t0,
         )
         return wav, 48000
 

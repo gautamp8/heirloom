@@ -447,7 +447,7 @@ A single Settings surface, scrollable, with these sections:
 4. **Nominees** - link out to the Nominees surface.
 5. **About this build** - Gemma 4 version, Ollama version, last update. Includes a *Verify offline* button that disables network and confirms everything still works.
 
-The **Verify offline** button is a small but powerful UX moment - it makes our local-first claim falsifiable. In the demo video, we show this happening on camera.
+The **Verify offline** button is a small but powerful UX moment - it makes our local-first claim falsifiable.
 
 ---
 

@@ -64,4 +64,6 @@ function mixToMono(buffer: AudioBuffer): Float32Array {
   return out;
 }
 
-export const VOICE_SCRIPT = `Sometimes I think about the things I'd want to tell you when you're older. The smell of the kitchen on a Sunday morning - bread, coffee, my mother's hands. The way the porch light always came on at five. Walking through the park in October, the leaves catching the orange light. If you ever feel small, or scared, or just unsure - remember that we paid attention. We watched the years come and go, and we wrote some of them down for you.`;
+/** ~12-15 seconds at a calm pace. Long enough for stable timbre,
+ *  short enough that the read doesn't feel like a chore. */
+export const VOICE_SCRIPT = `Sometimes I think about the things I'd want to tell you when you're older - the smell of the kitchen on a Sunday morning, the porch light at five, the way we always made room for one more.`;

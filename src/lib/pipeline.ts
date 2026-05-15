@@ -53,19 +53,11 @@ export async function runCapturePipeline(
     } else if (cap.kind === "photo" && cap.blob_url) {
       const abs = resolveBlob(cap.blob_url);
 
-      // Recognized faces let the caption say "Elena holding Maya"
-      // rather than "a woman holding a child".
       const recognized = await withRls(
         session.user_id,
         session.role,
-        (tx) => tx<
-          {
-            display_name: string;
-            bbox: unknown;
-            similarity: number | null;
-          }[]
-        >`
-          SELECT p.display_name, fa.bbox, fa.similarity
+        (tx) => tx<{ display_name: string }[]>`
+          SELECT p.display_name
             FROM face_appearances fa
             JOIN people p ON p.id = fa.person_id
            WHERE fa.capture_id = ${cap.id}
@@ -74,13 +66,7 @@ export async function runCapturePipeline(
         `,
       );
 
-      const caption = await captionPhoto(abs, {
-        people: recognized.map((r) => ({
-          display_name: r.display_name,
-          bbox: parseBbox(r.bbox),
-          similarity: r.similarity ?? undefined,
-        })),
-      });
+      const caption = await captionPhoto(abs, { people: recognized });
       text = caption;
       await withRls(session.user_id, session.role, async (tx) => {
         await tx`UPDATE captures SET caption = ${caption} WHERE id = ${cap.id}`;
@@ -185,21 +171,3 @@ export async function runCapturePipeline(
   }
 }
 
-/** bbox can arrive from JSONB as either an object or a JSON-encoded string. */
-function parseBbox(raw: unknown): { x: number; y: number; w: number; h: number } {
-  let v: unknown = raw;
-  if (typeof v === "string") {
-    try {
-      v = JSON.parse(v);
-    } catch {
-      return { x: 0, y: 0, w: 0, h: 0 };
-    }
-  }
-  const o = (v ?? {}) as { x?: number; y?: number; w?: number; h?: number };
-  return {
-    x: typeof o.x === "number" ? o.x : 0,
-    y: typeof o.y === "number" ? o.y : 0,
-    w: typeof o.w === "number" ? o.w : 0,
-    h: typeof o.h === "number" ? o.h : 0,
-  };
-}

@@ -6,19 +6,14 @@ export type FaceInput = {
   embedding: number[];
 };
 
-// face-api.js descriptors of the same person can drift with lighting,
-// expression, and pose. 0.6 cosine-similarity was over-strict and
-// frequently missed matches on candid shots; 0.45 still avoids
-// cross-person collisions in our small vault scale.
+// face-api.js descriptors drift with lighting, expression, and pose.
+// 0.45 cosine similarity matches a known person without colliding
+// across distinct people in a single-vault archive.
 const MATCH_THRESHOLD = 0.45;
 
-/**
- * Store detected faces for a capture. For each face, look for the closest
- * person in the vault and link them when cosine similarity >= threshold.
- *
- * face-api.js descriptors are 128-dim. We use pgvector cosine distance:
- * similarity = 1 - cosine_distance.
- */
+/** Store detected faces for a capture. For each face, look for the
+ *  closest person in the vault and link them when cosine similarity
+ *  meets the threshold. face-api.js descriptors are 128-dim. */
 export async function storeFaceAppearances(
   tx: postgres.TransactionSql,
   opts: {
@@ -34,7 +29,6 @@ export async function storeFaceAppearances(
     if (f.embedding.length !== 128) continue;
     const faceVec = toVec(f.embedding);
 
-    // Find the closest existing person in this vault, if any.
     const [match] = await tx<{ id: string; similarity: number }[]>`
       SELECT id, ${cosineSim("reference_embedding", f.embedding)} AS similarity
         FROM people
@@ -47,12 +41,6 @@ export async function storeFaceAppearances(
     const personId =
       match && match.similarity >= MATCH_THRESHOLD ? match.id : null;
     const similarity = match?.similarity ?? null;
-    console.log(
-      "[faces] match: similarity=%s threshold=%s -> %s",
-      similarity?.toFixed(3) ?? "none",
-      MATCH_THRESHOLD,
-      personId ? "matched" : "unmatched",
-    );
 
     await tx`
       INSERT INTO face_appearances

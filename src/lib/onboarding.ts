@@ -47,12 +47,8 @@ export async function getOnboardingStatus(
   });
 }
 
-/** Creator name and/or selfie embedding (stored on the self person).
- *
- *  Onboarding passes a `display_name`; Settings passes only a
- *  `face_embedding` to update the reference photo. At least one must
- *  be present - the caller is expected to validate.
- */
+/** Update the creator's display name and/or reference selfie
+ *  embedding. At least one must be present. */
 export async function saveSelf(
   session: Session,
   opts: {
@@ -252,9 +248,8 @@ export async function saveNominees(
       }
       out.push({ id: nomineeId, name: cleanName, passphrase });
 
-      // Mirror into people, idempotent by nominee_id. Carry across the
-      // optional face_embedding from onboarding so face recognition can
-      // surface the nominee in future captures.
+      // Mirror into people, idempotent by nominee_id; carry through
+      // any reference face_embedding so face recognition can name them.
       const faceVec =
         Array.isArray(n.face_embedding) && n.face_embedding.length === 128
           ? vec(n.face_embedding)
