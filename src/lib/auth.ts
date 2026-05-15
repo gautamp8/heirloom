@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { sqlAdmin } from "./db";
 
 const SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET ??
@@ -39,6 +40,17 @@ export async function readSession(): Promise<Session | null> {
     const { payload } = await jwtVerify(token, SECRET);
     const { user_id, vault_id, role } = payload as Partial<Session>;
     if (!user_id || !vault_id || !role) return null;
+    if (sqlAdmin) {
+      const [row] = await sqlAdmin<{ ok: boolean }[]>`
+        SELECT EXISTS (
+          SELECT 1 FROM users u JOIN vaults v ON v.id = ${vault_id}
+          WHERE u.id = ${user_id}
+        ) AS ok`;
+      if (!row?.ok) {
+        await clearSessionCookie();
+        return null;
+      }
+    }
     return { user_id, vault_id, role };
   } catch {
     return null;
