@@ -593,13 +593,23 @@ function NotificationsSection() {
     };
   }, []);
 
+  /** Subscribe + POST to server, idempotent. Reuses an existing local
+   *  subscription rather than failing if Safari still has one cached. */
   async function enable() {
     setBusy(true);
     setMsg(null);
     try {
-      const perm = await Notification.requestPermission();
+      const perm =
+        Notification.permission === "granted"
+          ? "granted"
+          : await Notification.requestPermission();
       if (perm !== "granted") {
         setStatus(perm === "denied" ? "denied" : "off");
+        setMsg(
+          perm === "denied"
+            ? "Notifications are blocked. Allow them in your browser settings."
+            : null,
+        );
         return;
       }
       const reg = await navigator.serviceWorker.ready;
@@ -608,10 +618,13 @@ function NotificationsSection() {
         setMsg("Notifications aren't configured on this server.");
         return;
       }
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapid).buffer as ArrayBuffer,
-      });
+      const existing = await reg.pushManager.getSubscription();
+      const sub =
+        existing ??
+        (await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapid).buffer as ArrayBuffer,
+        }));
       const r = await fetch("/api/notifications/subscribe", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -622,7 +635,11 @@ function NotificationsSection() {
       setMsg("Notifications enabled.");
     } catch (e) {
       console.warn(e);
-      setMsg("Couldn't enable notifications.");
+      setMsg(
+        e instanceof Error && e.message.includes("subscribe")
+          ? "Couldn't reach the server to register this device."
+          : "Couldn't enable notifications on this device.",
+      );
     } finally {
       setBusy(false);
     }
@@ -655,10 +672,20 @@ function NotificationsSection() {
     try {
       const r = await fetch("/api/notifications/test", { method: "POST" });
       const data = await r.json().catch(() => ({}));
+      if (data.delivered) {
+        setMsg(`Sent (${data.delivered}).`);
+        return;
+      }
+      // Server has no row for this device. The local PushSubscription
+      // probably survived a server reset; re-register and retry once.
+      setMsg("Re-registering this device…");
+      await enable();
+      const r2 = await fetch("/api/notifications/test", { method: "POST" });
+      const d2 = await r2.json().catch(() => ({}));
       setMsg(
-        data.delivered
-          ? `Sent (${data.delivered}).`
-          : "No active subscriptions on this account.",
+        d2.delivered
+          ? `Sent (${d2.delivered}).`
+          : "Couldn't reach this device. Turn off and on again.",
       );
     } finally {
       setBusy(false);

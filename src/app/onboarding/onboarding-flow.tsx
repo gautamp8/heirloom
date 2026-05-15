@@ -514,7 +514,7 @@ function VoiceStep(props: { onBack: () => void; onContinue: () => void }) {
         Optional. You can do this later from Settings.
       </p>
 
-      <blockquote className="font-serif italic text-[15px] leading-[1.5] text-ink-soft border-l-2 border-rule pl-4 mb-5 text-wrap-pretty max-w-[560px]">
+      <blockquote className="font-serif italic text-[17px] leading-[1.5] text-ink-soft border-l-2 border-rule pl-4 mb-5 text-wrap-pretty max-w-[560px]">
         “{VOICE_SCRIPT}”
       </blockquote>
 
