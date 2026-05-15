@@ -189,6 +189,7 @@ export async function saveNominees(
     relation?: string | null;
     email?: string | null;
     birthday?: string | null;
+    face_embedding?: number[] | null; // 128-dim from face-api.js
   }[],
 ): Promise<{ inserted: number; nominees: SavedNominee[] }> {
   if (nominees.length === 0) return { inserted: 0, nominees: [] };
@@ -251,18 +252,47 @@ export async function saveNominees(
       }
       out.push({ id: nomineeId, name: cleanName, passphrase });
 
-      // Mirror into people, idempotent by nominee_id.
+      // Mirror into people, idempotent by nominee_id. Carry across the
+      // optional face_embedding from onboarding so face recognition can
+      // surface the nominee in future captures.
+      const faceVec =
+        Array.isArray(n.face_embedding) && n.face_embedding.length === 128
+          ? vec(n.face_embedding)
+          : null;
       const [existingPerson] = await tx<{ id: string }[]>`
         SELECT id FROM people WHERE nominee_id = ${nomineeId} LIMIT 1
       `;
-      const personId = existingPerson?.id ?? (
-        await tx<{ id: string }[]>`
-          INSERT INTO people (vault_id, display_name, relation, nominee_id)
-          VALUES (${session.vault_id}, ${cleanName},
-                  ${cleanRelation ?? 'nominee'}, ${nomineeId})
-          RETURNING id
-        `
-      )[0].id;
+      let personId: string;
+      if (existingPerson) {
+        personId = existingPerson.id;
+        if (faceVec) {
+          await tx`
+            UPDATE people
+               SET reference_embedding = ${faceVec},
+                   confirmed = TRUE
+             WHERE id = ${existingPerson.id}
+          `;
+        }
+      } else {
+        const [row] = faceVec
+          ? await tx<{ id: string }[]>`
+              INSERT INTO people
+                (vault_id, display_name, relation, nominee_id,
+                 reference_embedding, confirmed)
+              VALUES (${session.vault_id}, ${cleanName},
+                      ${cleanRelation ?? 'nominee'}, ${nomineeId},
+                      ${faceVec}, TRUE)
+              RETURNING id
+            `
+          : await tx<{ id: string }[]>`
+              INSERT INTO people
+                (vault_id, display_name, relation, nominee_id)
+              VALUES (${session.vault_id}, ${cleanName},
+                      ${cleanRelation ?? 'nominee'}, ${nomineeId})
+              RETURNING id
+            `;
+        personId = row.id;
+      }
 
       if (n.birthday) {
         const text = `${cleanName}'s birthday`;
@@ -421,6 +451,7 @@ export async function getSettings(session: Session): Promise<{
     email: string | null;
     has_passphrase: boolean;
     passphrase_set_at: string | null;
+    has_photo: boolean;
   }[];
 }> {
   return withRls(session.user_id, session.role, async (tx) => {
@@ -452,14 +483,20 @@ export async function getSettings(session: Session): Promise<{
         email: string | null;
         has_passphrase: boolean;
         passphrase_set_at: Date | null;
+        has_photo: boolean;
       }[]
     >`
-      SELECT id, name, relationship, email,
-             (passphrase_hash IS NOT NULL) AS has_passphrase,
-             passphrase_set_at
-        FROM nominees
-       WHERE vault_id = ${session.vault_id}
-       ORDER BY created_at ASC
+      SELECT n.id, n.name, n.relationship, n.email,
+             (n.passphrase_hash IS NOT NULL) AS has_passphrase,
+             n.passphrase_set_at,
+             EXISTS (
+               SELECT 1 FROM people p
+                WHERE p.nominee_id = n.id
+                  AND p.reference_embedding IS NOT NULL
+             ) AS has_photo
+        FROM nominees n
+       WHERE n.vault_id = ${session.vault_id}
+       ORDER BY n.created_at ASC
     `;
     return {
       user: { display_name: user?.display_name ?? "Friend" },

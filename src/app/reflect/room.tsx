@@ -328,9 +328,9 @@ export function ReflectionRoom({
                 className="block w-full max-h-[55dvh] object-contain rounded-[14px] border border-rule mb-4 bg-bg-raised"
               />
             )}
-            <div className="mt-2 mb-5 flex items-start gap-5">
+            <div className="mt-2 mb-5 flex flex-col gap-4">
               <SpeakButton text={drawer.snippet} variant="big" />
-              <p className="font-serif italic text-[17px] leading-[1.6] text-ink-soft text-wrap-pretty flex-1">
+              <p className="font-serif italic text-[17px] leading-[1.6] text-ink-soft text-wrap-pretty">
                 {drawer.snippet}
               </p>
             </div>

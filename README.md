@@ -13,6 +13,171 @@ synthesis and vision, EmbeddingGemma for retrieval, Whisper for audio,
 Postgres + pgvector for the index, face-api.js in the browser for face
 clustering. No telemetry. No cloud.
 
+## What's in here
+
+A laundry list, plainly stated. Every one of these works offline, on a
+laptop, with no external API.
+
+### Capture
+
+- **Notes** with auto-generated titles. Gemma 4 reads the body once it
+  is saved and proposes a calm headline; the creator can override it.
+- **Voice notes** transcribed by `whisper-cpp small.en`, segment-aligned,
+  chunked, and embedded into pgvector for retrieval.
+- **Photos** captioned by Gemma 4 vision. Captions are written in the
+  archival third person and name the people in the frame (see *Identity
+  awareness* below).
+- **Pipeline-stage feedback.** Capture sheets stream
+  `embedding → tagging → titling → ready` events over SSE so the user
+  sees what the model is doing without waiting on a spinner.
+- **Tag clustering.** Each capture is tagged across four facets - emotion,
+  topic, person, place - which drives the "Themes" cards on the home.
+- **Drafts persist locally.** If the network drops or the page refreshes
+  mid-capture, IndexedDB holds the blob until the next save attempt.
+
+### Identity awareness
+
+- **Face detection runs in the browser** via `face-api.js`. 128-d
+  descriptors never leave the device unencrypted.
+- **Self-person + nominee photos** can be set at onboarding *or* later
+  from Settings → Your photo / Settings → Nominees. Photo can come from
+  the camera or the photo library.
+- **Identity-aware captions.** When face recognition matches a known
+  person in a new photo, the vision prompt is rewritten so the caption
+  starts with their name ("Anisha holding a cup of coffee" instead of
+  "a young woman in a dark top").
+
+### Voice
+
+- **Voice cloning, offline.** LuxTTS (a ZipVoice flow-matching model)
+  runs as a local FastAPI sidecar on `127.0.0.1:11435`. The creator
+  records ~30 seconds of natural speech once; future captures can be
+  played back in their own voice on demand.
+- **Verbatim contract.** TTS only ever speaks text that already exists
+  in the archive - a capture body, a transcript line, the verbatim
+  snippet behind a Reflection citation. There is no free-text "speak
+  this" affordance, and never will be.
+- **Deterministic synthesis.** Each rendered line is keyed by
+  `sha256(voice_id|text)`. The same line always sounds identical and
+  the second play returns from an on-disk WAV cache.
+- **Calm prosody.** A small punctuation sanitiser softens dramatic
+  emphasis (`!` → `.`, ellipses normalised, ALL-CAPS softened) before
+  the model sees the text, so a sentence like *"will always be yours!"*
+  is read as *"will always be yours."*
+- **Adaptive prompt window.** Encoded prompts use up to 15 seconds of
+  the reference (LuxTTS's recommended ceiling); recordings shorter
+  than 10 seconds are rejected so general users don't end up with a
+  degenerate clone.
+
+### Grounded reflection
+
+- **Retrieval before model.** Every question is embedded
+  (`EmbeddingGemma`, 768-d) and matched against the archive's pgvector
+  HNSW index. If the top chunk falls below cosine `0.40`, the empty
+  state is served verbatim and the language model is never invoked.
+- **Citation validator.** Every claim in a streamed answer is checked
+  against the retrieved set. A claim citing a chunk outside that set
+  rejects the entire answer.
+- **First-person scrubber.** Any answer using "I" or "my" outside
+  quoted text rejects the entire answer.
+- **Photo answers.** When a citation points at a photo capture, the
+  reflect UI renders a thumbnail grid and shows the full image inside
+  the citation drawer instead of a text-only pill chip.
+- **Transparency log.** Every Reflection's diagnostics - retrieved
+  chunks, similarities, rejection reason - are persisted and viewable
+  at `/transparency`.
+
+### Sealed letters and conditional unlock
+
+- **Letters that wait.** A creator can write a letter "for when Maya
+  feels lost" or "for the morning after her wedding". Each letter
+  embeds an intent vector + a structured condition.
+- **Five trigger kinds:** absolute date, life event (anniversary,
+  birthday, etc.), mood ("scared", "proud", typed into the home),
+  semantic match against a Reflection question, and first-visit.
+- **Daily cron.** A schedule worker fires on the host's cron at 09:00
+  local; date- and life-event triggered letters release that morning.
+- **Soft inserts.** Releases happen through `nominee_releases` rows so
+  the existing RLS policies surface the underlying capture naturally,
+  with no separate "is this letter unlocked" check downstream.
+
+### Daily prompts
+
+- **Living prompts.** Each app open shows a fresh writing prompt
+  generated against the creator's identity index (their name, life
+  anchors, nominees). The prompts are calm and specific:
+  *"A moment when you felt small but watched, and chose to act anyway."*
+- **Identity index.** A hidden `is_profile=true` capture stores the
+  creator's structured biography (name, nominees, sealed letters in
+  flight) and is included in retrieval so prompts and answers always
+  have continuity.
+
+### Notifications
+
+- **Web Push.** VAPID-signed push subscriptions work on iOS Safari
+  PWAs (after Add-to-Home-Screen). Nominees can opt in from Settings,
+  test delivery in a click, and the server self-heals stale
+  subscriptions on the next test.
+- **Anniversary nudges.** The daily cron also queues push deliveries
+  when a date-triggered release fires, so a nominee learns "there is
+  a letter for today" the moment it unlocks.
+- **Dev trigger.** `POST /api/dev/send-memory` fires a memory release
+  to a given nominee on demand - useful for staging notifications
+  during a demo or QA pass.
+
+### Nominee surface
+
+- **A different home.** A nominee never sees the capture composer.
+  Their home is a daily memory hero, a recent timeline, themed
+  albums, and a Reflect search box.
+- **Daily memory hero.** When a release fires today, the full body
+  renders inline with the photo (if any) and a "Hear it in their
+  voice" button. Tapping the photo opens a fullscreen lightbox.
+- **Released-only retrieval.** All Reflection queries from the
+  nominee surface are RLS-gated to released captures; nothing the
+  creator drafted but never released is reachable, even by prompt
+  injection.
+
+### Encrypted vault export
+
+- **One file, self-contained.** A creator can export the entire
+  archive - audio blobs, transcripts, embeddings, life events,
+  letters - as a single passphrase-encrypted `.hloom` file.
+- **argon2id + ChaCha20-Poly1305.** Key derivation tuned to
+  m=64 MiB, t=3, p=4. The bundle is self-describing (magic header
+  `HLOOM`, version 1, KDF params, nonce, ciphertext, tag).
+- **Import is symmetric.** The recipient runs Heirloom on their own
+  device, imports the bundle, and from that moment the archive lives
+  on their own hardware. No server ever sees the data decrypted.
+
+### Privacy posture
+
+- **Local-first by default.** The canonical install is `./install.sh`
+  on the creator's own Mac.
+- **No telemetry.** The only outbound HTTPS the running app makes is
+  Caddy → Let's Encrypt for cert renewal (self-host only) and Ollama
+  → ollama.com on the first model pull. Everything else stays on the
+  box.
+- **No managed inference.** The product is Gemma 4 + LuxTTS + Whisper
+  running locally. There is no fallback to OpenAI, Together, Replicate,
+  or any third-party model host. Ever.
+- **Row-level security at the DB.** Every API request opens a Postgres
+  transaction with `app.user_id` and `app.role` set, and every table
+  has policies that scope reads/writes per role.
+
+### Operations
+
+- **PWA.** Installable from iOS Safari and Android Chrome; manifest +
+  apple-touch-icon + optional service worker in production.
+- **Standalone Next build.** `pnpm build` outputs `.next/standalone`,
+  pin `HEIRLOOM_BLOB_DIR` to keep uploaded media outside the build
+  output, run with `node .next/standalone/server.js`.
+- **Dev console.** `/dev` is a role-switcher console for testing the
+  nominee + executor surfaces side-by-side without re-onboarding.
+- **Vault reset.** `POST /api/dev/reset` wipes captures, embeddings,
+  releases, and people while preserving the creator's identity row -
+  useful between demo runs.
+
 ## Try it locally
 
 One-command install on macOS (Apple Silicon recommended, 48 GB unified

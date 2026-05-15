@@ -13,6 +13,7 @@ export async function POST(req: Request) {
         relation?: string | null;
         email?: string | null;
         birthday?: string | null;
+        face_embedding?: number[] | null;
       }[];
     };
     const nominees = Array.isArray(body.nominees) ? body.nominees : [];

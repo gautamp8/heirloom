@@ -19,6 +19,9 @@ type Nominee = {
   name: string;
   relation: string;
   birthday: string;
+  face_embedding?: number[] | null;
+  photo_preview?: string | null;
+  photo_state?: "idle" | "scanning" | "ready" | "error";
 };
 
 type Draft = {
@@ -155,6 +158,10 @@ export function OnboardingFlow() {
             name: n.name.trim(),
             relation: n.relation.trim() || null,
             birthday: n.birthday || null,
+            face_embedding:
+              Array.isArray(n.face_embedding) && n.face_embedding.length === 128
+                ? n.face_embedding
+                : null,
           })),
         }),
       });
@@ -364,7 +371,6 @@ function WelcomeStep(props: {
             <input
               type="file"
               accept="image/*"
-              capture="user"
               className="hidden"
               onChange={props.onSelfie}
             />
@@ -762,6 +768,37 @@ function NomineesStep(props: {
     props.setNominees(props.nominees.filter((_, k) => k !== i));
   }
 
+  async function onPhoto(i: number, e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const preview = URL.createObjectURL(f);
+    update(i, {
+      photo_preview: preview,
+      photo_state: "scanning",
+      face_embedding: null,
+    });
+    try {
+      const { extractFaces } = await import("@/lib/face-client");
+      const faces = await extractFaces(f);
+      if (faces.length === 0) {
+        update(i, { photo_state: "error" });
+        return;
+      }
+      const largest = [...faces].sort(
+        (a, b) => b.bbox.w * b.bbox.h - a.bbox.w * a.bbox.h,
+      )[0];
+      update(i, {
+        photo_state: "ready",
+        face_embedding: largest.embedding,
+      });
+    } catch (err) {
+      console.warn("[onboarding] nominee face scan failed", err);
+      update(i, { photo_state: "error" });
+    } finally {
+      if (e.target) e.target.value = "";
+    }
+  }
+
   return (
     <div className="flex flex-col gap-7">
       <div>
@@ -820,6 +857,42 @@ function NomineesStep(props: {
             >
               ×
             </button>
+            <div className="sm:col-span-4 flex items-center gap-3 mt-1">
+              {n.photo_preview ? (
+                <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={n.photo_preview}
+                    alt={`${n.name || "nominee"} preview`}
+                    className="w-10 h-10 rounded-full object-cover border border-rule"
+                  />
+                  {n.photo_state === "scanning" && (
+                    <span
+                      aria-hidden
+                      className="absolute inset-0 rounded-full border-2 border-ink/15 border-t-ink animate-spin"
+                    />
+                  )}
+                </div>
+              ) : null}
+              <p className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-fade flex-1">
+                {n.photo_state === "scanning"
+                  ? "Looking for their face…"
+                  : n.photo_state === "ready"
+                    ? "Face captured"
+                    : n.photo_state === "error"
+                      ? "No face detected. Try another photo."
+                      : "A photo of them, if you like - helps the archive recognise them."}
+              </p>
+              <label className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink underline cursor-pointer whitespace-nowrap">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => onPhoto(i, e)}
+                />
+                {n.photo_state === "ready" ? "Change" : "Add photo"}
+              </label>
+            </div>
           </div>
         ))}
         <button

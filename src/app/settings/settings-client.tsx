@@ -19,6 +19,7 @@ type NomineeRow = {
   email: string | null;
   has_passphrase: boolean;
   passphrase_set_at: string | null;
+  has_photo: boolean;
 };
 
 type Initial = {
@@ -444,6 +445,14 @@ function NomineesSection({
                 {n.passphrase_set_at && <> · {formatDateLong(n.passphrase_set_at)}</>}
               </p>
             )}
+            <NomineePhotoControl
+              nominee={n}
+              onUpdated={(updated) =>
+                setItems((curr) =>
+                  curr.map((x) => (x.id === updated.id ? updated : x)),
+                )
+              }
+            />
           </li>
         ))}
       </ul>
@@ -460,6 +469,105 @@ function NomineesSection({
         />
       )}
     </section>
+  );
+}
+
+function NomineePhotoControl({
+  nominee,
+  onUpdated,
+}: {
+  nominee: NomineeRow;
+  onUpdated: (n: NomineeRow) => void;
+}) {
+  type S =
+    | { kind: "idle" }
+    | { kind: "scanning"; preview: string }
+    | { kind: "saving"; preview: string }
+    | { kind: "error"; message: string; preview?: string };
+  const [state, setState] = useState<S>({ kind: "idle" });
+
+  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const preview = URL.createObjectURL(f);
+    setState({ kind: "scanning", preview });
+    try {
+      const { extractFaces } = await import("@/lib/face-client");
+      const faces = await extractFaces(f);
+      if (faces.length === 0) {
+        setState({
+          kind: "error",
+          message: "No face detected. Try a clearer photo.",
+          preview,
+        });
+        return;
+      }
+      const largest = [...faces].sort(
+        (a, b) => b.bbox.w * b.bbox.h - a.bbox.w * a.bbox.h,
+      )[0];
+      setState({ kind: "saving", preview });
+      const r = await fetch(`/api/nominees/${nominee.id}/photo`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ face_embedding: largest.embedding }),
+      });
+      if (!r.ok) throw new Error(`status=${r.status}`);
+      URL.revokeObjectURL(preview);
+      setState({ kind: "idle" });
+      onUpdated({ ...nominee, has_photo: true });
+    } catch (err) {
+      console.warn("[nominee photo] failed", err);
+      setState({
+        kind: "error",
+        message: "Couldn't save that photo. Try again.",
+        preview,
+      });
+    } finally {
+      if (e.target) e.target.value = "";
+    }
+  }
+
+  const busy = state.kind === "scanning" || state.kind === "saving";
+  return (
+    <div className="flex items-center gap-3 mt-1">
+      {state.kind !== "idle" && state.preview && (
+        <div className="relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={state.preview}
+            alt={`${nominee.name} preview`}
+            className="w-9 h-9 rounded-full object-cover border border-rule"
+          />
+          {busy && (
+            <span
+              aria-hidden
+              className="absolute inset-0 rounded-full border-2 border-ink/15 border-t-ink animate-spin"
+            />
+          )}
+        </div>
+      )}
+      <p className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-fade flex-1">
+        {state.kind === "scanning"
+          ? `Looking for ${nominee.name}'s face…`
+          : state.kind === "saving"
+            ? "Saving photo…"
+            : state.kind === "error"
+              ? state.message
+              : nominee.has_photo
+                ? "Reference photo on file"
+                : "No reference photo for this person"}
+      </p>
+      <label className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink underline cursor-pointer whitespace-nowrap">
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={onPick}
+          disabled={busy}
+        />
+        {nominee.has_photo ? "Update photo" : "Add photo"}
+      </label>
+    </div>
   );
 }
 
@@ -500,6 +608,7 @@ function AddNomineeForm({
             email: null,
             has_passphrase: true,
             passphrase_set_at: new Date().toISOString(),
+            has_photo: false,
           },
           d.nominee.passphrase,
         );
@@ -1183,7 +1292,6 @@ function SelfieSection() {
                 ref={inputRef}
                 type="file"
                 accept="image/*"
-                capture="user"
                 className="hidden"
                 onChange={onPick}
               />
