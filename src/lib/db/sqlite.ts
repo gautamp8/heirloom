@@ -100,6 +100,20 @@ async function getDb(): Promise<DatabaseT> {
   if (fs.existsSync(schemaPath)) {
     d.exec(fs.readFileSync(schemaPath, "utf8"));
   }
+
+  // Idempotent column adds for dbs that pre-date a schema change.
+  // SQLite lacks `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, so try +
+  // swallow "duplicate column" errors.
+  for (const stmt of [
+    "ALTER TABLE captures ADD COLUMN is_profile INTEGER NOT NULL DEFAULT 0",
+  ]) {
+    try {
+      d.exec(stmt);
+    } catch (e) {
+      if (!String(e).includes("duplicate column name")) throw e;
+    }
+  }
+
   _db = d;
   return d;
 }

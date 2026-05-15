@@ -10,12 +10,17 @@ Heirloom.app
 │   ├── ollama           ← bundled Ollama (~36 MB)
 │   ├── node             ← Node 22 runtime (~107 MB)
 │   └── whisper-cli      ← whisper.cpp (~650 KB)
-└── Contents/Resources/server/
-    ├── server.js        ← Next.js standalone server
-    ├── .next/           ← prod build assets
-    ├── node_modules/    ← slim trace, includes better-sqlite3 + sqlite-vec
-    ├── public/
-    └── migrations/sqlite/001_schema.sql
+└── Contents/Resources/
+    ├── server/          ← embedded Next.js standalone server
+    │   ├── server.js
+    │   ├── .next/
+    │   ├── node_modules/    ← better-sqlite3 + sqlite-vec
+    │   ├── public/
+    │   └── migrations/sqlite/001_schema.sql
+    └── tts/             ← optional voice-cloning sidecar
+        ├── server.py
+        ├── requirements.txt
+        └── install-tts.sh
 ```
 
 On launch the shell:
@@ -25,11 +30,32 @@ On launch the shell:
    model cache live here so uninstall = `rm -rf`).
 2. Spawns Ollama on `127.0.0.1:11434` with `OLLAMA_MODELS` pointed at
    the app-data dir.
-3. Spawns the bundled Node + Next.js server on `127.0.0.1:3000` with
+3. If `<app_data>/tts/run.sh` exists (created by `install-tts.sh`),
+   spawns the LuxTTS voice-cloning sidecar on `127.0.0.1:11435`.
+   Otherwise voice features stay disabled — text, photo, retrieval
+   all work unchanged.
+4. Spawns the bundled Node + Next.js server on `127.0.0.1:3000` with
    `HEIRLOOM_BACKEND=sqlite`.
-4. Opens a WKWebView at the placeholder page, which polls
+5. Opens a WKWebView at the placeholder page, which polls
    `/api/health` and pivots to the portal once it answers.
-5. On exit, SIGTERMs both children so they don't outlive the window.
+6. On exit, SIGTERMs all children so they don't outlive the window.
+
+## Optional: voice cloning
+
+Voice cloning (LuxTTS + ZipVoice) is a heavy dependency stack
+(~2 GB of ML wheels + a model download on first use), so the .dmg
+ships only the source + an installer. To enable voice features:
+
+```bash
+bash "/Applications/Heirloom.app/Contents/Resources/tts/install-tts.sh"
+```
+
+The installer creates a venv at `~/Library/Application Support/Heirloom/tts/`
+with the required wheels and a launcher script. Quit and relaunch
+Heirloom — the shell auto-detects the sidecar and starts it next time.
+
+Settings → Voice surfaces the same instruction when TTS is offline,
+so end users don't have to dig through the bundle.
 
 ## Build the .dmg
 

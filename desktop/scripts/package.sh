@@ -98,6 +98,21 @@ rm -rf "$TARGET_SERVER"
 cp -R desktop/server "$TARGET_SERVER"
 ok "server copied into bundle ($(du -sh "$TARGET_SERVER" | cut -f1))"
 
+# 5b. Stage the TTS sidecar source + installer in Resources/tts ----------
+# We DON'T bundle the venv (LuxTTS + torch ~ 2 GB). The user runs
+# install-tts.sh once to set things up under ~/Library/Application
+# Support/Heirloom/tts/. Heirloom's Rust shell checks for that path on
+# boot and spawns the sidecar automatically when it's present.
+TARGET_TTS="$APP_DIR/Contents/Resources/tts"
+rm -rf "$TARGET_TTS"
+mkdir -p "$TARGET_TTS"
+cp infra/tts-server/server.py        "$TARGET_TTS/"
+cp infra/tts-server/requirements.txt "$TARGET_TTS/"
+cp infra/tts-server/README.md        "$TARGET_TTS/" 2>/dev/null || true
+cp desktop/scripts/install-tts.sh    "$TARGET_TTS/"
+chmod +x "$TARGET_TTS/install-tts.sh"
+ok "tts sidecar source + installer staged (run with 'open $TARGET_TTS/install-tts.sh' or via Settings)"
+
 # 6. Re-pack the dmg now that the bundle is complete ----------------------
 heading "Repack .dmg"
 rm -f desktop/src-tauri/target/release/bundle/dmg/*.dmg

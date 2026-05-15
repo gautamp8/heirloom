@@ -1151,10 +1151,20 @@ function VoiceSection() {
       )}
 
       {state.kind === "unavailable" && (
-        <p className="p-meta">
-          {state.reason} The desktop app spawns it automatically; on the
-          server build set <code className="font-mono">HEIRLOOM_TTS_URL</code>.
-        </p>
+        <div className="rounded-[12px] border border-rule-soft p-4 max-w-[560px] bg-paper">
+          <p className="p-meta mb-2">{state.reason}</p>
+          <p className="p-meta max-w-[480px]">
+            Voice cloning needs a one-time, on-device setup (~2 GB of ML
+            dependencies). In the macOS app, run this once in Terminal:
+          </p>
+          <pre className="mt-2 px-3 py-2 rounded-md bg-bg-raised border border-rule font-mono text-[12px] overflow-x-auto">
+            bash &quot;/Applications/Heirloom.app/Contents/Resources/tts/install-tts.sh&quot;
+          </pre>
+          <p className="p-meta mt-2">
+            After it finishes, quit and relaunch Heirloom — the voice
+            sidecar will auto-start.
+          </p>
+        </div>
       )}
 
       {state.kind === "have-profile" && (

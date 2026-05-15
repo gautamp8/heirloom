@@ -86,6 +86,25 @@ pub fn run() {
                 }
             }
 
+            // Optional: spawn the TTS (voice-cloning) sidecar if the
+            // user has run install-tts.sh. The sidecar is heavy (~2 GB
+            // of ML deps), so the .dmg ships only the install script
+            // and source; voice features stay disabled until the user
+            // opts in. The Rust shell just exec's the launcher.
+            let tts_run = app_data.join("tts").join("run.sh");
+            log::info!("[heirloom] tts_run exists={}", tts_run.exists());
+            if tts_run.exists() {
+                match Command::new("/bin/bash")
+                    .arg(&tts_run)
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped())
+                    .spawn()
+                {
+                    Ok(child) => app.state::<AppChildren>().push(child),
+                    Err(e) => log::error!("[heirloom] tts spawn failed: {}", e),
+                }
+            }
+
             // Spawn the embedded Next.js standalone server. The bundle
             // pipeline copies `.next/standalone/` into Resources/server
             // and ships node as a sidecar alongside ollama.
@@ -110,6 +129,7 @@ pub fn run() {
                     .env("HEIRLOOM_SQLITE_PATH", db_path.to_string_lossy().to_string())
                     .env("HEIRLOOM_BLOB_DIR", blob_dir.to_string_lossy().to_string())
                     .env("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+                    .env("HEIRLOOM_TTS_URL", "http://127.0.0.1:11435")
                     .env(
                         "JWT_SECRET",
                         std::env::var("JWT_SECRET")

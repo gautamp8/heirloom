@@ -42,12 +42,15 @@ CREATE TABLE IF NOT EXISTS captures (
     body            TEXT,
     blob_url        TEXT,
     duration_ms     INTEGER,
+    is_profile      INTEGER NOT NULL DEFAULT 0,
     captured_at     TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_captures_vault_captured
     ON captures(vault_id, captured_at DESC);
+CREATE INDEX IF NOT EXISTS idx_captures_profile
+    ON captures(vault_id) WHERE is_profile = 1;
 
 CREATE TABLE IF NOT EXISTS transcripts (
     id              TEXT PRIMARY KEY DEFAULT (gen_uuid()),
