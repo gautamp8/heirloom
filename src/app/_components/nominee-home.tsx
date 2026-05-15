@@ -398,14 +398,14 @@ function UnlockedLetterCard({
         {fired.occasion_prompt}
       </p>
       {capture.body && (
-        <p className="font-serif text-[16px] leading-[1.6] text-ink-soft mt-3 text-wrap-pretty">
-          {smartSnippet(capture.body, 320)}
+        <p className="font-serif text-[16px] leading-[1.6] text-ink-soft mt-3 text-wrap-pretty whitespace-pre-wrap">
+          {capture.body}
         </p>
       )}
       {capture.body && (
         <div className="mt-4">
           <SpeakButton
-            text={smartSnippet(capture.body, 600)}
+            text={capture.body}
             variant="big"
             label="Hear them read this"
           />
@@ -452,6 +452,11 @@ function ReleasedRow({ cap }: { cap: ReleasedCapture }) {
   const isAudio = cap.kind === "audio";
   const isPhoto = cap.kind === "photo";
   const [lightbox, setLightbox] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  // The full body the user wrote (or the transcript text). If the API
+  // gave us nothing, fall back to the truncated snippet.
+  const fullText = cap.body ?? cap.transcript_snippet ?? "";
+  const isTruncated = fullText.length > 180;
   return (
     <li className="flex flex-col gap-3 py-3 border-b border-rule">
       {isPhoto && (
@@ -497,14 +502,26 @@ function ReleasedRow({ cap }: { cap: ReleasedCapture }) {
               {cap.title}
             </p>
           )}
-          {cap.transcript_snippet && (
-            <p className="font-serif italic text-[14px] leading-[1.45] text-ink-soft mt-1 text-wrap-pretty">
-              {smartSnippet(cap.transcript_snippet)}
-            </p>
+          {fullText && (
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="text-left mt-1 group"
+              aria-label="Read the full memory"
+            >
+              <p className="font-serif italic text-[14px] leading-[1.45] text-ink-soft text-wrap-pretty">
+                {smartSnippet(fullText)}
+                {isTruncated && (
+                  <span className="ml-1 font-mono text-[10px] tracking-[0.14em] uppercase text-ink-muted underline group-hover:text-ink whitespace-nowrap">
+                    Read more
+                  </span>
+                )}
+              </p>
+            </button>
           )}
-          {cap.transcript_snippet && (
+          {fullText && (
             <div className="mt-2">
-              <SpeakButton text={cap.transcript_snippet} />
+              <SpeakButton text={fullText} />
             </div>
           )}
         </div>
@@ -520,6 +537,47 @@ function ReleasedRow({ cap }: { cap: ReleasedCapture }) {
             alt={cap.title ?? "Photograph"}
             className="max-w-full max-h-full object-contain"
           />
+        </div>
+      )}
+      {expanded && (
+        <div
+          className="fixed inset-0 z-40 bg-black/30 flex items-end"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setExpanded(false);
+          }}
+        >
+          <div className="w-full bg-paper rounded-t-[24px] shadow-paper-3 max-h-[85dvh] overflow-y-auto p-6">
+            <div className="flex items-center justify-between mb-3">
+              <p className="eyebrow">
+                {isPhoto
+                  ? "Source photo"
+                  : isAudio
+                    ? "Voice note"
+                    : "Written note"}
+              </p>
+              <button
+                className="text-ink-muted hover:text-ink p-1 px-2 rounded-md"
+                onClick={() => setExpanded(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-fade mb-3">
+              {time}
+            </p>
+            {cap.title && (
+              <h3 className="font-serif text-[22px] leading-tight text-ink mb-4 text-wrap-pretty">
+                {cap.title}
+              </h3>
+            )}
+            <p className="font-serif text-[17px] leading-[1.6] text-ink whitespace-pre-wrap text-wrap-pretty">
+              {fullText}
+            </p>
+            <div className="mt-5">
+              <SpeakButton text={fullText} variant="big" />
+            </div>
+          </div>
         </div>
       )}
     </li>
