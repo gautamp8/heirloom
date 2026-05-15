@@ -96,6 +96,8 @@ export function SettingsClient({ initial }: { initial: Initial }) {
 
       <VoiceSection />
 
+      <SelfieSection />
+
       <NotificationsSection />
 
       <VaultSection />
@@ -1047,6 +1049,150 @@ function ImportPanel() {
         </dl>
       )}
     </div>
+  );
+}
+
+type SelfieState =
+  | { kind: "checking" }
+  | { kind: "no-photo" }
+  | { kind: "have-photo" }
+  | { kind: "scanning"; preview: string }
+  | { kind: "saving"; preview: string }
+  | { kind: "error"; message: string; preview?: string };
+
+function SelfieSection() {
+  const [state, setState] = useState<SelfieState>({ kind: "checking" });
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  async function refresh() {
+    setState({ kind: "checking" });
+    try {
+      const r = await fetch("/api/onboarding/self", { cache: "no-store" });
+      const d = (await r.json()) as { has_embedding?: boolean };
+      setState({ kind: d.has_embedding ? "have-photo" : "no-photo" });
+    } catch {
+      setState({ kind: "no-photo" });
+    }
+  }
+
+  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const preview = URL.createObjectURL(f);
+    setState({ kind: "scanning", preview });
+
+    try {
+      const { extractFaces } = await import("@/lib/face-client");
+      const faces = await extractFaces(f);
+      if (faces.length === 0) {
+        setState({
+          kind: "error",
+          message: "Couldn't find a face. Try a clearer photo of just you.",
+          preview,
+        });
+        return;
+      }
+      // Pick the largest face if more than one
+      const largest = [...faces].sort(
+        (a, b) => b.bbox.w * b.bbox.h - a.bbox.w * a.bbox.h,
+      )[0];
+      setState({ kind: "saving", preview });
+      const r = await fetch("/api/onboarding/self", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ face_embedding: largest.embedding }),
+      });
+      if (!r.ok) throw new Error(`save failed: ${r.status}`);
+      URL.revokeObjectURL(preview);
+      setState({ kind: "have-photo" });
+    } catch (err) {
+      console.warn("[selfie] update failed", err);
+      setState({
+        kind: "error",
+        message: "Couldn't save that photo. Try again in a moment.",
+        preview,
+      });
+    } finally {
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="eyebrow">Your photo</h2>
+      <p className="p-body max-w-[520px]">
+        A reference photo of you lets Heirloom recognise your face in
+        the photos you capture, so captions can name you instead of
+        describing you generically.
+      </p>
+
+      <details className="rounded-[12px] border border-rule p-4 bg-bg-raised max-w-[560px]">
+        <summary className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-muted cursor-pointer">
+          What the archive does with this
+        </summary>
+        <p className="p-meta mt-2 max-w-[480px]">
+          Face detection runs entirely on this device. We keep only a
+          128-number fingerprint of your face on the archive, not the
+          image itself. It is used only to recognise you in your own
+          photos.
+        </p>
+      </details>
+
+      <div className="flex items-center gap-4 max-w-[560px]">
+        {(state.kind === "scanning" ||
+          state.kind === "saving" ||
+          (state.kind === "error" && state.preview)) && (
+          <div className="relative">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={state.preview!}
+              alt="Selected photo"
+              className="w-20 h-20 rounded-full object-cover border border-rule"
+            />
+            {(state.kind === "scanning" || state.kind === "saving") && (
+              <span
+                aria-hidden
+                className="absolute inset-0 rounded-full border-2 border-ink/15 border-t-ink animate-spin"
+              />
+            )}
+          </div>
+        )}
+        <div className="flex flex-col gap-2">
+          <p className="font-mono text-[11px] tracking-[0.16em] uppercase text-ink-muted">
+            {state.kind === "checking"
+              ? "Checking…"
+              : state.kind === "have-photo"
+                ? "A reference photo is on file."
+                : state.kind === "scanning"
+                  ? "Looking for your face…"
+                  : state.kind === "saving"
+                    ? "Saving…"
+                    : state.kind === "error"
+                      ? state.message
+                      : "No reference photo yet."}
+          </p>
+          {(state.kind === "no-photo" ||
+            state.kind === "have-photo" ||
+            state.kind === "error") && (
+            <label className="btn cursor-pointer self-start">
+              <input
+                ref={inputRef}
+                type="file"
+                accept="image/*"
+                capture="user"
+                className="hidden"
+                onChange={onPick}
+              />
+              {state.kind === "have-photo" ? "Update photo" : "Add a photo"}
+            </label>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 

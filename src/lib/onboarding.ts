@@ -47,43 +47,54 @@ export async function getOnboardingStatus(
   });
 }
 
-/** Creator name + optional selfie embedding (stored on the self person). */
+/** Creator name and/or selfie embedding (stored on the self person).
+ *
+ *  Onboarding passes a `display_name`; Settings passes only a
+ *  `face_embedding` to update the reference photo. At least one must
+ *  be present - the caller is expected to validate.
+ */
 export async function saveSelf(
   session: Session,
   opts: {
-    display_name: string;
+    display_name?: string;
     face_embedding?: number[]; // 128-dim from face-api.js
   },
 ): Promise<void> {
-  const name = opts.display_name.trim();
-  if (!name) throw new Error("missing_name");
+  const name = opts.display_name?.trim();
+  const faceVec =
+    opts.face_embedding && opts.face_embedding.length === 128
+      ? vec(opts.face_embedding)
+      : null;
 
   await withRls(session.user_id, session.role, async (tx) => {
-    await tx`UPDATE users SET display_name = ${name} WHERE id = ${session.user_id}`;
-
-    const faceVec =
-      opts.face_embedding && opts.face_embedding.length === 128
-        ? vec(opts.face_embedding)
-        : null;
+    if (name) {
+      await tx`UPDATE users SET display_name = ${name} WHERE id = ${session.user_id}`;
+    }
 
     // One self-person per vault. Upsert by relation='self'.
     const [existing] = await tx<{ id: string }[]>`
       SELECT id FROM people WHERE vault_id = ${session.vault_id} AND relation = 'self'
     `;
     if (existing) {
-      if (faceVec) {
+      if (name && faceVec) {
         await tx`
           UPDATE people SET display_name = ${name},
                             reference_embedding = ${faceVec},
                             confirmed = TRUE
            WHERE id = ${existing.id}
         `;
-      } else {
+      } else if (faceVec) {
+        await tx`
+          UPDATE people SET reference_embedding = ${faceVec},
+                            confirmed = TRUE
+           WHERE id = ${existing.id}
+        `;
+      } else if (name) {
         await tx`
           UPDATE people SET display_name = ${name} WHERE id = ${existing.id}
         `;
       }
-    } else {
+    } else if (name) {
       if (faceVec) {
         await tx`
           INSERT INTO people (vault_id, display_name, relation, user_id,
