@@ -379,14 +379,22 @@ function WelcomeStep(props: {
 
         {props.selfiePreview && (
           <div className="flex items-center gap-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={props.selfiePreview}
-              alt="You"
-              className="w-24 h-24 rounded-full object-cover border border-rule"
-            />
+            <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={props.selfiePreview}
+                alt="You"
+                className="w-24 h-24 rounded-full object-cover border border-rule"
+              />
+              {props.selfieScanning && (
+                <span
+                  aria-hidden
+                  className="absolute inset-0 rounded-full border-2 border-ink/15 border-t-ink animate-spin"
+                />
+              )}
+            </div>
             <div className="flex flex-col gap-1.5">
-              <p className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted">
+              <p className="font-mono text-[11px] tracking-[0.16em] uppercase text-ink-muted">
                 {props.selfieScanning
                   ? "Looking for your face…"
                   : props.selfieReady
@@ -409,9 +417,13 @@ function WelcomeStep(props: {
         <button
           className="btn"
           onClick={props.onContinue}
-          disabled={props.submitting || !props.name.trim()}
+          disabled={props.submitting || props.selfieScanning || !props.name.trim()}
         >
-          {props.submitting ? "Saving…" : "Continue"}
+          {props.submitting
+            ? "Saving…"
+            : props.selfieScanning
+              ? "Scanning…"
+              : "Continue"}
         </button>
       </div>
     </div>
@@ -435,6 +447,7 @@ function VoiceStep(props: { onBack: () => void; onContinue: () => void }) {
   type S =
     | { kind: "ready" }
     | { kind: "recording"; durationMs: number }
+    | { kind: "processing" }
     | { kind: "preview"; url: string; blob: Blob }
     | { kind: "uploading" }
     | { kind: "done" }
@@ -478,6 +491,7 @@ function VoiceStep(props: { onBack: () => void; onContinue: () => void }) {
       mr.addEventListener("stop", () => resolve(), { once: true });
       mr.stop();
     });
+    setState({ kind: "processing" });
     const blob = new Blob(chunksRef.current, { type: "audio/webm" });
     const wav = await webmBlobToWav(blob);
     setState({ kind: "preview", url: URL.createObjectURL(wav), blob: wav });
@@ -491,10 +505,14 @@ function VoiceStep(props: { onBack: () => void; onContinue: () => void }) {
     fd.append("reference_text", VOICE_SCRIPT);
     const r = await fetch("/api/voice/clone", { method: "POST", body: fd });
     if (!r.ok) {
-      setState({
-        kind: "error",
-        message: "Couldn't save your voice. The engine may be starting up.",
-      });
+      const err = (await r.json().catch(() => null)) as
+        | { error?: { code?: string } }
+        | null;
+      const msg =
+        err?.error?.code === "recording_too_short"
+          ? "That recording is a bit short. Try reading the full passage so the voice can be cloned cleanly."
+          : "Couldn't save your voice. The engine may be starting up.";
+      setState({ kind: "error", message: msg });
       return;
     }
     setState({ kind: "done" });
@@ -537,6 +555,17 @@ function VoiceStep(props: { onBack: () => void; onContinue: () => void }) {
             Stop ({Math.floor(state.durationMs / 1000)}s)
           </button>
         )}
+        {state.kind === "processing" && (
+          <div className="flex items-center gap-3">
+            <span
+              aria-hidden
+              className="inline-block w-3.5 h-3.5 rounded-full border-2 border-ink/15 border-t-ink animate-spin"
+            />
+            <p className="font-mono text-[11px] tracking-[0.16em] uppercase text-ink-muted">
+              Listening to what you said…
+            </p>
+          </div>
+        )}
         {state.kind === "preview" && (
           <>
             {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
@@ -557,9 +586,15 @@ function VoiceStep(props: { onBack: () => void; onContinue: () => void }) {
           </>
         )}
         {state.kind === "uploading" && (
-          <p className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted">
-            Saving your voice…
-          </p>
+          <div className="flex items-center gap-3">
+            <span
+              aria-hidden
+              className="inline-block w-3.5 h-3.5 rounded-full border-2 border-ink/15 border-t-ink animate-spin"
+            />
+            <p className="font-mono text-[11px] tracking-[0.16em] uppercase text-ink-muted">
+              Cloning your voice…
+            </p>
+          </div>
         )}
         {state.kind === "error" && (
           <>

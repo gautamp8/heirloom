@@ -6,6 +6,10 @@ import { encodeReference } from "@/lib/tts";
 export const dynamic = "force-dynamic";
 
 const MAX_REFERENCE_BYTES = 12 * 1024 * 1024; // 12 MB ≈ 4 min of 16-bit mono 24 kHz
+// LuxTTS clones from up to 15s of prompt audio. Anything below ~10s drifts
+// to a generic voice on longer synthesised lines, so we require enough
+// reference material to capture timbre properly.
+const MIN_REFERENCE_SECONDS = 10;
 
 /**
  * POST /api/voice/clone
@@ -34,6 +38,10 @@ export async function POST(req: Request) {
     const bytes = new Uint8Array(await file.arrayBuffer());
     const { blob_url } = await writeBlob(bytes, "wav");
     const encoded = await encodeReference(bytes, "reference.wav");
+
+    if (encoded.duration_seconds < MIN_REFERENCE_SECONDS) {
+      throw new HttpError(400, "recording_too_short");
+    }
 
     const profile = await withRls(session.user_id, session.role, async (tx) => {
       const [row] = await tx<{ id: string; voice_id: string }[]>`

@@ -5,7 +5,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { SpeakButton } from "@/app/_components/speak-button";
 import { VoiceInput } from "@/app/_components/voice-input";
 
-type Citation = { capture_id: string; snippet: string };
+type Citation = {
+  capture_id: string;
+  snippet: string;
+  kind?: "audio" | "photo" | "note" | "video";
+  blob_url?: string | null;
+};
 
 type StreamState = {
   status: "idle" | "retrieving" | "grounded" | "ungrounded" | "answering" | "done" | "error";
@@ -206,18 +211,50 @@ export function ReflectionRoom({
                   {citations.length === 1 ? "capture" : "captures"} ·{" "}
                   Tap to view the source
                 </p>
+                {citations.some((c) => c.kind === "photo" && c.blob_url) && (
+                  <ul className="grid grid-cols-2 gap-3 mb-3">
+                    {citations
+                      .filter((c) => c.kind === "photo" && c.blob_url)
+                      .map((c, i) => (
+                        <li key={c.capture_id}>
+                          <button
+                            type="button"
+                            onClick={() => setDrawer(c)}
+                            className="block w-full rounded-[12px] overflow-hidden border border-rule hover:border-ink-muted transition-colors text-left bg-bg-raised"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={`/api/blob/${c.capture_id}`}
+                              alt={c.snippet.slice(0, 80)}
+                              className="block w-full h-40 object-cover"
+                            />
+                            <span className="block px-3 py-2 font-mono text-[9px] tracking-[0.16em] uppercase text-ink-fade">
+                              source {i + 1}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                )}
                 <ul className="flex flex-wrap gap-2">
-                  {citations.map((c, i) => (
-                    <li key={c.capture_id}>
-                      <button
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-rule font-mono text-[11px] tracking-wider uppercase text-ink-soft hover:border-ink-muted bg-bg-raised transition-colors"
-                        onClick={() => setDrawer(c)}
-                      >
-                        <sup className="text-wax">{i + 1}</sup>
-                        capture {c.capture_id.slice(0, 8)}
-                      </button>
-                    </li>
-                  ))}
+                  {citations
+                    .filter((c) => !(c.kind === "photo" && c.blob_url))
+                    .map((c, i) => (
+                      <li key={c.capture_id}>
+                        <button
+                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-rule font-mono text-[11px] tracking-wider uppercase text-ink-soft hover:border-ink-muted bg-bg-raised transition-colors"
+                          onClick={() => setDrawer(c)}
+                        >
+                          <sup className="text-wax">{i + 1}</sup>
+                          {c.kind === "audio"
+                            ? "voice note"
+                            : c.kind === "note"
+                              ? "written note"
+                              : "capture"}{" "}
+                          {c.capture_id.slice(0, 8)}
+                        </button>
+                      </li>
+                    ))}
                 </ul>
               </>
             )}
@@ -266,9 +303,15 @@ export function ReflectionRoom({
             if (e.target === e.currentTarget) setDrawer(null);
           }}
         >
-          <div className="w-full bg-paper rounded-t-[24px] shadow-paper-3 max-h-[80dvh] overflow-y-auto p-6">
+          <div className="w-full bg-paper rounded-t-[24px] shadow-paper-3 max-h-[85dvh] overflow-y-auto p-6">
             <div className="flex items-center justify-between mb-3">
-              <p className="eyebrow">Source capture</p>
+              <p className="eyebrow">
+                {drawer.kind === "photo"
+                  ? "Source photo"
+                  : drawer.kind === "audio"
+                    ? "Source recording"
+                    : "Source capture"}
+              </p>
               <button
                 className="text-ink-muted hover:text-ink p-1 px-2 rounded-md"
                 onClick={() => setDrawer(null)}
@@ -277,6 +320,14 @@ export function ReflectionRoom({
                 ✕
               </button>
             </div>
+            {drawer.kind === "photo" && drawer.blob_url && (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={`/api/blob/${drawer.capture_id}`}
+                alt={drawer.snippet.slice(0, 80)}
+                className="block w-full max-h-[55dvh] object-contain rounded-[14px] border border-rule mb-4 bg-bg-raised"
+              />
+            )}
             <div className="mt-2 mb-5 flex items-start gap-5">
               <SpeakButton text={drawer.snippet} variant="big" />
               <p className="font-serif italic text-[17px] leading-[1.6] text-ink-soft text-wrap-pretty flex-1">
@@ -383,5 +434,5 @@ function uniqueCitations(
 const DEFAULT_PROMPTS = [
   "Tell me about your grandmother.",
   "What did you learn from your father?",
-  "What did you wear when you got married?",
+  "Show me photos from our wedding.",
 ];

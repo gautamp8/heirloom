@@ -6,7 +6,11 @@ export type FaceInput = {
   embedding: number[];
 };
 
-const MATCH_THRESHOLD = 0.6;
+// face-api.js descriptors of the same person can drift with lighting,
+// expression, and pose. 0.6 cosine-similarity was over-strict and
+// frequently missed matches on candid shots; 0.45 still avoids
+// cross-person collisions in our small vault scale.
+const MATCH_THRESHOLD = 0.45;
 
 /**
  * Store detected faces for a capture. For each face, look for the closest
@@ -43,6 +47,12 @@ export async function storeFaceAppearances(
     const personId =
       match && match.similarity >= MATCH_THRESHOLD ? match.id : null;
     const similarity = match?.similarity ?? null;
+    console.log(
+      "[faces] match: similarity=%s threshold=%s -> %s",
+      similarity?.toFixed(3) ?? "none",
+      MATCH_THRESHOLD,
+      personId ? "matched" : "unmatched",
+    );
 
     await tx`
       INSERT INTO face_appearances

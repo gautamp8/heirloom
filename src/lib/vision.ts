@@ -22,24 +22,19 @@ export async function captionPhoto(
   const buf = await fs.readFile(absPath);
   const b64 = buf.toString("base64");
 
-  const peopleHint = (opts.people ?? []).length
-    ? `Known people in this photo (use their names, do not invent others): ${
-        opts.people!
-          .map(
-            (p) =>
-              `${p.display_name} at [x=${p.bbox.x.toFixed(2)},y=${p.bbox.y.toFixed(2)}]`,
-          )
-          .join("; ")
-      }`
-    : null;
+  const people = opts.people ?? [];
+  const namesList = people.map((p) => p.display_name).join(", ");
 
   const system = [
     "You describe family photographs for an archival memory system.",
     "Voice: third person, calm, observational. One paragraph, 1–3 sentences.",
-    "Mention people by name when given; otherwise describe them factually.",
+    people.length > 0
+      ? `IMPORTANT: This photo contains ${namesList}. You MUST refer to ${
+          people.length === 1 ? "them" : "each of them"
+        } by name. Do not use generic descriptions like "a woman" or "a young man" when a name is available. Begin with their name.`
+      : "Describe the people factually (their clothing, posture, what they are doing).",
     "Note light, setting, mood, clothing, objects. Avoid speculation about feelings.",
     "Do not invent details that are not visible. Do not mention 'the image' or 'photograph'.",
-    peopleHint,
   ]
     .filter(Boolean)
     .join("\n");

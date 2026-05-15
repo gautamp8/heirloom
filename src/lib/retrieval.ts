@@ -7,6 +7,8 @@ export type RetrievedChunk = {
   text: string;
   captured_at: Date;
   similarity: number;
+  kind: "audio" | "photo" | "note" | "video";
+  blob_url: string | null;
 };
 
 /** Top-k cosine retrieval over `transcript_chunks` within the session's
@@ -22,6 +24,8 @@ export async function fetchTopK(
              tc.chunk_index,
              tc.text,
              c.captured_at,
+             c.kind,
+             c.blob_url,
              ${cosineSim("tc.embedding", qEmbedding)} AS similarity
       FROM transcript_chunks tc
       JOIN captures c ON c.id = tc.capture_id

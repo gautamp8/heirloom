@@ -103,13 +103,24 @@ class TTSEngine:
         if voice_id in self._prompt_cache:
             return
         t0 = time.time()
+        # LuxTTS recommends ~15s of prompt as the upper bound for best
+        # performance; shorter prompts (≤5s) drift to a generic voice on
+        # any synthesised utterance longer than ~6s. Use up to 15s of
+        # whatever the user actually recorded.
+        info = sf.info(str(audio_path))
+        prompt_seconds = max(3.0, min(15.0, info.duration))
         encoded = self._model.encode_prompt(
             prompt_audio=str(audio_path),
-            duration=5,
+            duration=prompt_seconds,
             rms=0.01,
         )
         self._prompt_cache[voice_id] = encoded
-        log.info("encoded voice=%s in %.1fs", voice_id, time.time() - t0)
+        log.info(
+            "encoded voice=%s prompt=%.1fs in %.1fs",
+            voice_id,
+            prompt_seconds,
+            time.time() - t0,
+        )
 
     def speak(self, voice_id: str, text: str) -> tuple[np.ndarray, int]:
         clean = _sanitize_for_tts(text)
@@ -136,7 +147,7 @@ class TTSEngine:
         wav = self._model.generate_speech(
             text=clean,
             encode_dict=self._prompt_cache[voice_id],
-            num_steps=4,
+            num_steps=8,
             guidance_scale=3.0,
             t_shift=0.5,
             speed=1.0,

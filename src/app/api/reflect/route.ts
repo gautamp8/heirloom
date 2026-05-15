@@ -181,6 +181,8 @@ export async function POST(req: Request) {
                   return {
                     capture_id: cid,
                     snippet: ch.text.slice(0, 220),
+                    kind: ch.kind,
+                    blob_url: ch.blob_url,
                   };
                 }),
               });
