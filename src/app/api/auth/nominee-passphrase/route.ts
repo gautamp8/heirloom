@@ -31,15 +31,10 @@ type Row = {
  *
  * Body: { passphrase: string }
  *
- * Auth flow:
- *   1. Iterate all nominees with a passphrase_hash and argon2id-verify.
- *      First match wins.
- *   2. If no real hash matches, fall back to the dev passphrase
- *      "the long road home" which unlocks the bootstrap-seeded Maya.
- *   3. Issue a session JWT scoped to that nominee's vault.
- *
- * Verification is constant-time-ish: we always sleep for a moment after a
- * failure so timing can't distinguish wrong-from-unbootstrapped.
+ * Accepts either a nominee passphrase (opens that nominee's view of a
+ * creator's vault) or a creator passphrase (opens the creator's own
+ * archive). Nominees are tried first so the envelope animation in
+ * /welcome can play when there's a sealed letter to read.
  */
 export async function POST(req: Request) {
   try {
@@ -49,21 +44,19 @@ export async function POST(req: Request) {
     if (!raw) throw new HttpError(400, "empty_passphrase");
     const normalised = normalisePassphrase(raw);
 
-    const rows = await sqlAdmin<Row[]>`
+    const nomineeRows = await sqlAdmin<Row[]>`
       SELECT n.user_id, n.id AS nominee_id, n.vault_id, n.name, n.relationship,
              n.letter_body, n.passphrase_hash, n.email
         FROM nominees n
+       WHERE n.passphrase_hash IS NOT NULL
        ORDER BY n.created_at ASC
     `;
 
-    // 1) Try the real per-nominee hashes first.
-    let match: Row | null = null;
-    for (const r of rows) {
-      if (!r.passphrase_hash) continue;
+    let nomineeMatch: Row | null = null;
+    for (const r of nomineeRows) {
       try {
-        const ok = await argon2.verify(r.passphrase_hash, normalised);
-        if (ok) {
-          match = r;
+        if (await argon2.verify(r.passphrase_hash!, normalised)) {
+          nomineeMatch = r;
           break;
         }
       } catch {
@@ -71,54 +64,84 @@ export async function POST(req: Request) {
       }
     }
 
-    // 2) Dev fallback - first nominee with an existing user_id accepts
-    //    the dev passphrase. Skipped entirely in production unless dev
-    //    fixtures are explicitly enabled.
-    if (!match && normalised === DEV_PASSPHRASE_NORMALISED) {
-      match = rows.find((r) => r.user_id) ?? null;
+    if (!nomineeMatch && normalised === DEV_PASSPHRASE_NORMALISED) {
+      nomineeMatch = nomineeRows.find((r) => r.user_id) ?? null;
     }
 
-    if (!match) {
-      await new Promise((r) => setTimeout(r, 500));
-      throw new HttpError(401, "wrong_passphrase");
+    if (nomineeMatch) {
+      let userId = nomineeMatch.user_id;
+      if (!userId) {
+        const email =
+          nomineeMatch.email && nomineeMatch.email.trim().length > 0
+            ? nomineeMatch.email.trim()
+            : `${nomineeMatch.nominee_id}@nominee.heirloom.local`;
+        const [user] = await sqlAdmin<{ id: string }[]>`
+          INSERT INTO users (email, display_name)
+          VALUES (${email}, ${nomineeMatch.name})
+          ON CONFLICT (email) DO UPDATE SET display_name = EXCLUDED.display_name
+          RETURNING id
+        `;
+        await sqlAdmin`
+          UPDATE nominees SET user_id = ${user.id} WHERE id = ${nomineeMatch.nominee_id}
+        `;
+        userId = user.id;
+      }
+
+      const jwt = await issueSession({
+        user_id: userId,
+        vault_id: nomineeMatch.vault_id,
+        role: "nominee",
+      });
+      await setSessionCookie(jwt);
+
+      return Response.json({
+        role: "nominee",
+        nominee: {
+          id: nomineeMatch.nominee_id,
+          name: nomineeMatch.name,
+          relationship: nomineeMatch.relationship,
+          letter_body: nomineeMatch.letter_body,
+        },
+      });
     }
 
-    // 3) Ensure the nominee has a backing user row. The onboarding flow
-    //    creates the nominee BEFORE there's a real user account; on first
-    //    unlock we lazily mint one tied to the nominee.
-    let userId = match.user_id;
-    if (!userId) {
-      const email =
-        match.email && match.email.trim().length > 0
-          ? match.email.trim()
-          : `${match.nominee_id}@nominee.heirloom.local`;
-      const [user] = await sqlAdmin<{ id: string }[]>`
-        INSERT INTO users (email, display_name)
-        VALUES (${email}, ${match.name})
-        ON CONFLICT (email) DO UPDATE SET display_name = EXCLUDED.display_name
-        RETURNING id
-      `;
-      await sqlAdmin`
-        UPDATE nominees SET user_id = ${user.id} WHERE id = ${match.nominee_id}
-      `;
-      userId = user.id;
+    // No nominee matched; try creator passphrases.
+    const creatorRows = await sqlAdmin<
+      {
+        user_id: string;
+        display_name: string;
+        passphrase_hash: string;
+        vault_id: string;
+      }[]
+    >`
+      SELECT u.id AS user_id, u.display_name, u.passphrase_hash, v.id AS vault_id
+        FROM users u
+        JOIN vaults v ON v.creator_id = u.id
+       WHERE u.passphrase_hash IS NOT NULL
+       ORDER BY u.created_at ASC
+    `;
+
+    for (const r of creatorRows) {
+      try {
+        if (await argon2.verify(r.passphrase_hash, normalised)) {
+          const jwt = await issueSession({
+            user_id: r.user_id,
+            vault_id: r.vault_id,
+            role: "creator",
+          });
+          await setSessionCookie(jwt);
+          return Response.json({
+            role: "creator",
+            creator: { id: r.user_id, name: r.display_name },
+          });
+        }
+      } catch {
+        /* malformed hash - skip */
+      }
     }
 
-    const jwt = await issueSession({
-      user_id: userId,
-      vault_id: match.vault_id,
-      role: "nominee",
-    });
-    await setSessionCookie(jwt);
-
-    return Response.json({
-      nominee: {
-        id: match.nominee_id,
-        name: match.name,
-        relationship: match.relationship,
-        letter_body: match.letter_body,
-      },
-    });
+    await new Promise((r) => setTimeout(r, 500));
+    throw new HttpError(401, "wrong_passphrase");
   } catch (err) {
     return errorResponse(err);
   }

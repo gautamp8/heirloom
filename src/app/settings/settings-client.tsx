@@ -99,6 +99,8 @@ export function SettingsClient({ initial }: { initial: Initial }) {
 
       <SelfieSection />
 
+      <ArchiveKeySection />
+
       <NotificationsSection />
 
       <VaultSection />
@@ -709,6 +711,143 @@ type NotifStatus =
   | "denied"
   | "off"
   | "on";
+
+function ArchiveKeySection() {
+  const [state, setState] = useState<{
+    has_passphrase: boolean;
+    passphrase_set_at: string | null;
+  } | null>(null);
+  const [revealed, setRevealed] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/me/passphrase", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) =>
+        setState({
+          has_passphrase: !!d.has_passphrase,
+          passphrase_set_at: d.passphrase_set_at ?? null,
+        }),
+      )
+      .catch(() => setState({ has_passphrase: false, passphrase_set_at: null }));
+  }, []);
+
+  async function regenerate() {
+    setBusy(true);
+    setConfirming(false);
+    try {
+      const r = await fetch("/api/me/passphrase", { method: "POST" });
+      if (!r.ok) return;
+      const d = (await r.json()) as { passphrase: string };
+      setRevealed(d.passphrase);
+      setState({
+        has_passphrase: true,
+        passphrase_set_at: new Date().toISOString(),
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copy() {
+    if (!revealed) return;
+    try {
+      await navigator.clipboard.writeText(revealed);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="eyebrow">Your archive key</h2>
+      <p className="p-body max-w-[520px]">
+        A passphrase that opens your own archive after you sign out. Write
+        it down somewhere safe - if you lose it, the only way back is to
+        generate a new one from a device that&rsquo;s still signed in.
+      </p>
+
+      {state?.has_passphrase && !revealed && (
+        <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-fade max-w-[520px]">
+          Key set
+          {state.passphrase_set_at && <> · {formatDateLong(state.passphrase_set_at)}</>}
+        </p>
+      )}
+
+      {revealed && (
+        <div
+          className="rounded-[10px] border p-3 flex flex-col gap-2 max-w-[520px]"
+          style={{
+            borderColor: "var(--color-wax)",
+            background:
+              "linear-gradient(180deg, rgba(255,243,210,0.4), var(--color-bg-raised))",
+          }}
+        >
+          <p className="font-mono text-[10px] tracking-[0.16em] uppercase text-wax">
+            Write this down — shown only once
+          </p>
+          <code className="font-mono text-[16px] text-ink select-all break-words">
+            {revealed}
+          </code>
+          <button
+            type="button"
+            onClick={copy}
+            className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink underline self-start"
+          >
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 max-w-[520px]">
+        {confirming ? (
+          <>
+            <button
+              type="button"
+              className="btn-ghost text-ink-muted"
+              onClick={() => setConfirming(false)}
+              disabled={busy}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn"
+              style={{ background: "var(--color-wax)" }}
+              onClick={regenerate}
+              disabled={busy}
+            >
+              {busy
+                ? "Generating…"
+                : state?.has_passphrase
+                  ? "Yes, replace it"
+                  : "Generate"}
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="btn-ghost self-start"
+            onClick={() => setConfirming(true)}
+            disabled={busy}
+          >
+            {state?.has_passphrase ? "Generate a new key" : "Generate a key"}
+          </button>
+        )}
+      </div>
+      {confirming && state?.has_passphrase && (
+        <p className="font-serif italic text-[13px] text-ink-soft max-w-[520px]">
+          Your current key will stop working. Anyone who has it will no
+          longer be able to open this archive.
+        </p>
+      )}
+    </section>
+  );
+}
 
 function NotificationsSection() {
   const [status, setStatus] = useState<NotifStatus>("unknown");

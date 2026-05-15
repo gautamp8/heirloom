@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import argon2 from "argon2";
 import { sql } from "@/lib/db";
 import {
   errorResponse,
@@ -6,17 +7,17 @@ import {
   readSession,
   setSessionCookie,
 } from "@/lib/auth";
+import { generatePassphrase, normalisePassphrase } from "@/lib/passphrase";
 
 export const dynamic = "force-dynamic";
 
 /**
  * POST /api/dev/bootstrap — entry point for "Begin a new archive".
  *
- * If the caller already has a valid creator session, return it
- * unchanged. Otherwise provision a fresh user + vault and issue
- * a session cookie. Multiple creators can coexist in one database;
- * each onboarding flow overwrites the placeholder display_name with
- * the creator's real name.
+ * If the caller already has a creator session, return it unchanged.
+ * Otherwise mint a fresh user + vault, generate a creator passphrase
+ * (shown once - the creator writes it down to come back to this
+ * archive after signing out), and issue a session cookie.
  */
 export async function POST() {
   try {
@@ -30,14 +31,19 @@ export async function POST() {
           user: { id: u.id, email: u.email, display_name: u.display_name },
           vault_id: existing.vault_id,
           role: "creator",
+          passphrase: null,
         });
       }
     }
 
+    const passphrase = generatePassphrase();
+    const passphrase_hash = await argon2.hash(normalisePassphrase(passphrase), {
+      type: argon2.argon2id,
+    });
     const email = `${randomUUID()}@creator.heirloom.local`;
     const [u] = await sql<{ id: string; email: string; display_name: string }[]>`
-      INSERT INTO users (email, display_name)
-      VALUES (${email}, 'Friend')
+      INSERT INTO users (email, display_name, passphrase_hash, passphrase_set_at)
+      VALUES (${email}, 'Friend', ${passphrase_hash}, now())
       RETURNING id, email, display_name
     `;
     const [vault] = await sql<{ id: string }[]>`
@@ -56,6 +62,7 @@ export async function POST() {
       user: { id: u.id, email: u.email, display_name: u.display_name },
       vault_id: vault.id,
       role: "creator",
+      passphrase,
     });
   } catch (err) {
     return errorResponse(err);

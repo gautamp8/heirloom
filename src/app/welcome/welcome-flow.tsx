@@ -59,9 +59,20 @@ export function WelcomeFlow() {
         setBusy(false);
         return;
       }
-      const data = (await r.json()) as {
-        nominee: { name: string; letter_body: string | null };
-      };
+      const data = (await r.json()) as
+        | { role: "creator"; creator: { name: string } }
+        | {
+            role: "nominee";
+            nominee: { name: string; letter_body: string | null };
+          };
+
+      if (data.role === "creator") {
+        // Creators come back to their own archive without ceremony.
+        setStage("leaving");
+        window.setTimeout(() => router.push("/"), 400);
+        return;
+      }
+
       const me = await fetch("/api/me/home", { cache: "no-store" }).then((r) => r.json());
       setLetter({
         from_name: me?.framing?.from_name ?? "the creator",
