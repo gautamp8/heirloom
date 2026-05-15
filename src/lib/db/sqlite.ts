@@ -2,11 +2,19 @@
  *  columns are little-endian Float32 BLOBs; cosine similarity is via
  *  sqlite-vec's vec_distance_cosine(). */
 
-import Database, { type Database as DatabaseT } from "better-sqlite3";
-import * as sqliteVec from "sqlite-vec";
+import type { Database as DatabaseT } from "better-sqlite3";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
+
+// CommonJS requires keep this module synchronous so the dispatcher
+// in ./index.ts can read `.sql` immediately. Turbopack would otherwise
+// wrap the whole module in an async loader because of the ESM
+// `sqlite-vec` package.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const Database = require("better-sqlite3") as typeof import("better-sqlite3");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const sqliteVec = require("sqlite-vec") as typeof import("sqlite-vec");
 
 const FRAGMENT = Symbol.for("heirloom.sqlFragment");
 

@@ -59,10 +59,14 @@ export async function readSession(): Promise<Session | null> {
 
 export async function setSessionCookie(jwt: string): Promise<void> {
   const jar = await cookies();
+  // Desktop bundle and dev both serve over plain http://127.0.0.1 where
+  // Secure-marked cookies are dropped by the WKWebView / browser. Only
+  // production HTTPS deployments set Secure.
+  const isLocal = process.env.HEIRLOOM_BACKEND === "sqlite";
   jar.set(COOKIE_NAME, jwt, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production" && !isLocal,
     maxAge: COOKIE_MAX_AGE_S,
     path: "/",
   });

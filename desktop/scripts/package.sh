@@ -113,14 +113,25 @@ cp desktop/scripts/install-tts.sh    "$TARGET_TTS/"
 chmod +x "$TARGET_TTS/install-tts.sh"
 ok "tts sidecar source + installer staged (run with 'open $TARGET_TTS/install-tts.sh' or via Settings)"
 
-# 6. Re-pack the dmg now that the bundle is complete ----------------------
+# 6. Re-pack the dmg with the drag-to-Applications layout ----------------
 heading "Repack .dmg"
-rm -f desktop/src-tauri/target/release/bundle/dmg/*.dmg
-hdiutil create -volname Heirloom \
-    -srcfolder "$APP_DIR" \
-    -ov -format UDZO \
-    desktop/src-tauri/target/release/bundle/dmg/Heirloom.dmg > /dev/null
-ok "dmg repacked"
+DMG_DIR="desktop/src-tauri/target/release/bundle/dmg"
+rm -f "$DMG_DIR"/*.dmg
+# Tauri's bundle_dmg.sh (fork of create-dmg) renders the Finder window
+# with the standard "drag Heirloom → Applications" layout.
+STAGE="$(mktemp -d)"
+trap 'rm -rf "$STAGE"' EXIT
+cp -R "$APP_DIR" "$STAGE/"
+( cd "$DMG_DIR" && ./bundle_dmg.sh \
+    --volname "Heirloom" \
+    --volicon icon.icns \
+    --window-size 660 400 \
+    --icon-size 128 \
+    --icon "Heirloom.app" 180 170 \
+    --app-drop-link 480 170 \
+    --hdiutil-quiet \
+    "Heirloom.dmg" "$STAGE/" > /dev/null )
+ok "dmg repacked with drag-to-Applications layout"
 
 note "Bundle output:"
-ls -lh desktop/src-tauri/target/release/bundle/dmg/*.dmg 2>/dev/null || true
+ls -lh "$DMG_DIR"/*.dmg 2>/dev/null || true
