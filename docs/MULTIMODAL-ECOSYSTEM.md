@@ -1,4 +1,4 @@
-# Heirloom — Gemma 4 multimodal ecosystem notes
+# Heirloom - Gemma 4 multimodal ecosystem notes
 
 This document captures what we learned wiring Gemma 4 multimodal end-to-end
 through Heirloom's local-first stack, and the gaps we hit along the way.
@@ -15,7 +15,7 @@ $ ollama show gemma4:e4b
   Capabilities
     completion
     vision      ← image inputs via /api/chat { messages[].images: [base64] }
-    audio       ← *declared but not routable via /api/chat — see below*
+    audio       ← *declared but not routable via /api/chat - see below*
     tools       ← native function calling
     thinking    ← reasoning mode (toggled via `think: true/false`)
 ```
@@ -59,7 +59,7 @@ The Ollama community thread tracking this is
 
 ### Looking deeper: the projector layer is missing
 
-The Gemma 4 multimodal architecture follows the standard pattern — an audio
+The Gemma 4 multimodal architecture follows the standard pattern - an audio
 encoder + projector module that maps audio embeddings into the language
 model's embedding space. The projector ships as a separate GGUF (`-mmproj`
 flag in llama.cpp's `llama-server`).
@@ -76,7 +76,7 @@ $ cat ~/.ollama/models/manifests/registry.ollama.ai/library/gemma4/e4b
 
 **No `application/vnd.ollama.image.projector` (or similar) layer.** The audio
 modality cannot be exercised even by bypassing Ollama and running llama.cpp
-directly against these blobs — the projector simply isn't published.
+directly against these blobs - the projector simply isn't published.
 
 (Vision works because, in this build of Gemma 4, the vision projector
 appears to be embedded in the main model file rather than a separate layer.)
@@ -108,7 +108,7 @@ Heirloom backend
 The pipeline (`src/lib/pipeline.ts`) is structured so the audio branch can
 flip from whisper to llama-server by changing one function pointer.
 
-## Reference config — when the audio projector ships
+## Reference config - when the audio projector ships
 
 When the audio projector becomes available, the bridge is:
 
@@ -174,7 +174,7 @@ A proposed concrete API shape for Ollama
   }
 ```
 
-`AudioData` would mirror `ImageData` — `[]byte` ready to feed into the
+`AudioData` would mirror `ImageData` - `[]byte` ready to feed into the
 underlying llama.cpp multimodal handler when the model has an audio
 projector layer.
 

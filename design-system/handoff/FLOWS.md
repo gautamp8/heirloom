@@ -104,7 +104,7 @@ Convention:
 
 ## 6. Creator home
 
-**Screen:** Creator Home — Established
+**Screen:** Creator Home - Established
 
 ✅ User opens the app authenticated, sees greeting block (time-of-day + name), prompt-of-day card, capture-chip grid 2×2, three thread cards, recent-captures mixed feed, nominee cards including executor, tab bar.
 
@@ -138,7 +138,7 @@ Convention:
 
 ## 8. Nominee home (post-first-visit)
 
-**Screen:** Nominee Home — Post-Loss
+**Screen:** Nominee Home - Post-Loss
 
 ✅ Nominee opens app, sees framing strip ("From Elena · 'For the days when you need me…'"), latest-unlocked hero (audio waveform + headline + play button), thread cards, sealed-pieces card with future release labels, saved passages, Reflection pill floating above tab bar.
 
@@ -192,7 +192,7 @@ Convention:
 
 ⚠ Creator regenerates passphrase → old one is invalidated immediately. Warning: *"The previous passphrase no longer works. Make sure to share the new one."*
 
-⚠ Creator emails the passphrase to the executor in-app → blocked by client. Soft message: *"For safety, share this passphrase outside the app — print it, write it, or text it directly."*
+⚠ Creator emails the passphrase to the executor in-app → blocked by client. Soft message: *"For safety, share this passphrase outside the app - print it, write it, or text it directly."*
 
 ✋ Creator never sets an executor → no failure; archive simply has no backup release mechanism. Periodic gentle reminder on the home (once a month, dismissible).
 
@@ -247,7 +247,7 @@ Convention:
 
 ---
 
-## 16. Empty states — the canonical list
+## 16. Empty states - the canonical list
 
 1. **No captures yet** (creator home): "Begin when you're ready."
 2. **No released captures yet** (nominee home): "Your archive is ready. The first piece will appear here."

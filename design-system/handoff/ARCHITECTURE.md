@@ -99,7 +99,7 @@ ollama pull embedding-gemma:300m  # or current variant
 
 ---
 
-## 4. Data flow — capture commit
+## 4. Data flow - capture commit
 
 ```
 1. User stops recording → client POSTs multipart to /capture (audio blob + metadata)
@@ -119,7 +119,7 @@ ollama pull embedding-gemma:300m  # or current variant
 
 ---
 
-## 5. Data flow — Reflection query
+## 5. Data flow - Reflection query
 
 ```
 1. Nominee types a question → client POSTs to /reflect (creator_id, question, mode='server')
@@ -152,8 +152,8 @@ RLS policies enforce all of this at the row level. See `SCHEMA.sql` §3.
 ## 7. On-device LLM toggle (designed-in, stub for v1)
 
 The `/reflect` endpoint accepts a `mode` parameter:
-- `mode='server'` — v1 default. Uses Ollama on the Azure VM.
-- `mode='device'` — v2. Reserved. Returns 501 in v1. When implemented, the client will run EmbeddingGemma via transformers.js + WebGPU and synthesis via a local Gemma 4 E4B running in-browser.
+- `mode='server'` - v1 default. Uses Ollama on the Azure VM.
+- `mode='device'` - v2. Reserved. Returns 501 in v1. When implemented, the client will run EmbeddingGemma via transformers.js + WebGPU and synthesis via a local Gemma 4 E4B running in-browser.
 
 This keeps the API contract stable across v1 and v2.
 
@@ -172,4 +172,4 @@ This keeps the API contract stable across v1 and v2.
 
 - Postgres nightly `pg_dump` to a separate Azure Blob container, encrypted with a key only the creator holds (key derived from creator master passphrase, stored client-side).
 - Blob storage versioning enabled (90-day retention).
-- Recovery doc lives in `OPERATIONS.md` (not in this handoff package — for ops only, post-MVP).
+- Recovery doc lives in `OPERATIONS.md` (not in this handoff package - for ops only, post-MVP).

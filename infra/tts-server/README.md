@@ -6,12 +6,12 @@ cloning. Heirloom's Next.js app forwards `/api/voice/clone` and
 
 ## Endpoints
 
-- `POST /encode` — multipart `audio` (wav) + optional `voice_id`. Stores
+- `POST /encode` - multipart `audio` (wav) + optional `voice_id`. Stores
   the wav under `$HEIRLOOM_VOICE_DIR/<voice_id>.wav` and warms the
   in-memory prompt cache. Returns `{voice_id, duration_seconds, sample_rate}`.
-- `POST /speak` — `{voice_id, text}` → `audio/wav` stream. Re-encodes
+- `POST /speak` - `{voice_id, text}` → `audio/wav` stream. Re-encodes
   from disk if the prompt isn't cached.
-- `GET /healthz` — `{ok, device, loaded, voices_cached}`.
+- `GET /healthz` - `{ok, device, loaded, voices_cached}`.
 
 ## Install (Apple Silicon)
 

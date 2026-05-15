@@ -26,7 +26,7 @@ export async function POST(req: Request) {
 
     const embedding = await embedOne(state);
 
-    // Audit log — nominee_states is RLS-gated by nominee_states_self
+    // Audit log - nominee_states is RLS-gated by nominee_states_self
     await withRls(session.user_id, session.role, async (tx) => {
       const [n] = await tx<{ id: string }[]>`
         SELECT id FROM nominees

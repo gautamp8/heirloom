@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  * passphrase one time so the creator can copy or print it. After this
  * response the plaintext is unrecoverable.
  *
- * Body: { nominee_id?: string }  — if omitted, picks the first executor
+ * Body: { nominee_id?: string }  - if omitted, picks the first executor
  *                                  nominee on the vault; if none exists,
  *                                  errors and asks the creator to designate
  *                                  one first.
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
       parallelism: 4,
     });
 
-    // Persist — replaces any prior credential on this vault (one_per_vault constraint)
+    // Persist - replaces any prior credential on this vault (one_per_vault constraint)
     const credential = await sqlAdmin<{ vault_id: string }[]>`
       INSERT INTO executor_credentials (vault_id, nominee_id, passphrase_hash)
       VALUES (${session.vault_id}, ${nominee.id}, ${hash})
@@ -99,7 +99,7 @@ Enter this passphrase exactly as written below (the dots are just separators):
     ${passphrase}
 
 That will release everything the creator chose to share with their nominees.
-You won't see the contents yourself — only the confirmation that release
+You won't see the contents yourself - only the confirmation that release
 has happened.
 
 Thank you.`;

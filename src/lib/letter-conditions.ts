@@ -5,7 +5,7 @@ import type { Session } from "./auth";
 import { sendToUser } from "./notifications";
 
 /**
- * The conditions DSL stored in sealed_letters.conditions:
+ * Conditions DSL stored in sealed_letters.conditions:
  *
  *   {"any_of": [
  *      {"kind": "date", "date": "2030-04-12"},
@@ -15,11 +15,6 @@ import { sendToUser } from "./notifications";
  *      {"kind": "semantic_match", "threshold": 0.55, "topic": "feeling lost"},
  *      {"kind": "first_visit"}
  *   ]}
- *
- * When a letter fires we:
- *   - INSERT a nominee_releases row (RLS gates the underlying capture)
- *   - UPDATE sealed_letters SET unlocked_at = now(), unlocked_by_trigger = <kind>
- * The same letter is never re-fired.
  */
 
 type AnyCond =
@@ -44,21 +39,15 @@ export type FiredLetter = {
   to_nominee_id: string | null;
 };
 
-/**
- * Try to fire any sealed letters whose conditions are met. Idempotent —
- * already-unlocked letters are skipped. Returns the letters that fired
- * IN THIS CALL (callers can surface them with a "newly unlocked" treatment).
- */
+/** Idempotent - already-unlocked letters are skipped. Returns the
+ *  letters that fired in this call. */
 export async function fireLetterConditions(
   session: Session,
   ctx: TriggerContext,
 ): Promise<FiredLetter[]> {
-  // Today's calendar context — used by the date/calendar/life_event checks.
   const today = new Date();
   const todayISO = today.toISOString().slice(0, 10);
 
-  // Pre-compute the topic embedding for state triggers so we can do
-  // semantic match against the letter's intent embedding.
   let stateEmbedding: number[] | null = null;
   if (ctx.trigger_kind === "state") {
     stateEmbedding =
@@ -67,13 +56,11 @@ export async function fireLetterConditions(
         : await embedOne(ctx.state);
   }
 
-  // The engine runs PRIVILEGED. Nominee RLS only shows unlocked letters,
-  // so we can't query pending letters under the nominee session. We re-
-  // verify scoping (vault_id, nominee_id) explicitly in every query.
+  // Privileged - nominee RLS hides pending letters, so we re-verify
+  // (vault_id, nominee_id) scoping explicitly in every query.
   if (!sqlAdmin) throw new Error("admin_db_unavailable");
   const adm = sqlAdmin;
 
-  // Resolve which nominee_id this session belongs to (if nominee role).
   let nomineeId: string | null = null;
   if (session.role === "nominee") {
     const [n] = await adm<{ id: string }[]>`
@@ -84,8 +71,6 @@ export async function fireLetterConditions(
     nomineeId = n?.id ?? null;
   }
 
-  // Fetch every pending (un-unlocked) letter targeted at this nominee
-  // (or to everyone). For semantic triggers we ALSO project the similarity.
   const pending = await fetchPending(
     adm,
     session.vault_id,
@@ -113,7 +98,7 @@ export async function fireLetterConditions(
         INSERT INTO nominee_releases (vault_id, capture_id, nominee_id, trigger,
                                       released_at, label)
         VALUES (${session.vault_id}, ${p.capture_id}, ${p.to_nominee_id},
-                'scheduled', now(), ${"sealed letter — " + (triggered?.kind ?? "")})
+                'scheduled', now(), ${"sealed letter - " + (triggered?.kind ?? "")})
         ON CONFLICT DO NOTHING
       `;
     } else {
@@ -125,7 +110,7 @@ export async function fireLetterConditions(
           INSERT INTO nominee_releases (vault_id, capture_id, nominee_id, trigger,
                                         released_at, label)
           VALUES (${session.vault_id}, ${p.capture_id}, ${t.id},
-                  'scheduled', now(), ${"sealed letter — " + triggered.kind})
+                  'scheduled', now(), ${"sealed letter - " + triggered.kind})
           ON CONFLICT DO NOTHING
         `;
       }
@@ -139,7 +124,7 @@ export async function fireLetterConditions(
       to_nominee_id: p.to_nominee_id,
     });
 
-    // Notify recipients. We don't await delivery — push services have
+    // Notify recipients. We don't await delivery - push services have
     // their own retry semantics and a failure shouldn't block the
     // grounding/retrieval path.
     void notifyLetterUnlocked(
@@ -276,7 +261,7 @@ function matchOne(
         ? { kind: "date", label: `On ${c.date}` }
         : null;
     case "life_event":
-      // Not implemented in v1 — would need a life_events lookup per nominee.
+      // Not implemented in v1 - would need a life_events lookup per nominee.
       // Will be added when nominee-side life event tracking lands.
       return null;
     case "calendar":
@@ -306,7 +291,7 @@ function matchOne(
       return null;
     case "semantic_match":
       // Fires on either a Reflection query (semantic trigger) or a mood
-      // tap (state trigger) — both carry an embedding we can compare
+      // tap (state trigger) - both carry an embedding we can compare
       // against the letter's intent embedding.
       if (
         state.ctx.trigger_kind !== "semantic" &&

@@ -18,32 +18,30 @@ import { HttpError, errorResponse, requireSession } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 /**
- * POST /api/reflect
+ * POST /api/reflect → Server-Sent Events
  *
- * Body: { question: string, mode?: 'server'|'device' }
+ * Body: { question: string }
  *
- * Returns Server-Sent Events:
- *   event: retrieved   { hit_count, top_similarity }
- *   event: grounded    { grounded: boolean }
- *   event: claim       { text, citations: [{ capture_id, snippet }] }
- *   event: answer      { text }            // assembled final answer
- *   event: done        { reflection_id }
- *   event: error       { message }
+ * Events:
+ *   retrieved { hit_count, top_similarity }
+ *   grounded  { grounded }
+ *   claim     { text, citations: [{ capture_id, snippet }] }
+ *   answer    { text }                  // final assembled answer
+ *   done      { reflection_id }
+ *   error     { message }
  *
- * Hard contracts (see lib/reflection.ts):
- *   - top similarity < THRESHOLD → empty state, no Gemma call
- *   - any citation outside retrieved set → empty state
- *   - first-person impersonation in answer → empty state
+ * Guardrails (lib/reflection.ts): below-threshold similarity, any citation
+ * outside the retrieved set, or first-person impersonation collapse to
+ * the empty state.
  */
 export async function POST(req: Request) {
   try {
     const session = await requireSession();
-    const body = (await req.json()) as { question?: string; mode?: string };
+    const body = (await req.json()) as { question?: string };
 
     const question = body.question?.trim() ?? "";
     if (!question) throw new HttpError(400, "empty_question");
     if (question.length > 2000) throw new HttpError(400, "question_too_long");
-    if (body.mode === "device") throw new HttpError(501, "device_mode_v2");
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -55,7 +53,6 @@ export async function POST(req: Request) {
         };
 
         try {
-          // 1) Look up the creator name (for prompt) + ensure session matches a real vault
           const meta = await withRls(
             session.user_id,
             session.role,
@@ -68,12 +65,10 @@ export async function POST(req: Request) {
             },
           );
 
-          // 2) Embed the question
           const qEmb = await embedOne(question);
 
-          // 2b) Check if any sealed letters were sealed for a moment like this.
-          //     Fires BEFORE the grounding gate so the letter surfaces even
-          //     when there's no other grounded answer.
+          // Fire matching sealed letters BEFORE the grounding gate so they
+          // surface even when no grounded answer exists.
           if (session.role === "nominee") {
             try {
               const fired = await fireLetterConditions(session, {
@@ -94,13 +89,13 @@ export async function POST(req: Request) {
             }
           }
 
-          // 3) Retrieve top-k. Top-5 keeps the prompt small enough to
-          //    stay responsive on CPU while still grounding most queries.
+          // Top-5 keeps the prompt small enough for CPU while still
+          // grounding most queries.
           const chunks = await fetchTopK(qEmb, session, 5);
           const topSim = chunks[0]?.similarity ?? 0;
           send("retrieved", { hit_count: chunks.length, top_similarity: topSim });
 
-          // 4) Grounding gate — never bypass this
+          // Grounding gate. Never bypass this.
           if (chunks.length === 0 || topSim < REFLECTION_SIMILARITY_THRESHOLD) {
             send("grounded", { grounded: false });
             send("answer", { text: EMPTY_STATE_ANSWER });
@@ -192,7 +187,7 @@ export async function POST(req: Request) {
             });
           }
 
-          // 7) Final validation — citation set + first-person scrubber + non-empty claims
+          // 7) Final validation - citation set + first-person scrubber + non-empty claims
           const final: ReflectionAnswer = await object;
           const cite = validateCitations(final, chunks);
           const noClaims = final.claims.length === 0;

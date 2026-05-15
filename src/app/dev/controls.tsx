@@ -56,7 +56,7 @@ export function DevControls({ snapshot }: { snapshot: Snapshot }) {
           {snapshot.current_role ? (
             <>
               <em className="italic text-wax">
-                {snapshot.current_name ?? "—"}
+                {snapshot.current_name ?? "-"}
               </em>{" "}
               <span className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-muted ml-2">
                 {snapshot.current_role}
@@ -104,7 +104,7 @@ export function DevControls({ snapshot }: { snapshot: Snapshot }) {
           </button>
         </div>
         <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-fade mt-3 leading-[1.6]">
-          New creator sessions land on onboarding — the name + nominees you
+          New creator sessions land on onboarding - the name + nominees you
           enter there are the names the rest of the app uses. The fixture
           nominee shortcut still works with the dev passphrase
           &ldquo;the long road home&rdquo;.
@@ -150,7 +150,7 @@ export function DevControls({ snapshot }: { snapshot: Snapshot }) {
       </section>
 
       <section>
-        <p className="eyebrow mb-3">Welcome animation — frozen stages</p>
+        <p className="eyebrow mb-3">Welcome animation - frozen stages</p>
         <Grid>
           <Nav href="/welcome?stage=opening" label="Stage 1 · Opening" hint="Flap lifting" />
           <Nav href="/welcome?stage=emerging" label="Stage 2 · Emerging" hint="Letter rising" />

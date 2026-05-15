@@ -10,9 +10,7 @@ import type { Session } from "./auth";
 import { sqlAdmin, vec } from "./db";
 import { resolveBlob } from "./storage";
 
-/** Vector columns serialize to the pgvector text format `[a,b,c,...]`.
- *  Parse back to a number[] so the portable `vec()` helper can rebind
- *  it under either backend. */
+/** Parse pgvector text format `[a,b,c,...]` back to a number[]. */
 function parseVec(s: string | null): number[] | null {
   if (!s) return null;
   try {
@@ -24,27 +22,17 @@ function parseVec(s: string | null): number[] | null {
 }
 
 /**
- * Encrypted vault bundle (.hloom v1)
+ * .hloom v1 wire format: a UTF-8 JSON envelope wrapping base64
+ * ciphertext that AEAD-decrypts to a gzipped JSON payload containing
+ * the full vault (rows + audio blobs).
  *
- * Wire format: a single UTF-8 JSON envelope (so it's mailable / inspectable
- * with `cat`). The envelope contains base64 ciphertext that AEAD-decrypts
- * to a gzipped JSON payload — the entire vault including audio bytes.
+ *   { magic: "HLOOM", version: 1,
+ *     kdf:    { type: "argon2id", salt, memory_kib, time, parallelism },
+ *     cipher: { type: "chacha20-poly1305", nonce, aad },
+ *     ciphertext, tag, meta }
  *
- *   {
- *     "magic": "HLOOM",
- *     "version": 1,
- *     "kdf":   { "type": "argon2id", "salt": "<b64>",
- *                "memory_kib": 65536, "time": 3, "parallelism": 4 },
- *     "cipher":{ "type": "chacha20-poly1305", "nonce": "<b64-12B>",
- *                "aad": "<b64-aad>" },
- *     "ciphertext": "<b64>",
- *     "tag": "<b64-16B>",
- *     "meta": { "creator_name": "...", "captured_at": "...", "rows": {...} }
- *   }
- *
- * On import the caller provides the passphrase; we derive the 32-byte key
- * via argon2id with the stored salt+params, then decrypt with ChaCha20-
- * Poly1305 using the stored nonce. If the tag fails, the bundle is rejected.
+ * Key derivation: argon2id(passphrase, salt) → 32B. Decrypt: ChaCha20-
+ * Poly1305(nonce). A failing tag rejects the bundle.
  */
 
 const MAGIC = "HLOOM";
@@ -309,7 +297,7 @@ export async function importVault(
     gunzipSync(compressed).toString("utf8"),
   ) as VaultPlaintext;
 
-  // 3) Restore into the CURRENT user's vault — re-keyed, not the original
+  // 3) Restore into the CURRENT user's vault - re-keyed, not the original
   //    UUIDs. We map every old id -> new id (or self.id where appropriate).
   //
   // For v1 we keep this simple: nuke the current vault's data and replace

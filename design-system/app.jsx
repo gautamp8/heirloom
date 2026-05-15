@@ -1,4 +1,4 @@
-// Heirloom Design System — page body + live previews + Tweaks.
+// Heirloom Design System - page body + live previews + Tweaks.
 // Static content is rendered into the page below; the React tree only owns
 // the parts that need to react to tweaks (logo selection, mode-switch demo,
 // handoff preview, palette/type swap on :root) plus the Tweaks panel itself.
@@ -20,7 +20,7 @@ const PALETTES = {
   mono:   ['#F7F6F4', '#E1E0DC', '#7B2A1A', '#111110'],
 };
 
-// Page-turn mode-switch — clicking the stage flips the page.
+// Page-turn mode-switch - clicking the stage flips the page.
 function ModeStage({ metaphor }) {
   const [on, setOn] = React.useState(false);
   if (metaphor === 'page-turn') {
@@ -60,7 +60,7 @@ function ModeStage({ metaphor }) {
           <div style={{
             fontFamily:'var(--serif)', fontStyle:'italic', fontSize: 24, fontWeight: 300,
             color:'var(--ink-soft)',
-          }}>{on ? 'View — the lights are lowered' : 'Creator — the workroom'}</div>
+          }}>{on ? 'View - the lights are lowered' : 'Creator - the workroom'}</div>
         </div>
         <div style={{
           position:'absolute', inset: 0, pointerEvents:'none',
@@ -96,7 +96,7 @@ function ModeStage({ metaphor }) {
         transition:'transform 900ms var(--ease-fold)',
         background:'var(--ivory)', display:'flex', alignItems:'center', justifyContent:'center',
         fontFamily:'var(--serif)', fontStyle:'italic', color:'var(--ink-soft)',
-      }}>View — drawer open</div>
+      }}>View - drawer open</div>
       <div style={{
         position:'absolute', inset: 0, display:'flex', alignItems:'center', justifyContent:'center',
         fontFamily:'var(--serif)', fontStyle:'italic', color:'var(--fg-mute)',
@@ -196,7 +196,7 @@ function App() {
       <LiveModeStage metaphor={t.mode} />
       <LiveHandoff variant={t.handoff} />
 
-      <TweaksPanel title="Heirloom — Tweaks">
+      <TweaksPanel title="Heirloom - Tweaks">
         <TweakSection label="Palette">
           <TweakColor label="Temperature" value={t.palette === 'warm' ? PALETTES.warm : PALETTES[t.palette]}
             options={[PALETTES.warm, PALETTES.cool, PALETTES.garden, PALETTES.mono]}
@@ -220,11 +220,11 @@ function App() {
         <TweakSection label="Brand mark">
           <TweakSelect label="Logo variant" value={t.logoVariant}
             options={[
-              { value:'seal',     label:'Seal — wax monogram' },
-              { value:'emboss',   label:'Emboss — blind stamp' },
-              { value:'wordmark', label:'Wordmark — italic' },
-              { value:'lockup',   label:'Lockup — mark + word' },
-              { value:'thread',   label:'Thread — alternate' },
+              { value:'seal',     label:'Seal - wax monogram' },
+              { value:'emboss',   label:'Emboss - blind stamp' },
+              { value:'wordmark', label:'Wordmark - italic' },
+              { value:'lockup',   label:'Lockup - mark + word' },
+              { value:'thread',   label:'Thread - alternate' },
             ]}
             onChange={(v) => setTweak('logoVariant', v)}/>
         </TweakSection>
@@ -261,7 +261,7 @@ function App() {
   );
 }
 
-// Portal-style mounts — each picks up a placeholder div in the static page
+// Portal-style mounts - each picks up a placeholder div in the static page
 // and renders into it. Lets us keep the page mostly as authored HTML.
 function LiveCoverSeal({ variant }) {
   const host = document.getElementById('cover-seal');

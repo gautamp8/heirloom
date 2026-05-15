@@ -2,7 +2,7 @@
 
 Every Gemma 4 prompt used in Heirloom v1. Versioned, with safety preamble.
 
-Each prompt lives in `backend/app/prompts/<name>_v<n>.txt` and is loaded by `get_prompt(name, version=...)`. Versions are append-only — never edit a deployed prompt; bump the version and run a parallel evaluation first.
+Each prompt lives in `backend/app/prompts/<name>_v<n>.txt` and is loaded by `get_prompt(name, version=...)`. Versions are append-only - never edit a deployed prompt; bump the version and run a parallel evaluation first.
 
 ---
 
@@ -29,11 +29,11 @@ ALWAYS:
 - Use language that respects the reader's emotional state.
 ```
 
-This preamble is **prepended programmatically** to every prompt below — do not duplicate it in each file.
+This preamble is **prepended programmatically** to every prompt below - do not duplicate it in each file.
 
 ---
 
-## §2  Capture tagging — Gemma 4 E4B
+## §2  Capture tagging - Gemma 4 E4B
 
 **File:** `capture_tagging_v1.txt`
 **Model:** `gemma:4-e4b`
@@ -65,7 +65,7 @@ Acceptance: response must parse as JSON, all arrays present (possibly empty), al
 
 ---
 
-## §3  Gentle follow-up question — Gemma 4 E4B
+## §3  Gentle follow-up question - Gemma 4 E4B
 
 **File:** `followup_question_v1.txt`
 **Model:** `gemma:4-e4b`
@@ -74,7 +74,7 @@ Acceptance: response must parse as JSON, all arrays present (possibly empty), al
 
 ```
 The creator just saved a new piece to their archive. You are suggesting ONE
-gentle follow-up question they might consider answering next — to deepen the
+gentle follow-up question they might consider answering next - to deepen the
 thread, not to interrogate.
 
 What they just saved:
@@ -94,7 +94,7 @@ Acceptance: 1 line, 8–24 words, ends in `?`. Reject + retry once.
 
 ---
 
-## §4  Prompt-of-day — Gemma 4 E4B
+## §4  Prompt-of-day - Gemma 4 E4B
 
 **File:** `prompt_of_day_v1.txt`
 **Model:** `gemma:4-e4b`
@@ -103,7 +103,7 @@ Acceptance: 1 line, 8–24 words, ends in `?`. Reject + retry once.
 
 ```
 You are writing today's prompt for the creator. It should feel like a
-thoughtful friend asking — not a productivity app. One sentence only.
+thoughtful friend asking - not a productivity app. One sentence only.
 
 Their archive has {recent_capture_count} recent pieces.
 Topics they've been exploring: {recent_topics}.
@@ -120,9 +120,9 @@ Cached per-creator for 24h.
 
 ---
 
-## §5  Reflection retrieval — pre-Gemma stage
+## §5  Reflection retrieval - pre-Gemma stage
 
-**Not a prompt — a contract.** The Reflection endpoint:
+**Not a prompt - a contract.** The Reflection endpoint:
 
 1. Embeds the question with EmbeddingGemma.
 2. Runs `SELECT capture_id, chunk_text, embedding <=> $q AS distance FROM transcript_chunks WHERE vault_id = ... ORDER BY distance LIMIT 8`.
@@ -133,7 +133,7 @@ The threshold is a **hard gate**. Adjust by editing the constant `REFLECTION_SIM
 
 ---
 
-## §6  Reflection synthesis — Gemma 4 26B
+## §6  Reflection synthesis - Gemma 4 26B
 
 **File:** `reflection_synthesis_v1.txt`
 **Model:** `gemma:4-26b`
@@ -142,7 +142,7 @@ The threshold is a **hard gate**. Adjust by editing the constant `REFLECTION_SIM
 
 ```
 A nominee is asking a question about the creator's archive. Your job is to
-answer with what the creator actually said or wrote — never anything else.
+answer with what the creator actually said or wrote - never anything else.
 
 The creator's name: {creator_name}
 The nominee's question: {question}
@@ -175,7 +175,7 @@ Acceptance: response parses as JSON; every claim's `citations` array references 
 
 ---
 
-## §7  Sealed-letter draft — Gemma 4 26B (creator-edited)
+## §7  Sealed-letter draft - Gemma 4 26B (creator-edited)
 
 **File:** `letter_draft_v1.txt`
 **Model:** `gemma:4-26b`
@@ -184,7 +184,7 @@ Acceptance: response parses as JSON; every claim's `citations` array references 
 
 ```
 You are drafting a sealed letter from the creator to a nominee. The creator
-will edit this draft — you are giving them somewhere to start, not the
+will edit this draft - you are giving them somewhere to start, not the
 final words. The letter accompanies the moment when the nominee first opens
 the archive.
 
@@ -216,7 +216,7 @@ All prompts share a tone. Words to **prefer**:
 Words to **avoid**:
 - AI · model · generated · query · process · session · prompt · feature · powered by
 
-Never use emoji. Never use exclamation points. Never use the second person to refer to the creator from the nominee's screen ("you said…") — that's first-person impersonation by another name.
+Never use emoji. Never use exclamation points. Never use the second person to refer to the creator from the nominee's screen ("you said…") - that's first-person impersonation by another name.
 
 ---
 
@@ -225,7 +225,7 @@ Never use emoji. Never use exclamation points. Never use the second person to re
 Each prompt has a matching `tests/prompts/<name>.yaml` with at least 12 fixtures:
 - 3 nominal cases (typical inputs)
 - 3 boundary cases (very short, very long, low-info)
-- 3 adversarial cases (prompt-injection in the content — see `PROMPT_INJECTION_TESTS.md`)
+- 3 adversarial cases (prompt-injection in the content - see `PROMPT_INJECTION_TESTS.md`)
 - 3 edge cases (non-English input, mixed kinds, empty)
 
 A prompt version cannot be promoted to production until all 12 pass.
@@ -234,6 +234,6 @@ A prompt version cannot be promoted to production until all 12 pass.
 
 ## §10  Future prompts (designed, not in v1)
 
-- **Thread suggestion** — given a new capture, suggest 0-1 existing threads to add it to. v2.
-- **On-device E4B Reflection** — same contract as §6 but running in WebGPU. v2.
-- **Voice clone consent** — multi-turn dialog with the creator before any clone is made. v2.
+- **Thread suggestion** - given a new capture, suggest 0-1 existing threads to add it to. v2.
+- **On-device E4B Reflection** - same contract as §6 but running in WebGPU. v2.
+- **Voice clone consent** - multi-turn dialog with the creator before any clone is made. v2.

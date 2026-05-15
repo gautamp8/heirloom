@@ -1,15 +1,6 @@
-/**
- * SQLite backend for the bundled macOS desktop build.
- *
- * Exposes the same public surface as `./postgres.ts` so call sites stay
- * backend-agnostic:
- *   - sql, sqlAdmin: callable tagged-template that runs queries
- *   - withRls: no-op transaction (single-user)
- *   - vec, cosineDist, cosineSim: portable SQL helpers
- *
- * Vector columns are stored as little-endian Float32 BLOBs and queried
- * with sqlite-vec's vec_distance_cosine().
- */
+/** SQLite + sqlite-vec backend mirroring `./postgres.ts`. Vector
+ *  columns are little-endian Float32 BLOBs; cosine similarity is via
+ *  sqlite-vec's vec_distance_cosine(). */
 
 import Database, { type Database as DatabaseT } from "better-sqlite3";
 import * as sqliteVec from "sqlite-vec";
@@ -72,8 +63,6 @@ function compile(
   return frag(sqlText, params);
 }
 
-// Lazy-init the database so sqlite-vec (an async-loaded ESM under
-// Turbopack) has time to finish initializing before we call .load().
 let _db: DatabaseT | null = null;
 async function getDb(): Promise<DatabaseT> {
   if (_db) return _db;
@@ -85,13 +74,8 @@ async function getDb(): Promise<DatabaseT> {
   d.pragma("foreign_keys = ON");
   sqliteVec.load(d);
 
-  // Shim a few Postgres builtins so cross-backend SQL keeps working.
-  // SQLite has CURRENT_TIMESTAMP but not now(); register an alias.
+  // Postgres builtins our SQL relies on.
   d.function("now", () => new Date().toISOString());
-
-  // Canonical UUIDv4 generator used as the DEFAULT for every id column.
-  // Sticking to RFC 4122 format means the existing zod .uuid() validators
-  // on cited capture_ids etc. keep working under both backends.
   d.function("gen_uuid", { deterministic: false }, () => randomUUID());
   const schemaPath = path.resolve(
     process.cwd(),
@@ -101,9 +85,8 @@ async function getDb(): Promise<DatabaseT> {
     d.exec(fs.readFileSync(schemaPath, "utf8"));
   }
 
-  // Idempotent column adds for dbs that pre-date a schema change.
-  // SQLite lacks `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, so try +
-  // swallow "duplicate column" errors.
+  // Idempotent column adds for older databases. SQLite has no
+  // `ADD COLUMN IF NOT EXISTS`.
   for (const stmt of [
     "ALTER TABLE captures ADD COLUMN is_profile INTEGER NOT NULL DEFAULT 0",
   ]) {
@@ -190,8 +173,6 @@ export async function withRls<T>(
   return sql.begin(fn);
 }
 
-// Portable SQL helpers — sqlite-vec versions.
-
 export function vec(arr: number[]): Fragment {
   return frag("?", [serializeVec(arr)]);
 }
@@ -206,8 +187,6 @@ export function cosineSim(column: string, query: number[]): Fragment {
   ]);
 }
 
-/** Generate a UUID. Postgres has gen_random_uuid(); SQLite needs the
- *  caller to provide one. */
 export function newId(): string {
   return randomUUID();
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Heirloom — Azure NCv4 (Tesla T4) VM bootstrap.
+# Heirloom - Azure NCv4 (Tesla T4) VM bootstrap.
 #
 # Run on a fresh Ubuntu 22.04 VM with sudo:
 #   curl -fsSL https://raw.githubusercontent.com/<you>/heirloom/main/infra/azure-vm-setup.sh | sudo bash
@@ -12,7 +12,7 @@
 #   5. Installs Caddy with automatic TLS
 #   6. Sets up systemd units so everything survives reboot
 #
-# Idempotent — re-running is safe.
+# Idempotent - re-running is safe.
 
 set -euo pipefail
 

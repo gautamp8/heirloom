@@ -11,18 +11,18 @@ Read alongside `FLOWS.md` (the path-by-path map) and the prototype HTMLs (the vi
 | # | Screen | Prototype | Role |
 |---|---|---|---|
 | 1 | Creator Onboarding (5 steps) | `Creator Onboarding.html` | creator |
-| 2 | Creator Home (Established) | `Creator Home — Established.html` | creator |
+| 2 | Creator Home (Established) | `Creator Home - Established.html` | creator |
 | 3 | Capture Studio (voice) | `Creator Onboarding.html` step 5 | creator |
-| 4 | Capture Studio (photo) | `Creator Home — Established.html` (sheet) | creator |
-| 5 | Capture Studio (note) | `Creator Home — Established.html` (sheet) | creator |
-| 6 | Capture Studio (video) | `Creator Home — Established.html` (sheet) | creator |
+| 4 | Capture Studio (photo) | `Creator Home - Established.html` (sheet) | creator |
+| 5 | Capture Studio (note) | `Creator Home - Established.html` (sheet) | creator |
+| 6 | Capture Studio (video) | `Creator Home - Established.html` (sheet) | creator |
 | 7 | Capture Review (post-save) | `Creator Onboarding.html` step 6 | creator |
 | 8 | Threads list / detail | new (build from design system) | creator |
 | 9 | Nominees list / detail | new (build from design system) | creator |
 | 10 | Executor Handoff (3-step v1) | `Executor Handoff.html` | creator |
 | 11 | Preview-as-nominee ribbon | overlays nominee home | creator |
 | 12 | Nominee Onboarding (4 steps) | `Nominee Reveal.html` | nominee |
-| 13 | Nominee Home (Post-Loss) | `Nominee Home — Post-Loss.html` | nominee |
+| 13 | Nominee Home (Post-Loss) | `Nominee Home - Post-Loss.html` | nominee |
 | 14 | Reflection sheet | `Nominee Reveal.html` step 5 | nominee |
 | 15 | Citation drawer | new (component lifted from Reveal) | nominee |
 | 16 | Capture detail | new (build from design system) | nominee |
@@ -54,7 +54,7 @@ Read alongside `FLOWS.md` (the path-by-path map) and the prototype HTMLs (the vi
 
 ### 2. Creator Home (Established)
 
-- **Prototype:** `prototypes/Creator Home — Established.html`
+- **Prototype:** `prototypes/Creator Home - Established.html`
 - **Route:** `/`
 - **Components:** Greeting block · Prompt-of-day card · Capture chip grid (2×2) · Thread cards · Recent captures feed · Nominee cards · Tab bar
 - **API:** `GET /me/home` → renders entire payload
@@ -68,9 +68,9 @@ Read alongside `FLOWS.md` (the path-by-path map) and the prototype HTMLs (the vi
 
 ---
 
-### 3. Capture Studio — Voice
+### 3. Capture Studio - Voice
 
-- **Prototype:** `prototypes/Creator Onboarding.html` step 5 + sheet pattern in `Creator Home — Established.html`
+- **Prototype:** `prototypes/Creator Onboarding.html` step 5 + sheet pattern in `Creator Home - Established.html`
 - **Route:** sheet `?sheet=capture&mode=voice`
 - **Components:** Sheet handle · Sheet title · Sheet prompt · Live waveform · Record button (72px oxblood circle) · Streaming transcript pane · Action row
 - **API:**
@@ -86,7 +86,7 @@ Read alongside `FLOWS.md` (the path-by-path map) and the prototype HTMLs (the vi
 
 ---
 
-### 4. Capture Studio — Photo
+### 4. Capture Studio - Photo
 
 - **Components:** Sheet shell · 4:5 image frame (`<image-slot>`) · Caption italic textarea · Tool row (`Retake` · `From library` · `Date`)
 - **API:** `POST /capture` multipart with `kind='photo'`
@@ -98,7 +98,7 @@ Read alongside `FLOWS.md` (the path-by-path map) and the prototype HTMLs (the vi
 
 ---
 
-### 5. Capture Studio — Note
+### 5. Capture Studio - Note
 
 - **Components:** Sheet shell · Borderless 17px Source Serif textarea · Mono footer (word count + autosave state)
 - **API:** `POST /capture` JSON
@@ -110,7 +110,7 @@ Read alongside `FLOWS.md` (the path-by-path map) and the prototype HTMLs (the vi
 
 ---
 
-### 6. Capture Studio — Video
+### 6. Capture Studio - Video
 
 - **Components:** Sheet shell · 9:16 viewfinder · Record button · Recording HUD · Inline guidance line
 - **API:** `POST /capture` multipart with `kind='video'`
@@ -154,7 +154,7 @@ Read alongside `FLOWS.md` (the path-by-path map) and the prototype HTMLs (the vi
 
 ### 10. Executor Handoff (3-step v1)
 
-- **Prototype:** `prototypes/Executor Handoff.html` — **note**: prototype shows 4 steps (Shamir 2-of-3). v1 collapses steps 3→4 into a single passphrase reveal screen.
+- **Prototype:** `prototypes/Executor Handoff.html` - **note**: prototype shows 4 steps (Shamir 2-of-3). v1 collapses steps 3→4 into a single passphrase reveal screen.
 - **Route:** `/executor/setup`
 - **Steps (v1):**
   1. Why this matters (educational; copy preserved from prototype)
@@ -193,7 +193,7 @@ Read alongside `FLOWS.md` (the path-by-path map) and the prototype HTMLs (the vi
 
 ### 13. Nominee Home
 
-- **Prototype:** `prototypes/Nominee Home — Post-Loss.html`
+- **Prototype:** `prototypes/Nominee Home - Post-Loss.html`
 - **Route:** `/`
 - **Components:** Framing strip · Latest-unlocked hero · Thread cards · Sealed-pieces card · Saved passages · Reflection pill
 - **API:** `GET /me/home`
@@ -262,7 +262,7 @@ Read alongside `FLOWS.md` (the path-by-path map) and the prototype HTMLs (the vi
 - **API:** `POST /executor/unlock`
 - **Acceptance:**
   - Same gentle-shake on wrong passphrase as nominee onboarding
-  - On success, shows a confirmation screen — does **not** take executor into the archive (executor sees only release status, never content)
+  - On success, shows a confirmation screen - does **not** take executor into the archive (executor sees only release status, never content)
 
 ---
 

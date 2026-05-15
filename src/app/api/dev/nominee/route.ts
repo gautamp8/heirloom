@@ -13,7 +13,7 @@ const CREATOR_EMAIL = "creator@heirloom.local";
 const NOMINEE_EMAIL = "maya@heirloom.local";
 const NOMINEE_NAME = "Maya";
 const NOMINEE_RELATIONSHIP = "Daughter";
-const LETTER_BODY = `Maya — there is something here for you.
+const LETTER_BODY = `Maya - there is something here for you.
 
 Take your time with this. There is no rush, and nothing in here is going
 anywhere. Read what you want to read, listen to what you want to listen to.
@@ -21,14 +21,14 @@ Skip what doesn't feel right. Come back to it later.
 
 I love you.
 
-— Elena`;
+- Elena`;
 
 /**
  * Dev-only nominee bootstrap. Provisions a nominee user, attaches them to
  * Elena's vault, marks every existing capture in that vault as released to
  * them, and issues a nominee session cookie.
  *
- * Idempotent — safe to POST repeatedly.
+ * Idempotent - safe to POST repeatedly.
  *
  * Uses `sqlAdmin` because the cross-table set-up touches RLS-policied
  * tables before any user session exists.
@@ -45,7 +45,7 @@ export async function POST() {
     if (!creator) {
       throw new HttpError(
         409,
-        "creator_not_bootstrapped — POST /api/dev/bootstrap first",
+        "creator_not_bootstrapped - POST /api/dev/bootstrap first",
       );
     }
     const [vault] = await sqlAdmin<{ id: string }[]>`

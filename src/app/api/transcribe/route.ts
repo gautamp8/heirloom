@@ -17,7 +17,7 @@ const TMP_DIR = process.env.HEIRLOOM_TMP_DIR ?? "/tmp";
  *
  * Returns: { text: string }
  *
- * Used by the mic affordance attached to every long-form text field —
+ * Used by the mic affordance attached to every long-form text field -
  * record → upload → drop the transcript back into the input for the
  * user to edit before submitting. Auth-gated, no storage: the temp
  * file is deleted after transcription.

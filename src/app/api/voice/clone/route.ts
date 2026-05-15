@@ -15,7 +15,7 @@ const MAX_REFERENCE_BYTES = 12 * 1024 * 1024; // 12 MB ≈ 4 min of 16-bit mono 
  *   reference_text:  the script they were asked to read (stored for record)
  *
  * Stores the wav as a blob, registers it with the TTS sidecar, persists
- * the resulting voice_id on `voice_profiles`. One profile per vault —
+ * the resulting voice_id on `voice_profiles`. One profile per vault -
  * re-calling this replaces the existing profile.
  */
 export async function POST(req: Request) {

@@ -21,7 +21,7 @@ export async function POST() {
       RETURNING id, email, display_name
     `;
     // ON CONFLICT DO NOTHING returns no row when the user already exists,
-    // so look them up explicitly. We do NOT overwrite display_name here —
+    // so look them up explicitly. We do NOT overwrite display_name here -
     // if the user has been through onboarding, their real name lives on
     // the row and we want to preserve it.
     const [u] = user

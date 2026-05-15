@@ -10,7 +10,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-// Dev shortcut — the `/welcome` envelope accepts this exact phrase as a
+// Dev shortcut - the `/welcome` envelope accepts this exact phrase as a
 // fallback so a fresh fixture nominee can be unlocked without onboarding.
 // Real per-nominee passphrases are checked first.
 const DEV_PASSPHRASE_NORMALISED = "the long road home";
@@ -67,11 +67,11 @@ export async function POST(req: Request) {
           break;
         }
       } catch {
-        /* malformed hash — skip */
+        /* malformed hash - skip */
       }
     }
 
-    // 2) Dev fallback — first nominee with an existing user_id accepts
+    // 2) Dev fallback - first nominee with an existing user_id accepts
     //    the dev passphrase. Skipped entirely in production unless dev
     //    fixtures are explicitly enabled.
     if (!match && normalised === DEV_PASSPHRASE_NORMALISED) {

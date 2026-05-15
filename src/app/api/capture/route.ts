@@ -32,7 +32,7 @@ export async function POST(req: Request) {
       ? await commitMedia(req, session)
       : await commitNote(req, session);
 
-    // Detached — fires the pipeline and returns immediately
+    // Detached - fires the pipeline and returns immediately
     void runCapturePipeline(capture_id, session);
 
     return Response.json({ capture_id, status: "processing" }, { status: 202 });

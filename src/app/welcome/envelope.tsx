@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { EASE_FOLD, EASE_PAPER, type Stage } from "./welcome-flow";
 
 /** Envelope + intact wax seal + folded letter. The seal stays attached to
- *  the flap — they share the same rotation pivot, so when the flap lifts
+ *  the flap - they share the same rotation pivot, so when the flap lifts
  *  the seal rides with it. */
 export function Envelope({
   stage,
@@ -23,11 +23,11 @@ export function Envelope({
   // Top offset of the envelope itself within the outer wrapper
   const ENV_TOP = 130;
 
-  // Animation values for the flap and the seal-rider — kept in sync.
+  // Animation values for the flap and the seal-rider - kept in sync.
   //  - 0°    closed (seal centred, flap V-shape over body)
-  //  - -125° opening peak — flap is lifted up-and-back, seal is in view
+  //  - -125° opening peak - flap is lifted up-and-back, seal is in view
   //          and reads as "wax has just released"
-  //  - -180° fully behind the envelope — out of the way once the letter
+  //  - -180° fully behind the envelope - out of the way once the letter
   //          starts to rise so it doesn't visually crash into the letter
   const flapRotate =
     stage === "envelope" ? 0 : stage === "opening" ? -125 : -180;
@@ -44,7 +44,7 @@ export function Envelope({
         transformStyle: "preserve-3d",
       }}
     >
-      {/* === LAYER 0: LETTER — slides up out of the envelope once flap is open === */}
+      {/* === LAYER 0: LETTER - slides up out of the envelope once flap is open === */}
       <motion.div
         className="absolute"
         style={{
@@ -170,7 +170,7 @@ export function Envelope({
         }}
       />
 
-      {/* === LAYER 4: SEAL-RIDER — sibling of flap, NO clip, shares the
+      {/* === LAYER 4: SEAL-RIDER - sibling of flap, NO clip, shares the
                                      flap's rotation pivot (top center of
                                      the envelope flap region) so the seal
                                      visibly travels with the flap. === */}
@@ -192,7 +192,7 @@ export function Envelope({
           opacity: { duration: 0.4, ease: EASE_PAPER, delay: 0.6 },
         }}
       >
-        {/* Seal positioned at the apex of the flap — center of seal sits
+        {/* Seal positioned at the apex of the flap - center of seal sits
             on the triangle tip so when the flap is closed the seal looks
             "pressed" at the meeting point of flap and envelope body. */}
         <div

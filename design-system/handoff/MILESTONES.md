@@ -4,11 +4,9 @@ Phase-by-phase build sequence for Heirloom v1, with goals, acceptance criteria, 
 
 The shape: **back-end first**, **scaffold the screens fast**, **invest the final phase in polish and seeded content**.
 
-The agent-execution checklist (work units measured in hours, not days) lives in `/EXECUTION-PLAN.md` at the repo root. This doc is the architecture-anchored milestone view; the execution plan is the doing view. They agree on scope.
-
 ---
 
-## Phase 0 — Setup
+## Phase 0 - Setup
 
 **Goal:** Working dev environment, models pulled, schema applied.
 
@@ -29,7 +27,7 @@ The agent-execution checklist (work units measured in hours, not days) lives in 
 
 ---
 
-## Phase 1 — Capture commit pipeline (creator)
+## Phase 1 - Capture commit pipeline (creator)
 
 **Goal:** Voice capture works end-to-end: record → upload → Whisper → embed → tag → home shows it.
 
@@ -42,7 +40,7 @@ The agent-execution checklist (work units measured in hours, not days) lives in 
 - SSE status endpoint `GET /capture/{id}/status`
 
 **Tasks (frontend):**
-- Capture sheet (voice mode) — port from `Creator Onboarding.html` step 5
+- Capture sheet (voice mode) - port from `Creator Onboarding.html` step 5
 - MediaRecorder + waveform visualizer
 - IndexedDB draft + upload queue (basic)
 - Post-capture review screen rendering streamed tags
@@ -55,7 +53,7 @@ The agent-execution checklist (work units measured in hours, not days) lives in 
 
 ---
 
-## Phase 2 — Remaining capture modes + home
+## Phase 2 - Remaining capture modes + home
 
 **Goal:** Photo, note, video all commit. Creator home renders fully.
 
@@ -65,7 +63,7 @@ The agent-execution checklist (work units measured in hours, not days) lives in 
 - `GET /captures` paginated list
 
 **Tasks (frontend):**
-- Three more capture sheets — port patterns from `Creator Home — Established.html`
+- Three more capture sheets - port patterns from `Creator Home - Established.html`
 - Creator home: greeting, prompt card, chip grid, thread cards, recent captures, nominee cards
 - Prompt-of-day cache (24h)
 
@@ -78,7 +76,7 @@ The agent-execution checklist (work units measured in hours, not days) lives in 
 
 ---
 
-## Phase 3 — Nominee + Reflection
+## Phase 3 - Nominee + Reflection
 
 **Goal:** Reflection works end-to-end with the grounding contract enforced.
 
@@ -89,9 +87,9 @@ The agent-execution checklist (work units measured in hours, not days) lives in 
 - Implement all guardrail tests in `tests/guardrails/`
 
 **Tasks (frontend):**
-- Reflection sheet — port from `Nominee Reveal.html` step 5
+- Reflection sheet - port from `Nominee Reveal.html` step 5
 - Citation drawer
-- Nominee home — port from `Nominee Home — Post-Loss.html`
+- Nominee home - port from `Nominee Home - Post-Loss.html`
 - Nominees list + release-assignment UI for the creator
 
 **Acceptance:**
@@ -103,7 +101,7 @@ The agent-execution checklist (work units measured in hours, not days) lives in 
 
 ---
 
-## Phase 4 — Nominee onboarding + executor
+## Phase 4 - Nominee onboarding + executor
 
 **Goal:** The seal-break + executor flows ship.
 
@@ -124,11 +122,11 @@ The agent-execution checklist (work units measured in hours, not days) lives in 
 - An executor passphrase round-trip works: generate → store hashed → unlock → all releases flip
 - Rate limit on `POST /executor/unlock` denies the 6th attempt
 
-**Risk:** The seal-break animation is the emotional climax of the nominee flow. Build it last but test it first — if CSS doesn't sell it, fall back to a pre-rendered 1.2s video.
+**Risk:** The seal-break animation is the emotional climax of the nominee flow. Build it last but test it first - if CSS doesn't sell it, fall back to a pre-rendered 1.2s video.
 
 ---
 
-## Phase 5 — Settings, threads, polish
+## Phase 5 - Settings, threads, polish
 
 **Goal:** Everything else ships. Polish pass.
 
@@ -146,17 +144,17 @@ The agent-execution checklist (work units measured in hours, not days) lives in 
 - Lighthouse accessibility score ≥ 95
 - All canonical empty states render correctly when their preconditions are met
 
-**Risk:** Scope creep on settings. Cut deletion if time-pinched (designed, not built — add to OPERATIONS.md).
+**Risk:** Scope creep on settings. Cut deletion if time-pinched (designed, not built - add to OPERATIONS.md).
 
 ---
 
-## Phase 6 — Seed data + product story
+## Phase 6 - Seed data + product story
 
 **Goal:** The product has a real archive to demonstrate retrieval and grounding against.
 
 **Tasks:**
 - Seed a real archive of ~25 captures across kinds + tags + threads. Use real human voice for the audio captures so transcription, tagging, and Reflection all run against real signal.
-- Validate Reflection on the seeded archive — both grounded answers and the empty-state path.
+- Validate Reflection on the seeded archive - both grounded answers and the empty-state path.
 - Author a public-facing project narrative that explains the architecture, the grounding contract, and the on-device target.
 
 **Tasks (cover assets):**
@@ -172,7 +170,7 @@ The agent-execution checklist (work units measured in hours, not days) lives in 
 
 ---
 
-## Phase 7 — Final pass
+## Phase 7 - Final pass
 
 **Goal:** Final polish. Fix one thing. Verify offline. Verify guardrails.
 
@@ -181,19 +179,19 @@ The agent-execution checklist (work units measured in hours, not days) lives in 
 - Run the "Verify offline" path on real hardware. Confirm capture queues + service-worker fallbacks behave.
 - Apply at most one polish change. Resist re-cutting cover assets unless something is materially broken.
 
-**Risk:** Final-pass production bugs. Maintain a fallback static walkthrough deployed to a separate Vercel project that serves the prototypes with a banner — *"This is a static walkthrough; the live product is at \<URL\>"* — so any user landing on the URL sees something coherent even if the inference host hiccups.
+**Risk:** Final-pass production bugs. Maintain a fallback static walkthrough deployed to a separate Vercel project that serves the prototypes with a banner - *"This is a static walkthrough; the live product is at \<URL\>"* - so any user landing on the URL sees something coherent even if the inference host hiccups.
 
 ---
 
 ## Hard cuts if behind
 
 In priority order, cut from the bottom:
-1. **Settings → Delete account** — design only, stub the route
-2. **Video capture** — voice + photo + note are enough for the product narrative
-3. **Threads** — recent-captures feed alone is fine
-4. **Preview-as-nominee** — designed, not built (the doc still proves we thought of it)
-5. **Saved passages** — designed, not built
-6. **Notifications** — designed, not built
+1. **Settings → Delete account** - design only, stub the route
+2. **Video capture** - voice + photo + note are enough for the product narrative
+3. **Threads** - recent-captures feed alone is fine
+4. **Preview-as-nominee** - designed, not built (the doc still proves we thought of it)
+5. **Saved passages** - designed, not built
+6. **Notifications** - designed, not built
 
 Never cut from the top: capture commit, Reflection, seal-break, executor unlock.
 
@@ -211,4 +209,4 @@ Database migrations: Alembic. New migrations are review-gated.
 
 ## On-call
 
-For the duration of the v1 build, treat any production error on the staging URL as p0. Keep an `incidents/` folder logging anything that broke and how it was fixed — this becomes a useful regression record.
+For the duration of the v1 build, treat any production error on the staging URL as p0. Keep an `incidents/` folder logging anything that broke and how it was fixed - this becomes a useful regression record.

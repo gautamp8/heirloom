@@ -1,19 +1,19 @@
--- Migration 002 — legacy preservation features
+-- Migration 002 - legacy preservation features
 --
 -- Adds:
---   • people              — face-identity per vault (creator + nominees + family)
---   • face_appearances    — bbox + 128-dim embedding per face per photo
---   • life_events         — anchor dates (birthdays, anniversaries, losses)
---   • sealed_letters      — captures with conditional unlock rules
---   • nominee_states      — moods/states logged by nominees, drive state triggers
---   • nominees.passphrase_hash — per-nominee argon2id, replaces dev shortcut
+--   • people              - face-identity per vault (creator + nominees + family)
+--   • face_appearances    - bbox + 128-dim embedding per face per photo
+--   • life_events         - anchor dates (birthdays, anniversaries, losses)
+--   • sealed_letters      - captures with conditional unlock rules
+--   • nominee_states      - moods/states logged by nominees, drive state triggers
+--   • nominees.passphrase_hash - per-nominee argon2id, replaces dev shortcut
 --
 -- Design notes:
 --   • Sealed-letter unlocks fire by inserting a row into the existing
---     nominee_releases table — this means the existing RLS gates on
+--     nominee_releases table - this means the existing RLS gates on
 --     transcripts / chunks / tags / captures keep working unchanged.
 --   • Face embeddings are 128-dim (face-api.js ResNet-34 descriptor).
---   • All embedding fields are stored — none are derived from the others.
+--   • All embedding fields are stored - none are derived from the others.
 
 -- =========================================================================
 -- §1  Auth: per-nominee passphrase hash
@@ -24,7 +24,7 @@ ALTER TABLE nominees
     ADD COLUMN IF NOT EXISTS passphrase_set_at TIMESTAMPTZ;
 
 -- =========================================================================
--- §2  People — face-identity clusters within a vault
+-- §2  People - face-identity clusters within a vault
 -- =========================================================================
 
 CREATE TABLE IF NOT EXISTS people (
@@ -63,7 +63,7 @@ USING (
 );
 
 -- =========================================================================
--- §3  Face appearances — one row per detected face per capture
+-- §3  Face appearances - one row per detected face per capture
 -- =========================================================================
 
 CREATE TABLE IF NOT EXISTS face_appearances (
@@ -106,7 +106,7 @@ USING (
 );
 
 -- =========================================================================
--- §4  Life events — birthdays, anniversaries, losses, milestones
+-- §4  Life events - birthdays, anniversaries, losses, milestones
 -- =========================================================================
 
 CREATE TABLE IF NOT EXISTS life_events (
@@ -147,7 +147,7 @@ USING (
 );
 
 -- =========================================================================
--- §5  Sealed letters — captures with conditional unlock rules
+-- §5  Sealed letters - captures with conditional unlock rules
 --
 -- The conditions JSONB is a small DSL:
 --   {"any_of": [
@@ -159,7 +159,7 @@ USING (
 --     {"kind": "first_visit"}
 --   ]}
 --
--- Each fire mechanism inserts into nominee_releases — the existing RLS gates
+-- Each fire mechanism inserts into nominee_releases - the existing RLS gates
 -- then make the underlying capture visible to the nominee.
 -- =========================================================================
 
@@ -207,7 +207,7 @@ USING (
 );
 
 -- =========================================================================
--- §6  Nominee states — moods/states tapped by nominees, drive state triggers
+-- §6  Nominee states - moods/states tapped by nominees, drive state triggers
 -- =========================================================================
 
 CREATE TABLE IF NOT EXISTS nominee_states (

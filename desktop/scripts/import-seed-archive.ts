@@ -1,23 +1,11 @@
 /**
- * Import a seed-archive folder (e.g. desktop/seed-archives/sagan) into the
- * running Heirloom instance as a fresh creator + nominee + vault.
+ * Import a seed-archive folder into the database as a fresh
+ * creator + vault + nominee.
  *
- * Usage:
  *   pnpm tsx desktop/scripts/import-seed-archive.ts ./desktop/seed-archives/sagan
  *
- * Requires:
- *   - HEIRLOOM_BACKEND=postgres (or sqlite) + DATABASE_URL set
- *   - Heirloom server NOT required — script talks to DB + TTS sidecar directly
- *   - TTS sidecar running on HEIRLOOM_TTS_URL (default 127.0.0.1:11435)
- *   - Ollama running for embeddings (gemma4 + embeddinggemma pulled)
- *
- * What it creates:
- *   - users(email='sagan@heirloom.local', display_name='Carl Sagan')
- *   - vaults(name='Carl Sagan archive')
- *   - one nominee 'You' with passphrase 'pale blue dot · 1990'
- *   - captures for each note/photo in the manifest
- *   - voice_profiles row with the reference WAV
- *   - sealed_letters wired through the existing condition engine
+ * Requires DATABASE_URL (or DATABASE_ADMIN_URL), Ollama for embeddings,
+ * and HEIRLOOM_TTS_URL for the optional voice reference.
  */
 
 import * as fs from "node:fs";
@@ -230,7 +218,7 @@ async function main() {
     console.log(`  sealed letter: ${letter.occasion_prompt}`);
   }
 
-  // Identity index — bio facts (name, dates, nominees, letter occasions)
+  // Identity index - bio facts (name, dates, nominees, letter occasions)
   // get their own hidden profile capture so retrieval can answer
   // "who is X?" / "when were you born?" without the creator needing
   // to write those facts as a note themselves.

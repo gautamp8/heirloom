@@ -1,5 +1,5 @@
 """
-Heirloom TTS sidecar — LuxTTS (ZipVoice) voice clone server.
+Heirloom TTS sidecar - LuxTTS (ZipVoice) voice clone server.
 
 A minimal HTTP wrapper around LuxTTS. Two endpoints:
 

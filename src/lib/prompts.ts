@@ -17,8 +17,7 @@ const FALLBACK_PROMPTS = [
   "A piece of advice you keep but never say aloud.",
 ];
 
-/** Generate one reflective prompt. Falls back to a static pick if
- *  Gemma is unavailable so the home never hangs. */
+/** Falls back to a static pick if Gemma is unavailable. */
 export async function generatePromptOfDay(opts: {
   recentTopics?: string[];
   recentCount?: number;
@@ -30,7 +29,7 @@ export async function generatePromptOfDay(opts: {
   const prompt = `${SAFETY_PREAMBLE}
 
 You are writing today's prompt for the creator of a memory archive. It
-should feel like a thoughtful friend asking — not a productivity app.
+should feel like a thoughtful friend asking - not a productivity app.
 One sentence only.
 
 Their archive has ${recent} recent pieces.
@@ -62,9 +61,7 @@ function fallbackPrompt(): string {
   return FALLBACK_PROMPTS[Math.floor(Math.random() * FALLBACK_PROMPTS.length)];
 }
 
-/** Generate a 3–6 word title for a note body. Returns null when
- *  Gemma is unhelpful; callers fall back to "Untitled" or the first
- *  clause. */
+/** 3–6 word title for a note body. Null when Gemma is unhelpful. */
 export async function generateNoteTitle(body: string): Promise<string | null> {
   const trimmed = body.trim();
   if (trimmed.length < 12) return null;
@@ -72,7 +69,7 @@ export async function generateNoteTitle(body: string): Promise<string | null> {
   const prompt = `${SAFETY_PREAMBLE}
 
 The creator has written a memory in their archive. Give it a short title
-in the creator's own register — not a summary, not a label, just the kind
+in the creator's own register - not a summary, not a label, just the kind
 of phrase the creator might write at the top of a page.
 
 The memory:
@@ -92,9 +89,7 @@ proper nouns (do not normalise "dad" -> "father").`;
     });
     const cleaned = cleanSentence(text).replace(/[.!?]+$/g, "");
     if (!cleaned) return null;
-    // Cap at 8 words just in case
-    const words = cleaned.split(/\s+/);
-    if (words.length > 8) return null;
+    if (cleaned.split(/\s+/).length > 8) return null;
     return cleaned;
   } catch {
     return null;
@@ -106,15 +101,13 @@ function cleanSentence(t: string): string {
   return t
     .trim()
     .replace(/^["“”'`]+|["“”'`]+$/g, "")
-    .replace(/^(prompt|today'?s? prompt|title)\s*[:\-—]\s*/i, "")
+    .replace(/^(prompt|today'?s? prompt|title)\s*[:\--]\s*/i, "")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-/** Occasion prompts for the onboarding "seed letters" step. Each draft
- *  carries a nominee, an occasion prompt for the creator, and a
- *  free-text trigger that the condition engine later maps into one of
- *  {date, life_event, state, semantic_match}. */
+/** A seeded sealed-letter occasion: nominee + occasion + free-text
+ *  trigger the condition engine maps into a DSL entry. */
 export type SeedLetterDraft = {
   to: string; // nominee display name
   prompt: string; // occasion prompt for the creator
@@ -163,7 +156,7 @@ export async function generateSeedLetterPrompts(opts: {
   const prompt = `${SAFETY_PREAMBLE}
 
 You are helping ${opts.creatorName} seed the archive with a handful of
-sealed-letter occasions — moments when each nominee should hear something
+sealed-letter occasions - moments when each nominee should hear something
 specific from them. Write 5 occasion prompts. Each prompt should:
 - Be addressed to ONE specific nominee by name.
 - Describe a clear moment (a feeling, a milestone, a date).
@@ -176,7 +169,7 @@ Nominees to write for: ${list}.
 
 Output strict JSON only, an array of 5 objects with keys "to" (string,
 the nominee's name), "prompt" (string, the occasion), and "trigger"
-(string, a 2-4 word phrase describing when it should unlock — e.g. "When
+(string, a 2-4 word phrase describing when it should unlock - e.g. "When
 they feel lost", "On their wedding day", "On their 18th birthday", "On
 the anniversary of loss", "When they miss you"). No prose around the JSON.`;
 

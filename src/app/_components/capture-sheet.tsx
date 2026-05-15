@@ -297,9 +297,8 @@ function VoiceCapture({
     const durationMs =
       startedAtRef.current > 0 ? Date.now() - startedAtRef.current : elapsedMs;
 
-    // Persist a draft BEFORE attempting network upload. If the network
-    // hiccups or the tab closes, the recording survives in IndexedDB
-    // and can be resumed from the home banner.
+    // Survive a dropped network or closed tab - drafts live in IndexedDB
+    // and resume from the home banner.
     let draftId: number | undefined;
     try {
       const { saveDraft } = await import("@/lib/drafts");
@@ -331,7 +330,6 @@ function VoiceCapture({
     const { capture_id } = (await r.json()) as { capture_id: string };
     setState("processing");
 
-    // Subscribe to SSE
     const es = new EventSource(`/api/capture/${capture_id}/status`);
     es.addEventListener("stage", (ev) => {
       const { stage: s } = JSON.parse((ev as MessageEvent).data) as { stage: Stage };
@@ -352,7 +350,7 @@ function VoiceCapture({
       const { capture } = JSON.parse((ev as MessageEvent).data) as {
         capture: HomeCapture & { transcript_snippet?: string };
       };
-      // Pipeline succeeded — clear the local draft.
+      // Pipeline succeeded - clear the local draft.
       if (draftId !== undefined) {
         try {
           const { clearDraft } = await import("@/lib/drafts");
@@ -371,7 +369,7 @@ function VoiceCapture({
 
   return (
     <div className="flex flex-col items-center gap-5">
-      {/* Waveform — 48 bars */}
+      {/* Waveform - 48 bars */}
       <div className="w-full h-32 flex items-center justify-center gap-[3px] px-2">
         {bars.map((h, i) => (
           <span
@@ -487,9 +485,8 @@ function NoteCapture({
   const [tags, setTags] = useState<{ kind: string; value: string }[]>([]);
   const [stage, setStage] = useState<Stage | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // When the user is responding to a prompt, we don't let them retitle —
-  // the prompt itself stands in as the topic. Free-form notes (chip-launch)
-  // can take an explicit title.
+  // A prompt response uses the prompt as its title; only free-form
+  // notes accept an explicit title.
   const titleEditable = !prompt;
   const dots = useBreathDots();
 
@@ -498,8 +495,7 @@ function NoteCapture({
     setState("saving");
     setError(null);
 
-    // Persist the note locally before the network call so a closed tab
-    // or dropped connection doesn't drop the writing.
+    // Same draft-resume pattern as audio: survive a dropped network.
     let draftId: number | undefined;
     try {
       const { saveDraft } = await import("@/lib/drafts");
@@ -692,7 +688,6 @@ function PhotoCapture({
     setState("saving");
     setError(null);
 
-    // Persist the photo + face data locally before the network call.
     let draftId: number | undefined;
     try {
       const { saveDraft } = await import("@/lib/drafts");
@@ -735,8 +730,7 @@ function PhotoCapture({
       setStage(s);
     });
     es.addEventListener("transcript", (ev) => {
-      // The pipeline currently re-uses the 'transcript' SSE event to surface
-      // the photo caption (single text field, same wire shape).
+      // The pipeline re-uses 'transcript' to surface the photo caption.
       const { text } = JSON.parse((ev as MessageEvent).data) as { text: string };
       setCaption(text);
     });

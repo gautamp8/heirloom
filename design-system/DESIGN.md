@@ -1,4 +1,4 @@
-# Heirloom — Design System
+# Heirloom - Design System
 
 > _Preserve presence across generations._
 
@@ -12,15 +12,15 @@ The interactive companion to this file is **`Heirloom Design System.html`**. Ope
 
 | Axis | Decision | Notes |
 |------|----------|-------|
-| Aesthetic | **Warm Paper** — bone, ivory, parchment, sepia ink, wax | One ceremonial accent (oxblood), one warm secondary (candle-amber) |
+| Aesthetic | **Warm Paper** - bone, ivory, parchment, sepia ink, wax | One ceremonial accent (oxblood), one warm secondary (candle-amber) |
 | Type | **Newsreader** (display + italic voice) · **Geist** (UI) · **JetBrains Mono** (metadata) | Newsreader italics carry intimacy; Geist keeps chrome modern |
 | Logo | **Wax-seal monogram H** (primary) + wordmark + lockup | Three additional explorations available in the gallery |
-| Motion | **Restrained baseline · cinematic threshold moments** | Three sanctioned cinematic moments — see §6 |
-| Imagery | **Atmospheric, not stock-people** | Window, hand, kitchen — never collaged faces |
+| Motion | **Restrained baseline · cinematic threshold moments** | Three sanctioned cinematic moments - see §6 |
+| Imagery | **Atmospheric, not stock-people** | Window, hand, kitchen - never collaged faces |
 | Mode-switch metaphor | **Turning a page** | A page lifts from left; the View room sits underneath |
 | Handoff metaphor | **Wax seal on a folded letter** | The single ceremony shared by death · milestone · creator release |
 | Voice-clone | **Surfaced feature, multi-step consent ceremony** | Never default-on; revocable at any point |
-| Device priority | **Responsive — mobile and desktop equal** | Mobile-first capture; desktop for retrieval and archive review |
+| Device priority | **Responsive - mobile and desktop equal** | Mobile-first capture; desktop for retrieval and archive review |
 
 ### Things this design is **not**
 
@@ -33,7 +33,7 @@ The interactive companion to this file is **`Heirloom Design System.html`**. Ope
 
 ---
 
-## 2. Brand voice — one paragraph
+## 2. Brand voice - one paragraph
 
 Heirloom is a held space. We speak softly, in first-person plural ("we"), and we never personify the creator. Prompts ask, they don't direct. Errors apologize without flourish. We say _released_, not _unlocked_; _held_, not _queued_; _opened_, not _viewed_. We always use the names the creator gave us. If we don't know a name, we ask. If asking would intrude, we wait.
 
@@ -43,7 +43,7 @@ A fuller voice & tone reference (do / don't, words we use, words we avoid) lives
 
 ## 3. Color
 
-### Palette — Warm Paper (canonical)
+### Palette - Warm Paper (canonical)
 
 | Token | Hex | Role |
 |---|---|---|
@@ -58,16 +58,16 @@ A fuller voice & tone reference (do / don't, words we use, words we avoid) lives
 | `--ink-mute` | `#766A4F` | Helper, meta-label color |
 | `--ink-fade` | `#9C9075` | Mono caption color |
 | `--sepia` | `#5C3A21` | Quoted voice; dates; the historical register |
-| `--wax` | `#7D2A1A` | **Ceremonial accent** — Record, Designate, Release |
+| `--wax` | `#7D2A1A` | **Ceremonial accent** - Record, Designate, Release |
 | `--wax-soft` | `#A23F2A` | Hover / secondary ceremonial |
-| `--candle` | `#C9892A` | Warm secondary — image tint, timestamps |
-| `--moss` | `#5F6B43` | Tertiary — the living thing; success-ish |
+| `--candle` | `#C9892A` | Warm secondary - image tint, timestamps |
+| `--moss` | `#5F6B43` | Tertiary - the living thing; success-ish |
 
 ### Alternative palettes (tweakable)
 
-- **Cool Archive** — fog, slate, deep navy, candle accent
-- **Garden Pressed** — sage, dried-rose, dusk
-- **Monochrome + one** — near-black on near-white with a single wax accent
+- **Cool Archive** - fog, slate, deep navy, candle accent
+- **Garden Pressed** - sage, dried-rose, dusk
+- **Monochrome + one** - near-black on near-white with a single wax accent
 
 ### Restraint rules
 
@@ -84,7 +84,7 @@ A fuller voice & tone reference (do / don't, words we use, words we avoid) lives
 | Family | Use | Source |
 |---|---|---|
 | **Newsreader** | Display, headlines, prompts, quotes, emotional tags | Google Fonts |
-| **Geist** | UI — buttons, fields, body, helper, labels | Google Fonts |
+| **Geist** | UI - buttons, fields, body, helper, labels | Google Fonts |
 | **JetBrains Mono** | Timestamps, provenance, technical metadata only | Google Fonts |
 
 ### Scale (responsive, clamped)
@@ -114,15 +114,15 @@ A fuller voice & tone reference (do / don't, words we use, words we avoid) lives
 Reference renders live in the interactive system. Specs:
 
 ### Buttons
-- **Primary** — wax background, bone text; **reserved for ceremonial actions**: Record, Designate, Release, Confirm release.
-- **Secondary** — bone background, deep-ink text, hairline border.
-- **Ghost** — transparent, fades into background on hover.
+- **Primary** - wax background, bone text; **reserved for ceremonial actions**: Record, Designate, Release, Confirm release.
+- **Secondary** - bone background, deep-ink text, hairline border.
+- **Ghost** - transparent, fades into background on hover.
 - All buttons are pill-shaped (`--r-pill`), 12/18 padding default, 8/14 for `btn-sm`.
 
 ### Chips
-- **Default** — ivory background, hairline border. Geist 12.5.
-- **Emotion** — transparent, hairline border, Newsreader italic, lowercase, sepia. Always in the creator's own words.
-- **Citation** — mono, hairline border, used to deep-link to source memories.
+- **Default** - ivory background, hairline border. Geist 12.5.
+- **Emotion** - transparent, hairline border, Newsreader italic, lowercase, sepia. Always in the creator's own words.
+- **Citation** - mono, hairline border, used to deep-link to source memories.
 
 ### Fields
 - Ivory background, hairline border, 14/16 padding.
@@ -130,15 +130,15 @@ Reference renders live in the interactive system. Specs:
 
 ### Memory cards
 Variants: **audio · photo · journal · video · chat**. Each card has:
-- An image slot (4:3) — either real imagery or a tinted placeholder
+- An image slot (4:3) - either real imagery or a tinted placeholder
 - Newsreader title (22)
-- Italic excerpt — the creator's own words, pulled from the recording
+- Italic excerpt - the creator's own words, pulled from the recording
 - Kind chip + date in mono
 
 ### Waveform player
 - 36 bars, 2px wide, paper-ink color
 - The "now" position is the only place wax appears in routine playback
-- **Always** carries a "recording" label — never reads as live presence
+- **Always** carries a "recording" label - never reads as live presence
 
 ### Recorder
 - Newsreader italic prompt (24/1.35), with a mono eyebrow naming the source ("Guided prompt · for Maren")
@@ -149,7 +149,7 @@ Variants: **audio · photo · journal · video · chat**. Each card has:
 ### Nominees row
 - 42px wax seal monogram of the nominee's first initial
 - Newsreader name + meta-line describing the trigger ("Daughter · on her 18th birthday")
-- Status chip with a small colored dot — `Held` (moss), `Ready to release` (candle), `Sealed` (fade), `Released` (wax)
+- Status chip with a small colored dot - `Held` (moss), `Ready to release` (candle), `Sealed` (fade), `Released` (wax)
 
 ### Voice-clone consent
 A four-step ceremony, not a checkbox. Each step is a separate surface:
@@ -167,19 +167,19 @@ The clone is revocable at any point, including after handoff. Revocation is one 
 Routine motion is barely-there. Ceremonial motion is reserved for three thresholds.
 
 ### Durations
-- `--dur-quick` 240ms — routine
-- `--dur-calm` 520ms — transitions
-- `--dur-cinema` 1100ms — thresholds
+- `--dur-quick` 240ms - routine
+- `--dur-calm` 520ms - transitions
+- `--dur-cinema` 1100ms - thresholds
 
 ### Easings
-- `--ease-paper` `cubic-bezier(.22,.61,.36,1)` — soft, like paper settling
-- `--ease-fold` `cubic-bezier(.55,.05,.25,1)` — initial resistance, then release
+- `--ease-paper` `cubic-bezier(.22,.61,.36,1)` - soft, like paper settling
+- `--ease-fold` `cubic-bezier(.55,.05,.25,1)` - initial resistance, then release
 
 ### Sanctioned cinematic moments
 
-1. **First capture, ever** — the recorder rises from the bottom of the screen on a 1100ms fold; the first prompt fades in 200ms behind it.
-2. **Mode switch** — a page lifts from the left edge and rotates 168° on `--ease-fold`. The View room sits underneath in a quieter parchment.
-3. **Nominee first opening** — the envelope sits closed. The wax seal "breaks" on a held interaction (long-press or sustained click) — never on an idle timer. The contents fade in over 1100ms.
+1. **First capture, ever** - the recorder rises from the bottom of the screen on a 1100ms fold; the first prompt fades in 200ms behind it.
+2. **Mode switch** - a page lifts from the left edge and rotates 168° on `--ease-fold`. The View room sits underneath in a quieter parchment.
+3. **Nominee first opening** - the envelope sits closed. The wax seal "breaks" on a held interaction (long-press or sustained click) - never on an idle timer. The contents fade in over 1100ms.
 
 ### Forbidden
 
@@ -194,11 +194,11 @@ Routine motion is barely-there. Ceremonial motion is reserved for three threshol
 
 ## 7. Iconography
 
-A minimal custom set on a 20-unit grid. Single-weight stroke (1.2px), rounded caps, never filled. Asymmetric where the world is — the letter, the leaf, the thread.
+A minimal custom set on a 20-unit grid. Single-weight stroke (1.2px), rounded caps, never filled. Asymmetric where the world is - the letter, the leaf, the thread.
 
 Set: `mic · photo · journal · video · letter · seal · thread · clock · nominee · lock · search · leaf`.
 
-Add only when an existing icon cannot carry the meaning. Lucide and similar default icon sets are off-limits — Heirloom's iconography must feel hand-set.
+Add only when an existing icon cannot carry the meaning. Lucide and similar default icon sets are off-limits - Heirloom's iconography must feel hand-set.
 
 ---
 
@@ -214,7 +214,7 @@ When commissioning or curating:
 - Avoid grief-coded imagery (candles being blown out, empty chairs, photographs face-down) unless the creator has explicitly framed a memory that way.
 
 ### Placeholder system
-Until imagery exists, use tinted rectangles with a small monospace caption naming what the image is meant to be — "A window · morning", "A hand · loose grip". This reads as reserved space, not filler.
+Until imagery exists, use tinted rectangles with a small monospace caption naming what the image is meant to be - "A window · morning", "A hand · loose grip". This reads as reserved space, not filler.
 
 ---
 
@@ -264,8 +264,8 @@ Heirloom never makes any of these irreversible.
 
 Hero flows that will become interactive prototypes:
 
-1. **Creator onboarding → first capture** — naming Heirloom, designating a first nominee (optional, can be skipped), the first guided prompt, the first recording.
-2. **Nominee first-visit sealed-letter reveal → first playback** — the envelope, the seal, the first opening, the first recording played in View mode.
+1. **Creator onboarding → first capture** - naming Heirloom, designating a first nominee (optional, can be skipped), the first guided prompt, the first recording.
+2. **Nominee first-visit sealed-letter reveal → first playback** - the envelope, the seal, the first opening, the first recording played in View mode.
 
 Single-screen mocks needed for the foundation deck:
 
@@ -273,7 +273,7 @@ Single-screen mocks needed for the foundation deck:
 
 ---
 
-## 13. Tokens — quick reference
+## 13. Tokens - quick reference
 
 ```
 --bone       #FAF7F0   --ivory      #F2ECDD   --parchment  #E8DFC8
@@ -304,11 +304,11 @@ Single-screen mocks needed for the foundation deck:
 
 ## 14. Open problems (still to design)
 
-- **Handoff trigger UX** — three release modes (creator-released · scheduled · executor-key). Same envelope, different inscriptions. The executor-key flow needs careful handling — how does an executor identify themselves without it feeling administrative? Current direction: a printed phrase the creator hands a trusted person, entered in a dedicated quiet surface.
-- **View mode introduction for nominees** — not saccharine, not clinical, not assuming bereavement. Current direction: the envelope is silent; the inscription names only the moment, not the cause.
-- **Voice-clone consent ceremony** — four-step flow drafted in §5; needs interactive prototype to confirm pacing.
-- **"Ask about survivors" branching** — sketched as a gentle prompt below the recorder. Needs to be tested for false-positive triggers.
-- **Empty-Reflection emotional fingerprint** — what does Reflection look like when there's nothing yet? Current direction: a single Newsreader italic line ("Nothing yet. Heirloom is patient.") with no CTA; the recorder is one tap away from anywhere in the app.
+- **Handoff trigger UX** - three release modes (creator-released · scheduled · executor-key). Same envelope, different inscriptions. The executor-key flow needs careful handling - how does an executor identify themselves without it feeling administrative? Current direction: a printed phrase the creator hands a trusted person, entered in a dedicated quiet surface.
+- **View mode introduction for nominees** - not saccharine, not clinical, not assuming bereavement. Current direction: the envelope is silent; the inscription names only the moment, not the cause.
+- **Voice-clone consent ceremony** - four-step flow drafted in §5; needs interactive prototype to confirm pacing.
+- **"Ask about survivors" branching** - sketched as a gentle prompt below the recorder. Needs to be tested for false-positive triggers.
+- **Empty-Reflection emotional fingerprint** - what does Reflection look like when there's nothing yet? Current direction: a single Newsreader italic line ("Nothing yet. Heirloom is patient.") with no CTA; the recorder is one tap away from anywhere in the app.
 
 ---
 
@@ -325,7 +325,7 @@ Single-screen mocks needed for the foundation deck:
 
 Next deliverables, in order:
 
-1. **Asset folder** — placeholder imagery, recorded audio motifs, logo exports (SVG + PNG).
-2. **Creator onboarding → first capture** — interactive HTML prototype (mobile + desktop).
-3. **Nominee first-visit sealed-letter reveal → first playback** — interactive HTML prototype.
+1. **Asset folder** - placeholder imagery, recorded audio motifs, logo exports (SVG + PNG).
+2. **Creator onboarding → first capture** - interactive HTML prototype (mobile + desktop).
+3. **Nominee first-visit sealed-letter reveal → first playback** - interactive HTML prototype.
 4. **Single-screen mocks** in device frames for the screens listed in §12.

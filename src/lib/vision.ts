@@ -59,7 +59,6 @@ export async function captionPhoto(
     options: { num_predict: 180, temperature: 0.4, top_p: 0.9 },
   };
 
-  const t0 = Date.now();
   const res = await fetch(`${OLLAMA_BASE}/api/chat`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -69,14 +68,6 @@ export async function captionPhoto(
   if (!res.ok) {
     throw new Error(`vision: ${res.status} ${await res.text()}`);
   }
-  const data = (await res.json()) as {
-    message?: { content?: string };
-    eval_count?: number;
-  };
-  const elapsed = Date.now() - t0;
-  const caption = (data.message?.content ?? "").trim();
-  console.log(
-    `[vision] caption (${caption.length}ch, ${data.eval_count}t, ${elapsed}ms)`,
-  );
-  return caption;
+  const data = (await res.json()) as { message?: { content?: string } };
+  return (data.message?.content ?? "").trim();
 }

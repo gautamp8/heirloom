@@ -9,10 +9,8 @@ export type RetrievedChunk = {
   similarity: number;
 };
 
-/** Top-k cosine retrieval over `transcript_chunks` within a vault, RLS-
- *  enforced via the session GUCs. Returns the chunks ordered most-similar
- *  first; the caller compares `chunks[0].similarity` against the grounding
- *  threshold. */
+/** Top-k cosine retrieval over `transcript_chunks` within the session's
+ *  vault, RLS-enforced, ordered most-similar first. */
 export async function fetchTopK(
   qEmbedding: number[],
   session: Session,

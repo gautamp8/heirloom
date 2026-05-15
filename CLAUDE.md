@@ -1,10 +1,10 @@
-# Heirloom — Project Context & Engineering Guide
+# Heirloom - Project Context & Engineering Guide
 
 ## Project Overview
 
 Heirloom is a private, local-first legacy companion.
 
-It helps people preserve stories, memories, values, voice notes, family history, and emotional presence across generations — especially during emotionally significant life periods such as terminal illness, caregiving, aging, or major life transitions.
+It helps people preserve stories, memories, values, voice notes, family history, and emotional presence across generations - especially during emotionally significant life periods such as terminal illness, caregiving, aging, or major life transitions.
 
 This is NOT:
 
@@ -59,7 +59,7 @@ Conversation + memory exploration.
 
 ### 1. Guided Memory Capture
 
-The app gently prompts users to share — if they wish — and record:
+The app gently prompts users to share - if they wish - and record:
 
 * life stories
 * lessons
@@ -72,7 +72,7 @@ The app gently prompts users to share — if they wish — and record:
 Example prompts:
 
 * "Tell me about your childhood home."
-* "What life lesson do you want your children to remember?" — ask first whether they have children, or who they intend to reach.
+* "What life lesson do you want your children to remember?" - ask first whether they have children, or who they intend to reach.
 * "Describe one of your happiest memories."
 
 The capture surface never assumes a context (e.g. terminal diagnosis); the user leads.
@@ -142,9 +142,8 @@ The system never:
 * Next.js (App Router)
 * TypeScript
 * Tailwind CSS
-* shadcn/ui
 * Framer Motion
-* Vercel AI SDK as the primitives layer for streaming, tool calling, and AI state — see PLAN.md
+* Vercel AI SDK as the primitives layer for streaming, tool calling, and AI state
 
 ### UI References
 
@@ -184,7 +183,7 @@ The application functions offline / local-first whenever possible. Privacy is a 
 
 ## Deployment Posture
 
-Heirloom is **local-first by default**. The canonical install is `./install.sh` on the creator's own Mac. That is the recommended path for almost everyone — nothing leaves the device, the model runs on-device, the archive lives on the user's own disk.
+Heirloom is **local-first by default**. The canonical install is `./install.sh` on the creator's own Mac. That is the recommended path for almost everyone - nothing leaves the device, the model runs on-device, the archive lives on the user's own disk.
 
 Two other deployment shapes are supported, in this order of preference:
 
@@ -194,15 +193,15 @@ Two other deployment shapes are supported, in this order of preference:
 
 What we do **not** do:
 
-* Run Heirloom as a multi-tenant SaaS. v1 is single-creator-per-instance. A shared URL is for one person at a time; concurrent visitors see each other's data. Real multi-tenancy needs proper per-vault folder namespacing, real signup/signin, and per-user RLS scopes — that work is tracked but explicitly deferred.
+* Run Heirloom as a multi-tenant SaaS. v1 is single-creator-per-instance. A shared URL is for one person at a time; concurrent visitors see each other's data. Real multi-tenancy needs proper per-vault folder namespacing, real signup/signin, and per-user RLS scopes - that work is tracked but explicitly deferred.
 * Send any telemetry. The only outbound HTTPS the running app makes is from Caddy to Let's Encrypt and from Ollama to ollama.com on first model pull. Everything else stays on the box.
-* Use managed inference providers (OpenAI, Together, Replicate, etc.) for the load-bearing surfaces. The product is Gemma 4 running locally via Ollama — that is non-negotiable. Self-hosted instances run the same Ollama on the same VM as the app.
+* Use managed inference providers (OpenAI, Together, Replicate, etc.) for the load-bearing surfaces. The product is Gemma 4 running locally via Ollama - that is non-negotiable. Self-hosted instances run the same Ollama on the same VM as the app.
 
 When a feature is added, consider both deployment shapes:
 
 * Does this work offline on a laptop? (Required.)
-* Does this work on a CPU-only VM? (Recommended — accept slower inference, no GPU code paths.)
-* Does this leak data the user thought was private? (Disqualifying — fix before merging.)
+* Does this work on a CPU-only VM? (Recommended - accept slower inference, no GPU code paths.)
+* Does this leak data the user thought was private? (Disqualifying - fix before merging.)
 
 ---
 
@@ -302,8 +301,6 @@ Avoid:
 * complicated infra
 * multi-agent orchestration
 * premature fine-tuning
-
-The execution plan for v1 lives in `EXECUTION-PLAN.md`.
 
 ---
 

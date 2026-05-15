@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Heirloom — Ubuntu 22.04 CPU-only single-VM bootstrap.
+# Heirloom - Ubuntu 22.04 CPU-only single-VM bootstrap.
 #
 # Runs ON the target VM as root (via cloud-init or `sudo bash`). Brings
 # up the full Heirloom stack: Node + pnpm, Ollama (CPU), whisper-cpp,
@@ -94,7 +94,7 @@ BEGIN
     END IF;
 END
 \$\$;
--- Set a password on the postgres superuser too — sqlAdmin connects
+-- Set a password on the postgres superuser too - sqlAdmin connects
 -- over TCP from the Heirloom node process and needs password auth.
 ALTER USER postgres WITH PASSWORD '$DB_ADMIN_PASS';
 SQL
@@ -141,7 +141,7 @@ systemctl enable --now ollama
 sleep 5
 ok "ollama serving on 127.0.0.1:11434"
 
-# Warm-up unit — fires a tiny inference + embed after Ollama starts so
+# Warm-up unit - fires a tiny inference + embed after Ollama starts so
 # the first real user request doesn't pay the cold-load tax. Keeps both
 # models resident for the OLLAMA_KEEP_ALIVE window.
 cat > /etc/systemd/system/ollama-warmup.service <<'WARMUP'
@@ -166,7 +166,7 @@ systemctl daemon-reload
 systemctl enable --now ollama-warmup
 ok "ollama-warmup unit registered"
 
-note "Pulling gemma4:e4b (9.6 GB) — this takes ~5 minutes"
+note "Pulling gemma4:e4b (9.6 GB) - this takes ~5 minutes"
 sudo -u ollama ollama pull gemma4:e4b
 note "Pulling embeddinggemma (621 MB)"
 sudo -u ollama ollama pull embeddinggemma
@@ -234,7 +234,7 @@ LimitNOFILE=65536
 WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
-# Don't start yet — the deploy step still needs to rsync the code + build
+# Don't start yet - the deploy step still needs to rsync the code + build
 ok "heirloom.service registered (not started)"
 
 # 9. Caddy reverse proxy + TLS -------------------------------------------

@@ -1,6 +1,6 @@
 # PWA.md
 
-Progressive Web App configuration for Heirloom v1. The PWA story matters because the product story is on-device — the installable shell is what makes the demo feel local even when the demo's inference is server-side.
+Progressive Web App configuration for Heirloom v1. The PWA story matters because the product story is on-device - the installable shell is what makes the demo feel local even when the demo's inference is server-side.
 
 ---
 
@@ -55,8 +55,8 @@ The Background Sync queue is named `heirloom-capture-queue`. The frontend shows 
 
 Heirloom does **not** auto-prompt to install. The platform `beforeinstallprompt` is captured and held silently. We surface install in two places only:
 
-1. **After the user's third capture** — a small mono nudge appears in the home, dismissible forever after one tap: *"Keep Heirloom on your home screen."*
-2. **In Settings → About → Install** — always available.
+1. **After the user's third capture** - a small mono nudge appears in the home, dismissible forever after one tap: *"Keep Heirloom on your home screen."*
+2. **In Settings → About → Install** - always available.
 
 Never modal. Never blocking. Never on first visit.
 
@@ -110,7 +110,7 @@ Web Push registered only after the user enters Settings → Notifications and ex
 - **A new piece has been released to you** (nominees)
 - **A scheduled release is approaching** (creators, 24h ahead)
 
-VAPID keys generated per-deployment. Subscriptions stored in a new `push_subscriptions` table (not in v1 SCHEMA.sql — add when implementing).
+VAPID keys generated per-deployment. Subscriptions stored in a new `push_subscriptions` table (not in v1 SCHEMA.sql - add when implementing).
 
 ---
 

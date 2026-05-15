@@ -14,7 +14,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- §2  Tables
 -- =========================================================================
 
--- Users — both creators and nominees. Role is per-relationship, not per-user.
+-- Users - both creators and nominees. Role is per-relationship, not per-user.
 CREATE TABLE users (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email           CITEXT UNIQUE NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE users (
 );
 
 -- A "vault" is one creator's archive. One user can own multiple vaults
--- (e.g. one for each grandchild) — though v1 ships single-vault per user.
+-- (e.g. one for each grandchild) - though v1 ships single-vault per user.
 CREATE TABLE vaults (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     creator_id      UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
@@ -146,7 +146,7 @@ CREATE TABLE executor_credentials (
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Reflection sessions — append-only, scoped to a single nominee asking.
+-- Reflection sessions - append-only, scoped to a single nominee asking.
 CREATE TABLE reflections (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     vault_id            UUID NOT NULL REFERENCES vaults(id) ON DELETE CASCADE,

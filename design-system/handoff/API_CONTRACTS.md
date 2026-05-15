@@ -33,7 +33,7 @@ This makes RLS the **single source of truth** for access control. Handlers query
 
 ---
 
-## §3  Endpoints — Auth
+## §3  Endpoints - Auth
 
 ### `POST /auth/magic-link` [public]
 Issue a magic link. Idempotent for known emails; silently no-ops for unknown emails (do not leak account existence).
@@ -58,12 +58,12 @@ Response: { jwt: string }
 
 ---
 
-## §4  Endpoints — Capture (creator only)
+## §4  Endpoints - Capture (creator only)
 
 ### `POST /capture`
 Commit a new capture. Multipart for audio/photo/video; JSON for note.
 ```ts
-// audio/photo/video — multipart/form-data
+// audio/photo/video - multipart/form-data
 file: Blob
 metadata: {
   kind: 'audio' | 'photo' | 'video',
@@ -72,7 +72,7 @@ metadata: {
   captured_at?: string,    // ISO; defaults to now
 }
 
-// note — JSON
+// note - JSON
 { kind: 'note', body: string, title?: string }
 
 Response: { capture_id: string, status: 'processing' }
@@ -102,7 +102,7 @@ Paginated list. Default 20, max 100.
 
 ---
 
-## §5  Endpoints — Threads (creator only)
+## §5  Endpoints - Threads (creator only)
 
 ### `POST /thread` `{ title, color? }` → `{ thread_id }`
 ### `GET /threads` → `Thread[]`
@@ -112,7 +112,7 @@ Paginated list. Default 20, max 100.
 
 ---
 
-## §6  Endpoints — Nominees (creator only)
+## §6  Endpoints - Nominees (creator only)
 
 ### `POST /nominee`
 ```ts
@@ -156,10 +156,10 @@ Response: { home: NomineeHome }   // same shape as /me/home for nominees
 
 ---
 
-## §7  Endpoints — Executor (creator + executor)
+## §7  Endpoints - Executor (creator + executor)
 
 ### `POST /executor/setup` [creator]
-Generate or rotate the executor passphrase. Returns the passphrase **once** — never re-readable.
+Generate or rotate the executor passphrase. Returns the passphrase **once** - never re-readable.
 ```ts
 Request: { nominee_id: string }
 Response: { passphrase: string, letter_body: string }
@@ -176,7 +176,7 @@ Rate-limited to 5 attempts per IP per hour. After 10 lifetime failed attempts, t
 
 ---
 
-## §8  Endpoints — Reflection (nominee + creator self-test)
+## §8  Endpoints - Reflection (nominee + creator self-test)
 
 ### `POST /reflect` [SSE]
 ```ts
@@ -200,7 +200,7 @@ Read a past reflection.
 
 ---
 
-## §9  Endpoints — Home / View
+## §9  Endpoints - Home / View
 
 ### `GET /me/home` (role-aware)
 Single endpoint that returns the home payload for whichever role the JWT carries.
@@ -230,7 +230,7 @@ Browse by tag / time / thread.
 
 ---
 
-## §10  Endpoints — Saved passages (nominee)
+## §10  Endpoints - Saved passages (nominee)
 
 ### `POST /saved` `{ capture_id, excerpt, note? }`
 ### `GET /saved` → `SavedPassage[]`

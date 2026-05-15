@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
  *
  * Body: { passphrase: string }
  *
- * Returns an application/octet-stream attachment — the encrypted .hloom
+ * Returns an application/octet-stream attachment - the encrypted .hloom
  * bundle. The passphrase is used immediately to derive the encryption key
  * and is never persisted.
  */

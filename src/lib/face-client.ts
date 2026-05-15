@@ -1,13 +1,8 @@
 "use client";
 
-/**
- * Browser-only face detection + embedding via face-api.js.
- *
- * Privacy posture: raw face pixels never leave the device. Server only
- * ever sees the 128-dim descriptor + the bbox.
- *
- * Models are bundled under /public/models — no CDN load.
- */
+/** Browser-only face detection + embedding via face-api.js. Raw pixels
+ *  never leave the device; the server only ever sees the 128-dim
+ *  descriptor + bbox. Models live under `/public/models`. */
 
 import * as faceapi from "face-api.js";
 
@@ -47,15 +42,10 @@ async function fileToImage(file: File): Promise<HTMLImageElement> {
     });
     return img;
   } finally {
-    // Caller revokes after detection completes
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 }
 
-/**
- * Run detection + landmark + descriptor on a File.
- * Returns one record per detected face. Empty array when no faces.
- */
 export async function extractFaces(file: File): Promise<DetectedFace[]> {
   await loadFaceModels();
   const img = await fileToImage(file);

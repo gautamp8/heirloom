@@ -1,10 +1,5 @@
-/**
- * Browser helpers for capturing a reference voice clip and converting
- * it to WAV before upload. MediaRecorder typically gives us webm/opus
- * on Chrome; the TTS sidecar prefers WAV.
- *
- * Shared by Settings → Your Voice and the onboarding voice step.
- */
+/** WAV transcoding for the voice-clone reference; the TTS sidecar
+ *  doesn't accept the webm/opus MediaRecorder gives us on Chrome. */
 
 export async function webmBlobToWav(blob: Blob): Promise<Blob> {
   const arrayBuffer = await blob.arrayBuffer();
@@ -69,4 +64,4 @@ function mixToMono(buffer: AudioBuffer): Float32Array {
   return out;
 }
 
-export const VOICE_SCRIPT = `Sometimes I think about the things I'd want to tell you when you're older. The smell of the kitchen on a Sunday morning — bread, coffee, my mother's hands. The way the porch light always came on at five. Walking through the park in October, the leaves catching the orange light. If you ever feel small, or scared, or just unsure — remember that we paid attention. We watched the years come and go, and we wrote some of them down for you.`;
+export const VOICE_SCRIPT = `Sometimes I think about the things I'd want to tell you when you're older. The smell of the kitchen on a Sunday morning - bread, coffee, my mother's hands. The way the porch light always came on at five. Walking through the park in October, the leaves catching the orange light. If you ever feel small, or scared, or just unsure - remember that we paid attention. We watched the years come and go, and we wrote some of them down for you.`;

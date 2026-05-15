@@ -67,7 +67,6 @@ export async function deleteSubscription(
   });
 }
 
-/** Deliver a push to every subscription on a user, scoped by channel. */
 export async function sendToUser(
   user_id: string,
   channel: PushChannel,
@@ -104,11 +103,7 @@ export async function sendToUser(
           ? Number((e as { statusCode: unknown }).statusCode)
           : 0;
       if (status === 404 || status === 410) {
-        // Subscription is dead on the push service side — drop it so we
-        // stop trying every cycle.
-        await sqlAdmin`
-          DELETE FROM push_subscriptions WHERE id = ${s.id}
-        `;
+        await sqlAdmin`DELETE FROM push_subscriptions WHERE id = ${s.id}`;
         pruned += 1;
       } else {
         console.warn("[push] send failed", status, e);

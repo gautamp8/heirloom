@@ -10,14 +10,8 @@ import type { Session } from "./auth";
 
 type Kind = "audio" | "photo" | "note" | "video";
 
-/**
- * Run the full ingest pipeline for a capture row. Fire-and-forget after
- * `POST /api/capture` inserts the row. Errors mark the capture as 'failed'
- * but do not throw to the caller (we're detached).
- *
- * The session is captured at call time so the pipeline can `SET LOCAL`
- * the same RLS GUCs as the originating request.
- */
+/** Fire-and-forget after `POST /api/capture` inserts the row. Failures
+ *  mark the capture 'failed' but never throw to the detached caller. */
 export async function runCapturePipeline(
   captureId: string,
   session: Session,
@@ -42,9 +36,8 @@ export async function runCapturePipeline(
     });
     if (!cap) return;
 
-    // 1) Materialise the text we will embed + tag.
-    //    audio → Whisper transcript. photo → Gemma 4 vision caption
-    //    (also persisted to captures.caption). note → cap.body.
+    // audio → Whisper transcript. photo → Gemma 4 vision caption
+    // (also persisted to captures.caption). note → cap.body.
     let text = cap.body ?? "";
     if (cap.kind === "audio" && cap.blob_url) {
       const abs = resolveBlob(cap.blob_url);
@@ -60,10 +53,8 @@ export async function runCapturePipeline(
     } else if (cap.kind === "photo" && cap.blob_url) {
       const abs = resolveBlob(cap.blob_url);
 
-      // Names + bounding boxes for any faces the browser detected and
-      // the server has clustered against people. The vision model uses
-      // them so the caption reads "Elena holding Maya" rather than "a
-      // woman holding a child".
+      // Recognized faces let the caption say "Elena holding Maya"
+      // rather than "a woman holding a child".
       const recognized = await withRls(
         session.user_id,
         session.role,
@@ -102,7 +93,6 @@ export async function runCapturePipeline(
       return;
     }
 
-    // 2) Chunk + embed
     const chunks = chunkText(text);
     if (chunks.length > 0) {
       const vectors = await embedAll(chunks.map((c) => c.text));
@@ -119,9 +109,8 @@ export async function runCapturePipeline(
       });
     }
 
-    // 3) Auto-release to every nominee in the vault, unless the
-    //    capture is the body of a sealed letter (those release via the
-    //    condition engine when their moment arrives).
+    // Auto-release to every nominee, unless this capture is the body of
+    // a sealed letter - those release via the condition engine.
     await withRls(session.user_id, session.role, async (tx) => {
       const [sealed] = await tx<{ has_letter: number }[]>`
         SELECT EXISTS (
@@ -144,15 +133,12 @@ export async function runCapturePipeline(
       }
     });
 
-    // 4) Mark the capture ready before the slow Gemma calls so the
-    //    user sees "Saved" immediately; tags and auto-title fill in
-    //    on the next home load.
+    // Mark ready before the slow Gemma calls so the user sees "Saved"
+    // immediately; tags and auto-title fill in on the next home load.
     await withRls(session.user_id, session.role, async (tx) => {
       await tx`UPDATE captures SET status = 'ready' WHERE id = ${cap.id}`;
     });
 
-    // 5) Tag + auto-title via Gemma 4, in parallel. Independent calls
-    //    overlap when OLLAMA_NUM_PARALLEL >= 2.
     const wantTitle = !cap.title && text.trim().length >= 12;
     const [tags, generatedTitle] = await Promise.all([
       tagCapture(text, cap.kind).catch((e) => {

@@ -2,13 +2,8 @@
 
 import Dexie, { type Table } from "dexie";
 
-/**
- * Client-side draft persistence in IndexedDB (`heirloom-drafts`) so
- * in-flight captures survive network drops, tab closes, and refreshes.
- * The blob is written on stop, cleared once the pipeline reaches
- * 'ready', and surfaced on home as an "unfinished recording" if it
- * never made it.
- */
+/** IndexedDB-backed drafts so in-flight captures survive network drops
+ *  and tab closes; surfaced on home as an "unfinished recording". */
 
 export type DraftKind = "audio" | "photo" | "note";
 

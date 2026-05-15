@@ -206,7 +206,7 @@ function AddLifeEventForm({
         }),
       });
       if (r.ok) {
-        // We don't get the id back from this minimal endpoint — onChanged
+        // We don't get the id back from this minimal endpoint - onChanged
         // will refresh the server data so the new row appears with its id.
         // Stub it locally so the optimistic UI doesn't flash empty.
         onSaved({
@@ -389,13 +389,13 @@ function NomineesSection({
                 }}
               >
                 <p className="font-mono text-[10px] tracking-[0.16em] uppercase text-wax">
-                  Write this down — shown only once
+                  Write this down - shown only once
                 </p>
                 <code className="font-mono text-[16px] text-ink select-all">
                   {revealed[n.id]}
                 </code>
                 <p className="font-serif italic text-[13px] text-ink-soft mt-1">
-                  Hand this to {n.name} however feels right — printed, written,
+                  Hand this to {n.name} however feels right - printed, written,
                   in person. The previous passphrase no longer works.
                 </p>
               </div>
@@ -670,7 +670,7 @@ function NotificationsSection() {
       <h2 className="eyebrow">Notifications</h2>
       <p className="p-body max-w-[480px]">
         Heirloom can let you know when a sealed letter unlocks and surface
-        one memory each day. Notifications carry only a title — never the
+        one memory each day. Notifications carry only a title - never the
         contents of a memory.
       </p>
 
@@ -678,7 +678,7 @@ function NotificationsSection() {
         <p className="p-meta">
           This browser doesn&rsquo;t support push notifications. On iOS,
           install Heirloom to your Home Screen first (Share &middot; Add to
-          Home Screen) — Safari needs iOS 16.4 or newer.
+          Home Screen) - Safari needs iOS 16.4 or newer.
         </p>
       )}
 
@@ -749,7 +749,7 @@ function VaultSection() {
           Export the entire archive as a single passphrase-encrypted
           <code className="font-mono text-[13px] text-ink mx-1">.hloom</code>
           file, or import a bundle someone shared with you. The bundle is
-          self-contained — argon2id + ChaCha20-Poly1305 over a gzipped JSON
+          self-contained - argon2id + ChaCha20-Poly1305 over a gzipped JSON
           snapshot of every row and blob.
         </p>
       </div>
@@ -895,7 +895,7 @@ function ImportPanel() {
       <h3 className="font-serif text-[17px] text-ink">Import</h3>
       <p className="p-meta">
         Drop a <code className="font-mono">.hloom</code> bundle here.
-        Existing captures in this vault are preserved — imported rows are
+        Existing captures in this vault are preserved - imported rows are
         merged in.
       </p>
 
@@ -1129,7 +1129,7 @@ function VoiceSection() {
       <h2 className="eyebrow">Your voice</h2>
       <p className="p-body max-w-[520px]">
         Heirloom can read your archive aloud in your own voice. Record the
-        short passage below — once. Future captures, letters, and reflection
+        short passage below - once. Future captures, letters, and reflection
         sources can be played back in your voice on demand.
       </p>
 
@@ -1141,7 +1141,7 @@ function VoiceSection() {
           Your recording stays on this device. We use it to clone the timbre
           of your voice so the archive can read your own words aloud later.
           The system <strong>never</strong> generates new sentences in your
-          voice — only your actual writing, recordings, and the verbatim
+          voice - only your actual writing, recordings, and the verbatim
           source text behind a Reflection answer.
         </p>
       </details>
@@ -1161,7 +1161,7 @@ function VoiceSection() {
             bash &quot;/Applications/Heirloom.app/Contents/Resources/tts/install-tts.sh&quot;
           </pre>
           <p className="p-meta mt-2">
-            After it finishes, quit and relaunch Heirloom — the voice
+            After it finishes, quit and relaunch Heirloom - the voice
             sidecar will auto-start.
           </p>
         </div>

@@ -4,8 +4,8 @@
 
 Heirloom is a private, local-first memory archive. A creator (Elena) records
 stories, photographs, voice memories, and sealed letters across her life.
-A nominee (Maya) receives the archive at the right moment — sometimes a date,
-sometimes a state of mind — and asks it grounded questions for the rest of
+A nominee (Maya) receives the archive at the right moment - sometimes a date,
+sometimes a state of mind - and asks it grounded questions for the rest of
 hers. The model never speaks AS Elena; it cites what she actually said.
 
 Everything runs on the creator's machine: Gemma 4 e4b via Ollama for
@@ -45,14 +45,14 @@ console for testing the nominee + executor surfaces side-by-side.
 
 Local is the recommended path. The cloud option exists for the specific
 case where a non-technical loved one needs to receive the archive and
-can't run Ollama themselves — they visit one URL on their phone or
+can't run Ollama themselves - they visit one URL on their phone or
 laptop and the archive is right there.
 
 Same code, same architecture, just on a VM you control. Nothing about
 the product changes; only where the binaries run.
 
 ```bash
-# Provision an Azure VM (no GPU required — single-VM, all-on-one)
+# Provision an Azure VM (no GPU required - single-VM, all-on-one)
 RG=heirloom-rg LOCATION=eastus2 VM=heirloom-vm
 DNS_NAME=heirloom-$(openssl rand -hex 3)
 
@@ -80,8 +80,8 @@ scp infra/build-and-start.sh heirloom@<vm-ip>:/tmp/
 ssh heirloom@<vm-ip> 'sudo bash /tmp/build-and-start.sh'
 ```
 
-The full runbook — provider alternatives (Hetzner, Mac mini at home),
-operational commands, backup recipe, CPU-vs-GPU expectations — lives in
+The full runbook - provider alternatives (Hetzner, Mac mini at home),
+operational commands, backup recipe, CPU-vs-GPU expectations - lives in
 [`docs/DEPLOY-AZURE-VM.md`](./docs/DEPLOY-AZURE-VM.md).
 
 **Things to know if you self-host:**
@@ -147,7 +147,7 @@ The grounding contract is hard-coded:
    to: *"I don't have that in the archive. Try asking another way?"*
 
 Every Reflection query's diagnostics are persisted and visible at
-`/transparency` — you can see exactly how each decision was made,
+`/transparency` - you can see exactly how each decision was made,
 including the retrieved chunks and their similarity scores.
 
 ## Sealed letters with conditional unlock
@@ -160,24 +160,24 @@ stays sealed until one of these triggers fires:
 |---|---|
 | `date` | Daily cron checks `today >= conditions.date` |
 | `life_event` | Subject reaches the event (engagement, birthday, etc.) |
-| `state` | Nominee taps a mood chip on the home — embeds, semantic-matches the letter intent |
+| `state` | Nominee taps a mood chip on the home - embeds, semantic-matches the letter intent |
 | `semantic_match` | Nominee asks Reflection a question whose embedding sits within `0.55` of the letter's intent |
 | `first_visit` | First nominee home load after the letter was sealed |
 
 Each trigger inserts a `nominee_releases` row, so the existing
-row-level-security policies surface the underlying capture naturally —
+row-level-security policies surface the underlying capture naturally -
 no separate "is this letter unlocked" check needed downstream.
 
 ## Encrypted vault export
 
-A creator can export their entire vault — audio blobs, transcripts,
-embeddings, life events, sealed letters — as a single passphrase-encrypted
+A creator can export their entire vault - audio blobs, transcripts,
+embeddings, life events, sealed letters - as a single passphrase-encrypted
 `.hloom` file. The recipient runs Heirloom on their own machine, imports
 the bundle, and from that moment the archive lives on their own hardware.
 
 Encryption: **argon2id** key derivation (m=64 MiB, t=3, p=4) →
 **ChaCha20-Poly1305** AEAD over a gzipped JSON envelope. The bundle is
-self-describing — magic header `HLOOM`, version `1`, KDF params, nonce,
+self-describing - magic header `HLOOM`, version `1`, KDF params, nonce,
 ciphertext, tag.
 
 ```bash
@@ -196,13 +196,13 @@ curl -X POST http://localhost:3000/api/vault/import \
 Heirloom uses Gemma 4 across three modalities:
 
 - **Text synthesis** for Reflection answers, letter prompts, note titles,
-  and capture tagging — `gemma4:e4b` via `/api/chat`.
-- **Vision captioning** for photo uploads — same model, same endpoint,
+  and capture tagging - `gemma4:e4b` via `/api/chat`.
+- **Vision captioning** for photo uploads - same model, same endpoint,
   `images: [b64]` field. When the on-device face recognizer
   (face-api.js, 128-d descriptors) clusters a face to a known person,
   the system prompt names them so the caption reads "Elena holding
   Maya at the kitchen window" rather than "a woman holding a child".
-- **Embeddings** — `embeddinggemma` (300M params, 768-dim, 621 MB) for
+- **Embeddings** - `embeddinggemma` (300M params, 768-dim, 621 MB) for
   the shared text + caption vector space.
 
 The custom `heirloom/gemma4-grounded` Modelfile bakes the grounding
@@ -210,7 +210,7 @@ contract into the system prompt; create it locally with
 `ollama create heirloom/gemma4-grounded -f Modelfile`.
 
 Audio understanding via Gemma 4 directly is upstream-blocked
-([ollama/ollama#11798](https://github.com/ollama/ollama/issues/11798) — the
+([ollama/ollama#11798](https://github.com/ollama/ollama/issues/11798) - the
 audio projector isn't published yet). Heirloom transcribes through
 `whisper-cpp small.en` until then. See
 [`docs/MULTIMODAL-ECOSYSTEM.md`](./docs/MULTIMODAL-ECOSYSTEM.md) for the
@@ -218,18 +218,18 @@ full analysis and the proposed bridge.
 
 ## Tech stack
 
-- **Frontend** — Next.js 16 (App Router, RSC, Turbopack), Tailwind v4
+- **Frontend** - Next.js 16 (App Router, RSC, Turbopack), Tailwind v4
   with custom `@theme static` tokens (warm-paper palette), Framer Motion,
   Source Serif 4 + Geist + JetBrains Mono.
-- **Backend** — Next.js route handlers, postgres.js for SQL with
+- **Backend** - Next.js route handlers, postgres.js for SQL with
   per-request `withRls()` wrapping every transaction, argon2 for
   passphrases (executor + per-nominee), jose for JWT cookies.
-- **AI runtime** — Ollama for everything supported, whisper-cpp for
+- **AI runtime** - Ollama for everything supported, whisper-cpp for
   audio, face-api.js in the browser for face descriptors.
-- **Database** — PostgreSQL 16 + pgvector, HNSW indexes on every 128 / 768
+- **Database** - PostgreSQL 16 + pgvector, HNSW indexes on every 128 / 768
   dim vector column, RLS policies per-role (creator full read/write,
   nominee restricted to released captures only).
-- **PWA** — manifest + apple-touch-icon, optional service worker in
+- **PWA** - manifest + apple-touch-icon, optional service worker in
   production, installable from iOS Safari "Add to Home Screen".
 
 ## Why local-first
@@ -246,13 +246,12 @@ code remain.
 
 ## Documentation
 
-- [`CLAUDE.md`](./CLAUDE.md) — product philosophy + engineering principles
-- [`PLAN.md`](./PLAN.md) — technical plan + AI runtime decisions
-- [`EXECUTION-PLAN.md`](./EXECUTION-PLAN.md) — phased v1 build sequence
-- [`docs/MULTIMODAL-ECOSYSTEM.md`](./docs/MULTIMODAL-ECOSYSTEM.md) — Gemma 4
-  multimodal notes + Ollama audio gap
-- [`design-system/`](./design-system/) — design tokens, prototypes, handoff
+- [`CLAUDE.md`](./CLAUDE.md) - product philosophy + engineering principles
+- [`design-system/`](./design-system/) - design tokens, prototypes, handoff
   package (architecture, API contracts, schema, prompts, guardrails)
+- [`docs/MULTIMODAL-ECOSYSTEM.md`](./docs/MULTIMODAL-ECOSYSTEM.md) - Gemma 4
+  multimodal notes
+- [`docs/DEPLOY-AZURE-VM.md`](./docs/DEPLOY-AZURE-VM.md) - self-hosted VM runbook
 
 ## License
 

@@ -1,25 +1,19 @@
 import { z } from "zod";
 
 /**
- * Heirloom Reflection — grounding contract. Every claim cites a retrieved
- * capture; uncited claims, first-person impersonation, or below-threshold
- * retrievals collapse to the verbatim empty state without invoking the
+ * Reflection grounding contract: every claim cites a retrieved capture;
+ * uncited claims, first-person impersonation, or below-threshold
+ * retrievals collapse to the verbatim empty state without calling the
  * model. See `design-system/handoff/GUARDRAILS.md`.
  */
 
-/** Hard similarity gate. Below this, the system returns the empty-state
- *  response without calling Gemma 4. Calibrated against EmbeddingGemma
- *  300m; recalibrate if the embedding model changes. */
+/** Calibrated against EmbeddingGemma 300m; recalibrate if the embedding
+ *  model changes. */
 export const REFLECTION_SIMILARITY_THRESHOLD = 0.40;
 
-/** Verbatim copy returned when no grounded answer exists. The string itself
- *  is part of the product contract — UI tests compare for exact equality. */
 export const EMPTY_STATE_ANSWER =
   "I don't have that in the archive. Try asking another way?";
 
-/** Output schema for the synthesis model. Every claim must cite at least
- *  one `capture_id` from the retrieved chunks. The runtime validator
- *  rejects responses that don't conform. */
 export const ReflectionSchema = z.object({
   answer: z.string(),
   claims: z
@@ -59,9 +53,6 @@ type RetrievedChunk = {
   similarity: number;
 };
 
-/** Build the synthesis prompt with the retrieved chunks as the ONLY source
- *  of truth. The model is instructed to either ground every claim in a
- *  capture_id from this list or return the empty state verbatim. */
 export function buildReflectionPrompt(
   question: string,
   creatorName: string,
@@ -80,7 +71,7 @@ export function buildReflectionPrompt(
   return `${SAFETY_PREAMBLE}
 
 A nominee is asking a question about the creator's archive. Your job is to
-answer with what the creator actually said or wrote — never anything else.
+answer with what the creator actually said or wrote - never anything else.
 
 The creator's name: ${creatorName}
 The question: ${question}
@@ -108,8 +99,7 @@ Rules:
 - Output ONLY the JSON object. No markdown fences, no preamble.`;
 }
 
-/** Verify every cited capture_id appears in the retrieved chunk set. Gemma
- *  occasionally fabricates a UUID; this is the second line of defence. */
+/** Second line of defence against fabricated citation UUIDs. */
 export function validateCitations(
   resp: ReflectionAnswer,
   retrieved: RetrievedChunk[],
@@ -128,11 +118,9 @@ export function validateCitations(
   return { ok: true };
 }
 
-/** Detect first-person impersonation in text *outside* of quoted material.
- *  Quoted spans (straight or curly quotes) are allowed first-person because
- *  they're cited verbatim from the creator's own words. */
+/** First-person inside quoted material is fine (verbatim from the creator);
+ *  anywhere else it would be the model speaking as them. */
 export function hasFirstPersonOutsideQuotes(text: string): boolean {
-  // Strip out anything inside paired quotes
   const stripped = text.replace(/["“”][^"“”]*["“”]/g, "");
   return /\b(I|I'm|I've|I'll|I'd|me|my|mine)\b/i.test(stripped);
 }

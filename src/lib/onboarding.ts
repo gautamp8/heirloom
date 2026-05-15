@@ -47,8 +47,7 @@ export async function getOnboardingStatus(
   });
 }
 
-/** Step 1: persist the creator's name + optional selfie face embedding
- *  (128-dim reference vector from face-api.js, stored on the self person row). */
+/** Creator name + optional selfie embedding (stored on the self person). */
 export async function saveSelf(
   session: Session,
   opts: {
@@ -103,8 +102,8 @@ export async function saveSelf(
   await syncIdentityIndexForSession(session);
 }
 
-/** Step 2: life events. Each event's label+description is embedded so
- *  letter conditions can semantic-match against it. */
+/** Each event's label+description is embedded so letter conditions can
+ *  semantic-match against it. */
 export async function saveLifeEvents(
   session: Session,
   events: {
@@ -144,12 +143,12 @@ export async function saveLifeEvents(
   return enriched.length;
 }
 
-/** Step 3: add nominees. Optionally inserts a birthday life_event per
- *  nominee, linking via subject_person_id to a `people` row for them. */
+/** Each nominee is also mirrored into `people` so face recognition can
+ *  cluster them, and a birthday life_event is added when supplied. */
 export type SavedNominee = {
   id: string;
   name: string;
-  passphrase: string; // plaintext — caller shows ONCE then drops
+  passphrase: string; // plaintext - caller shows ONCE then drops
 };
 
 export async function saveNominees(
@@ -221,9 +220,8 @@ export async function saveNominees(
   return { inserted, nominees: out };
 }
 
-/** Step 4: persist sealed letters. Each draft becomes a note capture
- *  plus a `sealed_letters` row holding the trigger DSL and intent
- *  embedding; release fires when the condition engine matches. */
+/** Each draft becomes a note capture plus a `sealed_letters` row
+ *  holding the trigger DSL and intent embedding. */
 export async function saveSealedLetters(
   session: Session,
   drafts: {
@@ -302,7 +300,7 @@ export async function markOnboarded(session: Session): Promise<void> {
 
 /** Regenerate a nominee's passphrase. The previous one is unrecoverable
  *  (only its argon2id hash was stored). The new plaintext is returned
- *  ONCE — surface it to the creator immediately. */
+ *  ONCE - surface it to the creator immediately. */
 export async function regenerateNomineePassphrase(
   session: Session,
   nominee_id: string,

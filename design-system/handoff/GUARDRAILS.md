@@ -61,7 +61,7 @@ def validate_reflection_response(resp: dict, retrieved: list[Chunk]) -> bool:
     return True
 ```
 
-Gemma sometimes fabricates a UUID. The validator catches that. On failure, fall back to the empty state response — never serve unvalidated content.
+Gemma sometimes fabricates a UUID. The validator catches that. On failure, fall back to the empty state response - never serve unvalidated content.
 
 ### 2.3 The first-person scrubber
 
@@ -80,7 +80,7 @@ If `True`, route the response to the empty state and log a `first_person_violati
 
 ## §3  RLS as the security boundary
 
-The app code can — and does — query tables freely. The database is what enforces who sees what.
+The app code can - and does - query tables freely. The database is what enforces who sees what.
 
 ```sql
 -- Pattern repeated across every table:
@@ -132,7 +132,7 @@ Failed unlocks:
 
 Postgres trigger (see `SCHEMA.sql` §4) blocks updates to `body`, `caption`, `blob_url`, `duration_ms` once `status='ready'`. The `title` field and tag set remain editable.
 
-Edits create a new revision (new row in `captures` with a `revision_of` column pointing to the original — v2). For v1: edits are limited to title and tags only. Document this in the UI: *"Your words are kept as you said them. Titles and tags can be tended."*
+Edits create a new revision (new row in `captures` with a `revision_of` column pointing to the original - v2). For v1: edits are limited to title and tags only. Document this in the UI: *"Your words are kept as you said them. Titles and tags can be tended."*
 
 ---
 
@@ -165,7 +165,7 @@ Wired into the structlog processor chain. The CI test `test_no_pii_in_logs` runs
 
 We do **not** moderate creator captures. The vault is theirs.
 
-We **do** soft-moderate Reflection answers for the safety preamble's content categories (politics/religion/medical/legal/financial). If Gemma's answer triggers a category, we return the empty state instead of serving the answer. No "your question was flagged" message — just the same gentle empty state. The behavior is uniform and unannounced.
+We **do** soft-moderate Reflection answers for the safety preamble's content categories (politics/religion/medical/legal/financial). If Gemma's answer triggers a category, we return the empty state instead of serving the answer. No "your question was flagged" message - just the same gentle empty state. The behavior is uniform and unannounced.
 
 ---
 

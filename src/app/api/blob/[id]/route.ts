@@ -25,7 +25,7 @@ const MIME: Record<string, string> = {
  * GET /api/blob/[id]
  *
  * Streams the original media blob for a capture. RLS-gated through
- * the captures SELECT policy — creators see their own; nominees see
+ * the captures SELECT policy - creators see their own; nominees see
  * only captures where their nominee_releases row is released.
  */
 export async function GET(

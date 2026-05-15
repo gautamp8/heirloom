@@ -15,7 +15,7 @@ const MAX_TEXT_CHARS = 1200;
  * back.
  *
  * Verbatim-only contract: callers must pass exact text that exists in the
- * archive — a capture body, a transcript line, the verbatim source of a
+ * archive - a capture body, a transcript line, the verbatim source of a
  * Reflection citation. Server-side we don't enforce verbatim per-character
  * (would be too brittle); we rely on the client only sending text drawn
  * from the displayed capture material. The contract is documented and the
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       });
       voiceId = row?.voice_id ?? null;
     } else if (session.role === "nominee") {
-      // Nominee surface needs to read across the creator's vault — admin
+      // Nominee surface needs to read across the creator's vault - admin
       // connection narrows the lookup to the nominee's vault_id.
       if (!sqlAdmin) throw new HttpError(500, "admin_db_unavailable");
       const [p] = await sqlAdmin<{ voice_id: string }[]>`

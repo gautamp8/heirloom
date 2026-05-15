@@ -12,7 +12,7 @@ type State =
 /**
  * Mic icon that records audio, transcribes via /api/transcribe, and
  * appends the transcript to the bound text input. The user keeps
- * authorship — they can edit the transcript before submitting.
+ * authorship - they can edit the transcript before submitting.
  *
  * Bind via `value` + `onTextAppend`. Place inside the input's wrapper.
  */
@@ -109,7 +109,7 @@ export function VoiceInput({
       : state === "uploading"
         ? "Transcribing…"
         : state === "error"
-          ? "Couldn't transcribe — try again"
+          ? "Couldn't transcribe - try again"
           : "Dictate";
 
   const base =

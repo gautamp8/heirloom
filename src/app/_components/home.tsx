@@ -18,23 +18,17 @@ export function Home(props: {
   recent: HomeCapture[];
   stats: { captures: number; nominees: number };
 }) {
-  // `sheet` is null when closed; otherwise carries the mode + an optional
-  // prompt to seed the capture with. Voice/Note chips open with no prompt
-  // (free-form). The prompt-card buttons open with the prompt-of-day.
   const [sheet, setSheet] = useState<{
     mode: "voice" | "note" | "photo";
     prompt?: string;
   } | null>(null);
   const [recent, setRecent] = useState(props.recent);
-  // prompt starts null (server didn't wait for Gemma); we fetch it
-  // asynchronously below so the home renders instantly.
   const [prompt, setPrompt] = useState<string | null>(props.prompt.text);
   const [shuffling, setShuffling] = useState(false);
   const [draftCount, setDraftCount] = useState(0);
 
+  // Fetch the prompt of day async so the home paints before Gemma replies.
   useEffect(() => {
-    // Async prompt fetch on first mount — keeps the synthesis off the
-    // server render path so home paints instantly.
     if (prompt !== null) return;
     let cancelled = false;
     setShuffling(true);
@@ -52,12 +46,11 @@ export function Home(props: {
     return () => {
       cancelled = true;
     };
-    // Only run on initial mount; subsequent shuffles are user-triggered.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Surface any local drafts that didn't make it to the server.
   useEffect(() => {
-    // Check for any local drafts that didn't make it to the server.
     let cancelled = false;
     (async () => {
       try {
@@ -101,7 +94,7 @@ export function Home(props: {
           </em>
         </h1>
 
-        {/* A place to begin — rotates every visit; "Another" reshuffles */}
+        {/* A place to begin */}
         <article className="mt-5 rounded-[14px] border border-rule p-5 bg-paper-2 relative">
           <div className="flex items-center justify-between mb-2.5">
             <p className="p-meta">A place to begin</p>
@@ -196,8 +189,6 @@ export function Home(props: {
           </span>
         </Link>
 
-        {/* Local-draft notice — surfaces any in-flight captures still in
-            IndexedDB that the server hasn't acknowledged yet. */}
         {draftCount > 0 && (
           <p className="mt-5 font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted">
             {draftCount === 1

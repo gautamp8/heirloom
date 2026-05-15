@@ -1,15 +1,4 @@
-/**
- * Client for the local TTS sidecar (`infra/tts-server`).
- *
- * Two operations:
- *   - encode(wav, referenceText) — register a voice with the sidecar,
- *     get back a voice_id. Called once at onboarding.
- *   - speak(voiceId, text) — synthesize `text` in the voice. Called on
- *     every playback request. Returns audio/wav bytes.
- *
- * The sidecar caches encoded prompts in-memory; on restart it
- * re-encodes from the stored wav transparently.
- */
+/** Client for the local TTS sidecar (`infra/tts-server`). */
 
 const TTS_BASE = process.env.HEIRLOOM_TTS_URL ?? "http://127.0.0.1:11435";
 

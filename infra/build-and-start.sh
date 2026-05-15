@@ -64,7 +64,7 @@ heading "Starting heirloom.service"
 systemctl restart heirloom
 sleep 5
 systemctl --no-pager status heirloom | head -12
-ok "Heirloom up — Caddy now serves https traffic"
+ok "Heirloom up - Caddy now serves https traffic"
 
 echo
 echo "Reachable at:"

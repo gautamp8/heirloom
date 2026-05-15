@@ -3,9 +3,8 @@ use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{Manager, RunEvent, State};
 
-/// Long-lived child processes spawned at app startup (Ollama + the
-/// embedded Next.js server). Kept here so we can SIGTERM them on app
-/// exit; otherwise they'd outlive the window.
+/// Sidecar processes (Ollama, Next.js server, optional TTS) supervised
+/// for the lifetime of the app window.
 #[derive(Default)]
 struct AppChildren {
     children: Mutex<Vec<Child>>,
@@ -45,15 +44,12 @@ pub fn run() {
                 .expect("could not resolve app data dir");
             std::fs::create_dir_all(&app_data).ok();
 
-            // SQLite + blob storage under app-data so uninstall = delete
             let db_path = app_data.join("heirloom.sqlite");
             let blob_dir = app_data.join("blobs");
             std::fs::create_dir_all(&blob_dir).ok();
 
             // Reuse the user's existing ~/.ollama/models cache so a fresh
-            // install of Heirloom doesn't have to re-pull gemma4:e4b
-            // (~10 GB). The first user without Ollama gets a clean dir
-            // populated under their home as Ollama's default.
+            // install doesn't have to re-pull the ~10 GB gemma4:e4b.
             let ollama_home = app
                 .path()
                 .home_dir()
@@ -61,9 +57,6 @@ pub fn run() {
                 .unwrap_or_else(|_| app_data.join("ollama").join("models"));
             std::fs::create_dir_all(&ollama_home).ok();
 
-            // Spawn the bundled Ollama sidecar listening only on
-            // localhost. Models cache under app_data/ollama so the
-            // first-run pull persists across launches.
             let bin_dir = std::env::current_exe()
                 .ok()
                 .and_then(|p| p.parent().map(|p| p.to_path_buf()))
@@ -86,11 +79,8 @@ pub fn run() {
                 }
             }
 
-            // Optional: spawn the TTS (voice-cloning) sidecar if the
-            // user has run install-tts.sh. The sidecar is heavy (~2 GB
-            // of ML deps), so the .dmg ships only the install script
-            // and source; voice features stay disabled until the user
-            // opts in. The Rust shell just exec's the launcher.
+            // Optional voice-cloning sidecar. Present iff the user has
+            // run Contents/Resources/tts/install-tts.sh.
             let tts_run = app_data.join("tts").join("run.sh");
             log::info!("[heirloom] tts_run exists={}", tts_run.exists());
             if tts_run.exists() {
@@ -105,9 +95,6 @@ pub fn run() {
                 }
             }
 
-            // Spawn the embedded Next.js standalone server. The bundle
-            // pipeline copies `.next/standalone/` into Resources/server
-            // and ships node as a sidecar alongside ollama.
             let node_app = bin_dir
                 .parent()
                 .map(|p| p.join("Resources/server"))
@@ -144,9 +131,7 @@ pub fn run() {
                 }
             }
 
-            // Poll the bundled server until it answers, then point the
-            // window at it. Runs in a background thread so the setup
-            // callback returns immediately.
+            // Poll the bundled server until it answers, then point the window at it.
             let main_window = app.get_webview_window("main");
             std::thread::spawn(move || {
                 for _ in 0..240 {

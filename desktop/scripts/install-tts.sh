@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Heirloom — one-time TTS sidecar install for the desktop bundle.
+# Heirloom - one-time TTS sidecar install for the desktop bundle.
 #
 # Sets up a Python venv under the user's Application Support, installs
 # LuxTTS + dependencies, and seeds a launcher script. Heirloom's Rust
@@ -68,7 +68,7 @@ ok "server.py + requirements.txt staged"
 heading "Dependencies (this can take 5–10 minutes)"
 pip install -r "$TTS_HOME/requirements.txt"
 # LuxTTS + LinaCodec are git installs; piper-phonemize needs the icefall
-# wheel index. Order matters — see infra/tts-server/README.md.
+# wheel index. Order matters - see infra/tts-server/README.md.
 pip install --find-links https://k2-fsa.github.io/icefall/piper_phonemize.html piper-phonemize || true
 pip install "git+https://github.com/ysharma3501/LinaCodec.git"
 pip install "git+https://github.com/ysharma3501/LuxTTS.git"
@@ -93,4 +93,4 @@ chmod +x "$TTS_HOME/run.sh"
 ok "launcher at $TTS_HOME/run.sh"
 
 heading "Done"
-echo "  Quit and relaunch Heirloom — voice cloning will be available."
+echo "  Quit and relaunch Heirloom - voice cloning will be available."

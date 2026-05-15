@@ -119,7 +119,7 @@ USING (
     user_id = current_setting('app.user_id')::uuid
 );
 
--- nominee_self read — nominees see their own row in `nominees`
+-- nominee_self read - nominees see their own row in `nominees`
 CREATE POLICY nominee_self ON nominees FOR SELECT TO heirloom_app
 USING (
     current_setting('app.role') = 'nominee'

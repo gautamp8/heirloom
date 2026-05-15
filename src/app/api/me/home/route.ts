@@ -11,7 +11,7 @@ function timeOfDay(): "morning" | "afternoon" | "evening" {
   return "evening";
 }
 
-/** Deterministic per-day index — same memory all day for one nominee. */
+/** Deterministic per-day index - same memory all day for one nominee. */
 function dailyMemoryIndex(seed: string, n: number): number {
   const today = new Date().toISOString().slice(0, 10);
   const key = `${today}:${seed}`;
@@ -83,7 +83,7 @@ export async function GET() {
       });
     }
 
-    // Nominee — needs to surface released captures + framing from creator.
+    // Nominee - needs to surface released captures + framing from creator.
     //
     // First: fire any sealed-letter unlocks whose conditions are met. This
     // covers first_visit and date triggers. Each fired letter inserts a
@@ -119,7 +119,7 @@ export async function GET() {
         ORDER BY c.captured_at DESC
         LIMIT 50
       `;
-      // Top themes — by topic tags across the released set, ordered by count.
+      // Top themes - by topic tags across the released set, ordered by count.
       const themes = await tx<{ theme: string; count: number; cover_id: string }[]>`
         WITH release_caps AS (
           SELECT c.id
@@ -147,14 +147,14 @@ export async function GET() {
       return { releases, themes };
     });
 
-    // Deterministic daily memory — same all day per nominee+vault, rotates
+    // Deterministic daily memory - same all day per nominee+vault, rotates
     // each calendar day. Falls back to null when there's nothing released.
     const dailyMemory =
       data.releases.length > 0
         ? data.releases[dailyMemoryIndex(session.user_id + session.vault_id, data.releases.length)]
         : null;
 
-    // Creator + nominee framing — read via admin since the nominee can't
+    // Creator + nominee framing - read via admin since the nominee can't
     // see the creator's user row through RLS.
     if (!sqlAdmin) throw new Error("admin_db_unavailable");
     const [framing] = await sqlAdmin<

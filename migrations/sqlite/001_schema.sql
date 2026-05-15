@@ -1,4 +1,4 @@
--- Heirloom — SQLite schema for the bundled desktop build.
+-- Heirloom - SQLite schema for the bundled desktop build.
 --
 -- Mirrors design-system/handoff/SCHEMA.sql + migrations/00[1-4].sql in
 -- shape, with these systematic substitutions:
@@ -11,7 +11,7 @@
 --   DEFAULT now()  → DEFAULT CURRENT_TIMESTAMP
 --   pgvector ops   → sqlite-vec functions (vec_distance_cosine)
 --
--- RLS is dropped entirely — the desktop build is single-user.
+-- RLS is dropped entirely - the desktop build is single-user.
 
 PRAGMA foreign_keys = ON;
 PRAGMA journal_mode = WAL;

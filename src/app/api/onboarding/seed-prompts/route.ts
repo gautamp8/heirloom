@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
  * POST /api/onboarding/seed-prompts
  *
  * Generates 5-7 sealed-letter occasion prompts via Gemma, tailored to
- * the nominees the creator just added. Does NOT save anything — the
+ * the nominees the creator just added. Does NOT save anything - the
  * client renders these as cards and lets the creator pick which to draft.
  */
 export async function POST() {

@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Heirloom — Warm Paper design system
+   Heirloom - Warm Paper design system
    Source of truth:
      - design-system/Heirloom Design System.html
      - design-system/prototypes/Creator Onboarding.html
    ------------------------------------------------------------
    `@theme static` (vs vanilla `@theme`) forces every variable
    here to be emitted on :root regardless of whether a Tailwind
-   utility consumes it — necessary because we mix Tailwind
+   utility consumes it - necessary because we mix Tailwind
    utilities (`bg-paper`) with CSS primitives that reach for
    `var(--paper)` directly.
    ============================================================ */
@@ -27,7 +27,7 @@
   --color-ink-muted: #8c8472;
   --color-ink-fade: #9c9075;
 
-  /* Accents — wax is ceremonial only (Record/Designate/Release) */
+  /* Accents - wax is ceremonial only (Record/Designate/Release) */
   --color-sepia: #5c3a21;
   --color-wax: #7d2a1a;
   --color-wax-2: #5c1f12;
@@ -40,7 +40,7 @@
   --color-rule-soft: rgba(31, 27, 20, 0.06);
   --color-rule-strong: rgba(31, 27, 20, 0.22);
 
-  /* Font families — bound to the next/font/google CSS variables
+  /* Font families - bound to the next/font/google CSS variables
      declared in layout.tsx via the className= chain. */
   --font-serif: var(--font-source-serif), "Source Serif 4", Georgia, serif;
   --font-sans: var(--font-geist), ui-sans-serif, -apple-system, system-ui, sans-serif;
@@ -59,7 +59,7 @@
   /* Spacing tokens (in addition to Tailwind's default --spacing scale) */
   --spacing-cinema: 96px;
 
-  /* Radii — `rounded-pill` utility */
+  /* Radii - `rounded-pill` utility */
   --radius-pill: 9999px;
 
   /* Shadows */
@@ -166,7 +166,7 @@ body {
     color: var(--color-sepia);
   }
 
-  /* ---- Buttons — primary is ink-dark; wax is ceremonial only ---- */
+  /* ---- Buttons - primary is ink-dark; wax is ceremonial only ---- */
 
   .btn {
     appearance: none;
@@ -231,7 +231,7 @@ body {
     letter-spacing: 0.02em;
   }
 
-  /* ---- Stage — paper-textured background panel ---- */
+  /* ---- Stage - paper-textured background panel ---- */
 
   .stage {
     position: relative;

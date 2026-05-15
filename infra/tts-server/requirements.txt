@@ -15,7 +15,7 @@ fastapi
 uvicorn[standard]
 python-multipart
 
-# LuxTTS / ZipVoice — install in this order after the line above:
+# LuxTTS / ZipVoice - install in this order after the line above:
 #   pip install --find-links https://k2-fsa.github.io/icefall/piper_phonemize.html piper-phonemize
 #   pip install "git+https://github.com/ysharma3501/LinaCodec.git"
 #   pip install "git+https://github.com/ysharma3501/LuxTTS.git"

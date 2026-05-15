@@ -2,12 +2,7 @@ import { generateObject } from "ai";
 import { z } from "zod";
 import { ollama, SYNTHESIS_MODEL } from "./ollama";
 
-/**
- * `capture_tagging_v1` — see design-system/handoff/PROMPTS.md §2.
- *
- * The model emits short lowercase string arrays in four buckets.
- * Empty arrays are valid. Sentences are not allowed.
- */
+/** `capture_tagging_v1`. See design-system/handoff/PROMPTS.md §2. */
 const TagSchema = z.object({
   emotion: z.array(z.string().min(1).max(24)).max(3),
   topic: z.array(z.string().min(1).max(24)).max(5),
@@ -66,7 +61,6 @@ Rules:
     temperature: 0.2,
   });
 
-  // Defensive normalisation: lowercase + dedupe
   const norm = (arr: string[]) =>
     Array.from(new Set(arr.map((s) => s.trim().toLowerCase()).filter(Boolean)));
   return {

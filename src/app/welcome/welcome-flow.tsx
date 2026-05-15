@@ -35,7 +35,7 @@ export function WelcomeFlow() {
           from_name: "Elena",
           to_name: "Maya",
           body:
-            "Maya — there is something here for you.\n\nTake your time with this. There is no rush, and nothing in here is going anywhere.\n\nI love you.\n\n— Elena",
+            "Maya - there is something here for you.\n\nTake your time with this. There is no rush, and nothing in here is going anywhere.\n\nI love you.\n\n- Elena",
         }
       : null,
   );

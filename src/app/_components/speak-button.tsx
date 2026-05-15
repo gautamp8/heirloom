@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 type State = "hidden" | "idle" | "loading" | "playing" | "error";
 
 /**
- * "Hear in their voice" affordance — synthesizes `text` in the
+ * "Hear in their voice" affordance - synthesizes `text` in the
  * creator's cloned voice and plays it.
  *
  * Verbatim-only contract: only ever pass exact source material from
@@ -145,7 +145,7 @@ export function SpeakButton({
     );
   }
 
-  // small inline variant — for capture rows + lists
+  // small inline variant - for capture rows + lists
   return (
     <button
       type="button"

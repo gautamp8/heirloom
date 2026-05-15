@@ -15,12 +15,8 @@ export type Session = {
   role: "creator" | "nominee";
 };
 
-/**
- * Whether the dev-only surfaces (fixture nominee, vault reset, the
- * `/dev` role-switcher console) should be reachable. Always on in
- * development; in production, opt-in via HEIRLOOM_ALLOW_DEV_FIXTURES.
- * Dangerous on any instance holding real data — Reset wipes the vault.
- */
+/** /dev role-switcher and vault-reset surfaces. Always on in development;
+ *  in production, opt-in via HEIRLOOM_ALLOW_DEV_FIXTURES. */
 export function devFixturesAllowed(): boolean {
   if (process.env.NODE_ENV !== "production") return true;
   return process.env.HEIRLOOM_ALLOW_DEV_FIXTURES === "1" ||
@@ -65,8 +61,6 @@ export async function clearSessionCookie(): Promise<void> {
   jar.delete(COOKIE_NAME);
 }
 
-/** Read the session and throw if none — for use inside route handlers that
- *  must be authenticated. */
 export async function requireSession(): Promise<Session> {
   const s = await readSession();
   if (!s) throw new HttpError(401, "unauthorized");

@@ -3,10 +3,8 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 
-/** Locate `storage/whisper-models/ggml-small.en.bin`. Order of resolution:
- *  1. HEIRLOOM_WHISPER_MODEL — explicit override (desktop bundle).
- *  2. Walk up from process.cwd() — handles standalone server runs from
- *     `.next/standalone` as well as `pnpm dev` from the repo root. */
+/** HEIRLOOM_WHISPER_MODEL takes precedence; otherwise walk up from cwd
+ *  to support both `pnpm dev` and the standalone server. */
 function resolveModelPath(): string {
   const override = process.env.HEIRLOOM_WHISPER_MODEL;
   if (override) return override;
@@ -33,7 +31,6 @@ export type WhisperResult = {
   word_timestamps?: { word: string; start_ms: number; end_ms: number }[];
 };
 
-/** Run a shell command and resolve when it exits 0. */
 function run(cmd: string, args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
     const proc = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"] });
@@ -49,7 +46,6 @@ function run(cmd: string, args: string[]): Promise<void> {
   });
 }
 
-/** Transcode any audio file to 16kHz mono WAV (the format whisper-cli expects). */
 async function toWav16k(input: string, output: string): Promise<void> {
   await run(FFMPEG_BIN, [
     "-hide_banner",
@@ -66,18 +62,15 @@ async function toWav16k(input: string, output: string): Promise<void> {
   ]);
 }
 
-/** Transcribe an audio file via whisper-cli. The input can be any format
- *  ffmpeg can read (mp3, m4a, webm, ogg, opus, wav, etc.). */
+/** Accepts any format ffmpeg can read. */
 export async function transcribeAudio(
   audioAbsPath: string,
 ): Promise<WhisperResult> {
-  // 1. Transcode to 16kHz mono wav alongside the original
   const wavPath = audioAbsPath.replace(/\.[^.]+$/, "") + ".wav";
   if (!audioAbsPath.endsWith(".wav")) {
     await toWav16k(audioAbsPath, wavPath);
   }
 
-  // 2. Whisper writes a sibling .txt file
   const outBase = wavPath.replace(/\.wav$/, "");
   await run(WHISPER_BIN, [
     "-m",

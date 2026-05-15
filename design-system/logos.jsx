@@ -1,8 +1,8 @@
-// Heirloom — logo explorations
+// Heirloom - logo explorations
 // Four marks within the sealed-letter / monogram family. Geometry only:
 // circles, type, simple paths. No illustrative drawing.
 
-// 1. Sealed monogram — the primary mark.
+// 1. Sealed monogram - the primary mark.
 //    A wax-toned disc with a serif H pressed into it.
 function LogoSeal({ size = 96, mono = false }) {
   const s = size;
@@ -20,7 +20,7 @@ function LogoSeal({ size = 96, mono = false }) {
   );
 }
 
-// 2. Embossed initial — a "blind-embossed" H inside a thin ring.
+// 2. Embossed initial - a "blind-embossed" H inside a thin ring.
 //    Quietest mark; reads as a stamp on paper, not wax.
 function LogoEmboss({ size = 96 }) {
   const s = size;
@@ -38,7 +38,7 @@ function LogoEmboss({ size = 96 }) {
   );
 }
 
-// 3. Wordmark — Heirloom set in transitional italic, with a hair-line
+// 3. Wordmark - Heirloom set in transitional italic, with a hair-line
 //    rule above. Suited to long-form contexts: emails, exports, footers.
 function LogoWordmark({ size = 96 }) {
   // size is height-equivalent; the wordmark is wider than tall.
@@ -62,7 +62,7 @@ function LogoWordmark({ size = 96 }) {
   );
 }
 
-// 4. Lockup — seal + wordmark side by side. The "official" pairing.
+// 4. Lockup - seal + wordmark side by side. The "official" pairing.
 function LogoLockup({ size = 96 }) {
   const h = size;
   return (
@@ -84,7 +84,7 @@ function LogoLockup({ size = 96 }) {
   );
 }
 
-// 5. Thread / heirloom — a single sine line tied into a loop, evoking
+// 5. Thread / heirloom - a single sine line tied into a loop, evoking
 //    a passed thread. Listed as a "concept" alongside the seal family.
 function LogoThread({ size = 96 }) {
   const s = size;

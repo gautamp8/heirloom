@@ -331,7 +331,7 @@ function ProgressStatus({
 }
 
 /** Soft pulsing line placeholders mirroring the shape of the final answer.
- *  Pulses at ~1.4 s (calm — matches the design system's breathing waveform
+ *  Pulses at ~1.4 s (calm - matches the design system's breathing waveform
  *  cadence). When `pulsing` is false the bars stay flat (just present). */
 function SkeletonLines({ pulsing }: { pulsing: boolean }) {
   return (
@@ -358,7 +358,7 @@ function SkeletonLines({ pulsing }: { pulsing: boolean }) {
   );
 }
 
-/** Three dots that cycle every 500 ms — calmer than a real spinner. */
+/** Three dots that cycle every 500 ms - calmer than a real spinner. */
 function useBreathDot(): string {
   const [n, setN] = useState(1);
   useEffect(() => {

@@ -80,7 +80,7 @@ export function NomineeHome(props: {
         </div>
       </motion.div>
 
-      {/* Newly-opened letters — surfaces when a sealed letter unlocked this load */}
+      {/* Newly-opened letters - surfaces when a sealed letter unlocked this load */}
       {newlyFiredCards.length > 0 && (
         <div className="mt-6 flex flex-col gap-4">
           {newlyFiredCards.map(({ fired, capture }) => (
@@ -100,12 +100,12 @@ export function NomineeHome(props: {
         </p>
       ) : (
         <>
-          {/* Today's memory — deterministic per nominee per day */}
+          {/* Today's memory - deterministic per nominee per day */}
           {props.dailyMemory && (
             <DailyHero capture={props.dailyMemory} />
           )}
 
-          {/* Mood affordance — fires state triggers for sealed letters */}
+          {/* Mood affordance - fires state triggers for sealed letters */}
           <MoodCard
             chips={props.moodChips ?? DEFAULT_MOOD_CHIPS}
             onUnlock={() => router.refresh()}
@@ -142,7 +142,7 @@ export function NomineeHome(props: {
         </>
       )}
 
-      {/* Floating Reflection pill — the killer surface for nominees */}
+      {/* Floating Reflection pill - the killer surface for nominees */}
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
@@ -256,7 +256,7 @@ function MoodCard({
         setTimeout(onUnlock, 1200);
         return;
       }
-      // No sealed letter fired — pivot to Reflection with the chip text as
+      // No sealed letter fired - pivot to Reflection with the chip text as
       // the query so the tap always lands somewhere meaningful.
       router.push(`/reflect?q=${encodeURIComponent(state)}`);
     } finally {
@@ -336,7 +336,7 @@ function MoodCard({
                 key={i}
                 className="font-serif italic text-[15px] text-wax leading-[1.45]"
               >
-                {u.occasion} — opened just for you.
+                {u.occasion} - opened just for you.
               </p>
             ))}
           </motion.div>

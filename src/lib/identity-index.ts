@@ -5,19 +5,10 @@ import { chunkText } from "./chunking";
 import type { Session } from "./auth";
 
 /**
- * Identity index — synthesizes a hidden "profile" capture per vault
- * carrying biographical facts (creator's name, life events, nominees,
- * sealed-letter occasions) so retrieval can answer questions like
- * "who is X?" or "when were you born?" without the creator having to
- * write those things into a real note themselves.
- *
- * Idempotent: deletes any prior profile capture+chunks for the vault
- * and re-inserts a fresh one each call. Cheap enough to invoke after
- * every onboarding/settings save.
- *
- * The capture is hidden from timeline/album/home listings by
- * `is_profile = true`; nominees can read its chunks via the
- * `nominee_chunks` RLS policy added in migration 006.
+ * Hidden "profile" capture per vault carrying biographical facts
+ * (creator name, life events, nominees, sealed-letter occasions) so
+ * retrieval can answer identity questions. Idempotent; safe to call
+ * after any onboarding/settings save.
  */
 
 const PROFILE_TITLE = "About this archive";
@@ -42,37 +33,30 @@ export type IdentityFacts = {
   }[];
 };
 
-/** Build the prose that becomes the profile capture's body. The shape
- *  matters less than the *coverage* — each fact should appear at least
- *  once in natural language so embeddings have something to match. */
 export function renderIdentityProse(f: IdentityFacts): string {
   const name = f.creator.display_name.trim() || "the creator";
   const first = name.split(" ")[0];
   const parts: string[] = [];
 
-  // Identity block — phrased multiple ways so short queries
-  // ("who's X?", "tell me about X") have several embedding surfaces
-  // to match against. Embeddings score short queries against the
-  // *closest* paragraph, so redundancy is the point.
   parts.push(
     [
       `Who is ${name}? ${name} is the person whose archive this is.`,
       `${name} is the creator and the author of every memory preserved here.`,
       `If you are wondering who ${first} is, this archive belongs to ${name}.`,
       `My name is ${name}. I am the one speaking through these memories.`,
-      `This is ${name}'s archive — a record of ${first}'s life, voice, and intentions.`,
+      `This is ${name}'s archive - a record of ${first}'s life, voice, and intentions.`,
     ].join(" "),
   );
 
   if (f.life_events.length > 0) {
     const lines: string[] = [
-      `These are the important dates and anchors in ${name}'s life — the days ${first} would want remembered:`,
+      `These are the important dates and anchors in ${name}'s life - the days ${first} would want remembered:`,
     ];
     for (const e of f.life_events) {
       const date = e.event_date ? ` on ${formatDate(e.event_date)}` : "";
       const recur =
         e.recurrence === "yearly" ? " (returns each year)" : "";
-      const desc = e.description ? ` — ${e.description.trim()}` : "";
+      const desc = e.description ? ` - ${e.description.trim()}` : "";
       lines.push(`- ${e.label.trim()}${date}${recur}${desc}`);
     }
     lines.push(
@@ -83,7 +67,7 @@ export function renderIdentityProse(f: IdentityFacts): string {
 
   if (f.nominees.length > 0) {
     const lines: string[] = [
-      `${name} chose the following people as nominees — the ones who will inherit this archive and the ones ${first} most wanted to reach:`,
+      `${name} chose the following people as nominees - the ones who will inherit this archive and the ones ${first} most wanted to reach:`,
     ];
     for (const n of f.nominees) {
       const rel = n.relationship?.trim()
@@ -133,9 +117,6 @@ function formatDate(iso: string): string {
   });
 }
 
-/** Pull the identity facts for a vault directly via the provided sql
- *  client. Used by both the session-scoped path (RLS-aware) and the
- *  seed-import path (admin client, bypasses RLS). */
 async function readFacts(sql: Sql, vault_id: string): Promise<IdentityFacts> {
   const [creator] = await sql<{ display_name: string }[]>`
     SELECT u.display_name FROM users u
@@ -171,10 +152,8 @@ async function readFacts(sql: Sql, vault_id: string): Promise<IdentityFacts> {
   };
 }
 
-/** Idempotent rebuild of the profile capture + chunks for the vault.
- *  Uses the supplied sql handle (typically an admin/superuser client)
- *  to bypass RLS — callers from API routes should use
- *  `syncIdentityIndexForSession` instead. */
+/** Use with an admin sql handle that bypasses RLS (seed scripts). For
+ *  request-scoped writes, prefer `syncIdentityIndexForSession`. */
 export async function syncIdentityIndexAdmin(
   sql: Sql,
   vault_id: string,
@@ -182,8 +161,6 @@ export async function syncIdentityIndexAdmin(
   const facts = await readFacts(sql, vault_id);
   const text = renderIdentityProse(facts).trim();
 
-  // Reset any prior profile capture for this vault — cascades clear
-  // its chunks via FK ON DELETE CASCADE.
   await sql`DELETE FROM captures WHERE vault_id = ${vault_id} AND is_profile = true`;
 
   if (!text) return { chunks: 0 };
@@ -209,19 +186,12 @@ export async function syncIdentityIndexAdmin(
   return { chunks: chunks.length };
 }
 
-/** Session-scoped rebuild — call after any onboarding/settings write.
- *  Runs under the caller's RLS context so it only touches their own
- *  vault. Errors are caught and logged but do not bubble: a failed
- *  resync should never block the user's primary save. */
+/** A failed resync must never block the user's primary save. */
 export async function syncIdentityIndexForSession(
   session: Session,
 ): Promise<void> {
   try {
     await withRls(session.user_id, session.role, async (tx) => {
-      // tx is a postgres.Sql; reuse the admin function with the
-      // session-scoped client. Profile RLS lets the creator INSERT
-      // their own profile capture because the creator_captures
-      // policy keys off vault ownership.
       await syncIdentityIndexAdmin(tx as unknown as Sql, session.vault_id);
     });
   } catch (err) {

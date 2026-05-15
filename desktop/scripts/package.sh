@@ -29,7 +29,7 @@ mkdir -p "$SIDE"
 
 OLLAMA_SRC="$(readlink -f "$(command -v ollama)" 2>/dev/null || true)"
 if [[ -z "$OLLAMA_SRC" || ! -x "$OLLAMA_SRC" ]]; then
-  echo "ollama not on PATH — install via brew or grab the binary from ollama.com" >&2
+  echo "ollama not on PATH - install via brew or grab the binary from ollama.com" >&2
   exit 1
 fi
 cp -f "$OLLAMA_SRC" "$SIDE/ollama-$TRIPLE"
@@ -38,7 +38,7 @@ ok "ollama-$TRIPLE staged"
 
 WHISPER_SRC="$(readlink -f "$(command -v whisper-cli)" 2>/dev/null || true)"
 if [[ -z "$WHISPER_SRC" || ! -x "$WHISPER_SRC" ]]; then
-  echo "whisper-cli not on PATH — install via brew install whisper-cpp" >&2
+  echo "whisper-cli not on PATH - install via brew install whisper-cpp" >&2
   exit 1
 fi
 cp -f "$WHISPER_SRC" "$SIDE/whisper-cli-$TRIPLE"
