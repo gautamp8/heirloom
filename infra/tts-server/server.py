@@ -38,10 +38,44 @@ log = logging.getLogger("heirloom-tts")
 
 VOICE_DIR = Path(os.environ.get("HEIRLOOM_VOICE_DIR", "voice"))
 VOICE_DIR.mkdir(parents=True, exist_ok=True)
+CACHE_DIR = VOICE_DIR / "cache"
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _device() -> str:
     return "mps" if torch.backends.mps.is_available() else "cpu"
+
+
+def _sanitize_for_tts(text: str) -> str:
+    """Calm the prosody. Flow-matching TTS over-emphasises lone bangs,
+    ellipses, and shouty caps; the verbatim contract is about the words,
+    not the punctuation, so we normalise it before synthesis."""
+    import re
+    t = text.strip()
+    # Drop trailing dramatic punctuation: !!! -> ., !? -> ., !!! -> .
+    t = re.sub(r"[!?]{2,}", ".", t)
+    # Single exclamation -> period (keeps the sentence but kills the shout)
+    t = t.replace("!", ".")
+    # Ellipses to a single beat
+    t = re.sub(r"\.\.\.+|…", ".", t)
+    # Curly quotes normalised
+    t = t.replace("“", '"').replace("”", '"')
+    t = t.replace("‘", "'").replace("’", "'")
+    # ALL-CAPS WORDS softened (preserve normal cased proper nouns)
+    def _decap(m: "re.Match[str]") -> str:
+        w = m.group(0)
+        return w if len(w) <= 2 else w.capitalize()
+    t = re.sub(r"\b[A-Z]{3,}\b", _decap, t)
+    # Collapse repeated whitespace
+    t = re.sub(r"\s+", " ", t).strip()
+    return t
+
+
+def _seed_for(voice_id: str, text: str) -> int:
+    """Deterministic seed so repeated synthesis of the same line is
+    bit-identical to the first run. Mod by 2^31 to fit torch's int range."""
+    h = hashlib.sha256(f"{voice_id}|{text}".encode("utf-8")).digest()
+    return int.from_bytes(h[:4], "big") & 0x7FFFFFFF
 
 
 class TTSEngine:
@@ -78,6 +112,14 @@ class TTSEngine:
         log.info("encoded voice=%s in %.1fs", voice_id, time.time() - t0)
 
     def speak(self, voice_id: str, text: str) -> tuple[np.ndarray, int]:
+        clean = _sanitize_for_tts(text)
+        seed = _seed_for(voice_id, clean)
+        cache_path = CACHE_DIR / f"{voice_id}_{seed:08x}.wav"
+        if cache_path.exists():
+            wav, sr = sf.read(str(cache_path), dtype="float32")
+            log.info("synth cache hit voice=%s seed=%08x", voice_id, seed)
+            return wav, sr
+
         if voice_id not in self._prompt_cache:
             wav_path = VOICE_DIR / f"{voice_id}.wav"
             if not wav_path.exists():
@@ -86,8 +128,13 @@ class TTSEngine:
 
         self._ensure_loaded()
         t0 = time.time()
+        # Deterministic flow-matching: same seed -> identical waveform.
+        torch.manual_seed(seed)
+        if torch.backends.mps.is_available():
+            torch.mps.manual_seed(seed)
+        np.random.seed(seed & 0xFFFFFFFF)
         wav = self._model.generate_speech(
-            text=text,
+            text=clean,
             encode_dict=self._prompt_cache[voice_id],
             num_steps=4,
             guidance_scale=3.0,
@@ -99,11 +146,13 @@ class TTSEngine:
             wav = wav.cpu().numpy()
         if wav.ndim > 1:
             wav = wav.squeeze()
+        sf.write(str(cache_path), wav, 48000, format="WAV")
         log.info(
-            "synth voice=%s len=%.1fs in %.1fs",
+            "synth voice=%s len=%.1fs in %.1fs seed=%08x (cached)",
             voice_id,
             len(wav) / 48000,
             time.time() - t0,
+            seed,
         )
         return wav, 48000
 

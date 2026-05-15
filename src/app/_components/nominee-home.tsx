@@ -162,6 +162,8 @@ export function NomineeHome(props: {
 
 function DailyHero({ capture }: { capture: ReleasedCapture }) {
   const isPhoto = capture.kind === "photo";
+  const [lightbox, setLightbox] = useState(false);
+  const body = capture.body ?? capture.transcript_snippet ?? "";
   return (
     <motion.article
       initial={{ opacity: 0, y: 18 }}
@@ -181,12 +183,18 @@ function DailyHero({ capture }: { capture: ReleasedCapture }) {
         </span>
       </div>
       {isPhoto && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={`/api/blob/${capture.id}`}
-          alt={capture.title ?? "Photograph"}
-          className="w-full max-h-[280px] object-cover rounded-[10px] mb-4 bg-paper-2"
-        />
+        <button
+          type="button"
+          onClick={() => setLightbox(true)}
+          className="block w-full rounded-[10px] overflow-hidden mb-4 bg-paper-2"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`/api/blob/${capture.id}`}
+            alt={capture.title ?? "Photograph"}
+            className="w-full max-h-[280px] object-cover block"
+          />
+        </button>
       )}
       <p className="p-meta">
         {formatLongDate(new Date(capture.captured_at))} ·{" "}
@@ -199,21 +207,30 @@ function DailyHero({ capture }: { capture: ReleasedCapture }) {
               : capture.kind}
       </p>
       {capture.title && (
-        <p className="font-serif text-[18px] leading-tight text-ink mt-2">
+        <p className="font-serif text-[18px] leading-[1.3] text-ink mt-2 text-wrap-pretty">
           {capture.title}
         </p>
       )}
-      {capture.transcript_snippet && (
-        <p className="font-serif italic text-[16px] leading-[1.55] text-ink-soft mt-3 text-wrap-pretty">
-          {smartSnippet(capture.transcript_snippet, 220)}
+      {body && (
+        <p className="font-serif italic text-[16px] leading-[1.55] text-ink-soft mt-3 text-wrap-pretty whitespace-pre-wrap">
+          {body}
         </p>
       )}
-      {capture.transcript_snippet && (
+      {body && (
         <div className="mt-4">
-          <SpeakButton
-            text={capture.transcript_snippet}
-            variant="big"
-            label="Hear it in their voice"
+          <SpeakButton text={body} variant="big" label="Hear it in their voice" />
+        </div>
+      )}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-40 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setLightbox(false)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`/api/blob/${capture.id}`}
+            alt={capture.title ?? "Photograph"}
+            className="max-w-full max-h-full object-contain"
           />
         </div>
       )}
@@ -434,54 +451,77 @@ function ReleasedRow({ cap }: { cap: ReleasedCapture }) {
   const time = formatLongDate(new Date(cap.captured_at));
   const isAudio = cap.kind === "audio";
   const isPhoto = cap.kind === "photo";
+  const [lightbox, setLightbox] = useState(false);
   return (
-    <li className="flex items-start gap-3 py-3 border-b border-rule">
-      {isPhoto ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={`/api/blob/${cap.id}`}
-          alt=""
-          className="w-10 h-10 rounded-[10px] object-cover flex-shrink-0 bg-paper-2"
-          loading="lazy"
-        />
-      ) : (
-        <span
-          aria-hidden
-          className="w-10 h-10 rounded-[10px] grid place-items-center bg-paper-2 text-wax flex-shrink-0"
+    <li className="flex flex-col gap-3 py-3 border-b border-rule">
+      {isPhoto && (
+        <button
+          type="button"
+          onClick={() => setLightbox(true)}
+          className="w-full rounded-[12px] overflow-hidden bg-paper-2 -mt-1"
         >
-          {isAudio ? (
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="7" y="2" width="6" height="11" rx="3" />
-              <path d="M4.5 9.5a5.5 5.5 0 0 0 11 0M10 15v2.5" />
-            </svg>
-          ) : (
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 3.5h9l3 3v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-12a1 1 0 0 1 1-1Z" />
-              <path d="M13 3.5v3h3M6 9.5h8M6 12.5h8M6 15.5h5" />
-            </svg>
-          )}
-        </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`/api/blob/${cap.id}`}
+            alt={cap.title ?? "Photograph"}
+            className="w-full max-h-[260px] object-cover block"
+            loading="lazy"
+          />
+        </button>
       )}
-      <div className="flex-1 min-w-0">
-        <p className="cap-time font-mono text-[9px] tracking-[0.12em] uppercase text-ink-muted">
-          {time}
-        </p>
-        {cap.title && (
-          <p className="font-serif text-[15px] leading-tight text-ink mt-0.5">
-            {cap.title}
+      <div className="flex items-start gap-3">
+        {!isPhoto && (
+          <span
+            aria-hidden
+            className="w-10 h-10 rounded-[10px] grid place-items-center bg-paper-2 text-wax flex-shrink-0"
+          >
+            {isAudio ? (
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="7" y="2" width="6" height="11" rx="3" />
+                <path d="M4.5 9.5a5.5 5.5 0 0 0 11 0M10 15v2.5" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 3.5h9l3 3v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-12a1 1 0 0 1 1-1Z" />
+                <path d="M13 3.5v3h3M6 9.5h8M6 12.5h8M6 15.5h5" />
+              </svg>
+            )}
+          </span>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="cap-time font-mono text-[9px] tracking-[0.12em] uppercase text-ink-muted">
+            {time}
           </p>
-        )}
-        {cap.transcript_snippet && (
-          <p className="font-serif italic text-[14px] leading-[1.45] text-ink-soft mt-1 text-wrap-pretty">
-            {smartSnippet(cap.transcript_snippet)}
-          </p>
-        )}
-        {cap.transcript_snippet && (
-          <div className="mt-2">
-            <SpeakButton text={cap.transcript_snippet} />
-          </div>
-        )}
+          {cap.title && (
+            <p className="font-serif text-[15px] leading-tight text-ink mt-0.5">
+              {cap.title}
+            </p>
+          )}
+          {cap.transcript_snippet && (
+            <p className="font-serif italic text-[14px] leading-[1.45] text-ink-soft mt-1 text-wrap-pretty">
+              {smartSnippet(cap.transcript_snippet)}
+            </p>
+          )}
+          {cap.transcript_snippet && (
+            <div className="mt-2">
+              <SpeakButton text={cap.transcript_snippet} />
+            </div>
+          )}
+        </div>
       </div>
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-40 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setLightbox(false)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`/api/blob/${cap.id}`}
+            alt={cap.title ?? "Photograph"}
+            className="max-w-full max-h-full object-contain"
+          />
+        </div>
+      )}
     </li>
   );
 }

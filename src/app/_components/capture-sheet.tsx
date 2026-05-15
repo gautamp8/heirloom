@@ -570,7 +570,7 @@ function NoteCapture({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="A title, if one wants to come"
-          maxLength={80}
+          maxLength={200}
           disabled={state !== "typing"}
           className="w-full font-serif text-[22px] font-light text-ink bg-transparent border-none outline-none placeholder:text-ink-muted placeholder:italic"
           aria-label="Title"
@@ -829,7 +829,7 @@ function PhotoCapture({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="A title, if one wants to come"
-          maxLength={80}
+          maxLength={200}
           className="w-full font-serif text-[22px] font-light text-ink bg-transparent border-none outline-none placeholder:text-ink-muted placeholder:italic"
           aria-label="Title"
         />
