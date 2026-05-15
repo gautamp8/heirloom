@@ -23,19 +23,24 @@ export async function POST(req: Request) {
     const body = (await req.json().catch(() => ({}))) as {
       nominee_email?: string;
       nominee_name?: string;
+      user_email?: string;
       capture_id?: string;
       title?: string;
       body?: string;
     };
 
-    let nominee_user_id: string | null = null;
-    if (body.nominee_email) {
+    let target_user_id: string | null = null;
+    if (body.user_email) {
+      // Target any user by email (works for creator OR nominee).
       const [u] = await sqlAdmin<{ id: string }[]>`
-        SELECT u.id FROM users u
-        WHERE lower(u.email) = lower(${body.nominee_email})
-        LIMIT 1
+        SELECT id FROM users WHERE lower(email) = lower(${body.user_email}) LIMIT 1
       `;
-      nominee_user_id = u?.id ?? null;
+      target_user_id = u?.id ?? null;
+    } else if (body.nominee_email) {
+      const [u] = await sqlAdmin<{ id: string }[]>`
+        SELECT id FROM users WHERE lower(email) = lower(${body.nominee_email}) LIMIT 1
+      `;
+      target_user_id = u?.id ?? null;
     } else if (body.nominee_name) {
       const [n] = await sqlAdmin<{ user_id: string | null }[]>`
         SELECT user_id FROM nominees
@@ -44,7 +49,7 @@ export async function POST(req: Request) {
         ORDER BY created_at DESC
         LIMIT 1
       `;
-      nominee_user_id = n?.user_id ?? null;
+      target_user_id = n?.user_id ?? null;
     } else {
       const [n] = await sqlAdmin<{ user_id: string | null }[]>`
         SELECT user_id FROM nominees
@@ -52,11 +57,11 @@ export async function POST(req: Request) {
         ORDER BY created_at DESC
         LIMIT 1
       `;
-      nominee_user_id = n?.user_id ?? null;
+      target_user_id = n?.user_id ?? null;
     }
-    if (!nominee_user_id) throw new HttpError(404, "nominee_not_found");
+    if (!target_user_id) throw new HttpError(404, "user_not_found");
 
-    let capture_id = body.capture_id ?? null;
+    let capture_id: string | null = body.capture_id ?? null;
     let title: string | null = body.title ?? null;
     if (!capture_id) {
       const [r] = await sqlAdmin<{ capture_id: string; title: string | null }[]>`
@@ -64,28 +69,31 @@ export async function POST(req: Request) {
           FROM nominee_releases nr
           JOIN nominees n ON n.id = nr.nominee_id
           JOIN captures c ON c.id = nr.capture_id
-         WHERE n.user_id = ${nominee_user_id}
+         WHERE n.user_id = ${target_user_id}
            AND nr.released_at <= now()
            AND c.status = 'ready'
            AND c.is_profile = false
          ORDER BY c.captured_at DESC
          LIMIT 1
       `;
-      if (!r) throw new HttpError(404, "no_released_capture");
-      capture_id = r.capture_id;
-      title = title ?? r.title;
+      if (r) {
+        capture_id = r.capture_id;
+        title = title ?? r.title;
+      }
+      // Fall through with no capture - the endpoint still fires a push
+      // so we can verify the push pipeline before captures exist.
     }
 
     const payload: PushPayload = {
       title: body.title ?? "A memory for today",
       body: body.body ?? title ?? "Open Heirloom to listen.",
       url: "/",
-      tag: `dev-${capture_id.slice(0, 8)}`,
+      tag: capture_id ? `dev-${capture_id.slice(0, 8)}` : "dev-test",
     };
-    const out = await sendToUser(nominee_user_id, "daily", payload);
+    const out = await sendToUser(target_user_id, "daily", payload);
     return Response.json({
       ok: true,
-      nominee_user_id,
+      target_user_id,
       capture_id,
       ...out,
     });
