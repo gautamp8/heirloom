@@ -103,7 +103,8 @@ export async function saveSelf(
 }
 
 /** Each event's label+description is embedded so letter conditions can
- *  semantic-match against it. */
+ *  semantic-match against it. Idempotent: an existing row with the same
+ *  (kind, label) is updated in place rather than duplicated. */
 export async function saveLifeEvents(
   session: Session,
   events: {
@@ -116,7 +117,6 @@ export async function saveLifeEvents(
 ): Promise<number> {
   if (events.length === 0) return 0;
 
-  // Generate embeddings sequentially (small batch, ~5 events typical)
   const enriched = await Promise.all(
     events.map(async (e) => {
       const text = [e.label, e.description].filter(Boolean).join(". ");
@@ -125,22 +125,42 @@ export async function saveLifeEvents(
     }),
   );
 
+  let written = 0;
   await withRls(session.user_id, session.role, async (tx) => {
     for (const e of enriched) {
       const embVec = e.embedding ? vec(e.embedding) : null;
-      await tx`
-        INSERT INTO life_events
-          (vault_id, kind, label, event_date, recurrence, description, embedding)
-        VALUES
-          (${session.vault_id}, ${e.kind}, ${e.label},
-           ${e.event_date ?? null}, ${e.recurrence ?? null},
-           ${e.description ?? null},
-           ${embVec})
+      const existing = await tx<{ id: string }[]>`
+        SELECT id FROM life_events
+         WHERE vault_id = ${session.vault_id}
+           AND kind = ${e.kind}
+           AND lower(label) = lower(${e.label})
+         LIMIT 1
       `;
+      if (existing[0]) {
+        await tx`
+          UPDATE life_events
+             SET event_date = ${e.event_date ?? null},
+                 recurrence = ${e.recurrence ?? null},
+                 description = ${e.description ?? null},
+                 embedding = ${embVec}
+           WHERE id = ${existing[0].id}
+        `;
+      } else {
+        await tx`
+          INSERT INTO life_events
+            (vault_id, kind, label, event_date, recurrence, description, embedding)
+          VALUES
+            (${session.vault_id}, ${e.kind}, ${e.label},
+             ${e.event_date ?? null}, ${e.recurrence ?? null},
+             ${e.description ?? null},
+             ${embVec})
+        `;
+      }
+      written += 1;
     }
   });
   await syncIdentityIndexForSession(session);
-  return enriched.length;
+  return written;
 }
 
 /** Each nominee is also mirrored into `people` so face recognition can
@@ -183,36 +203,84 @@ export async function saveNominees(
 
   await withRls(session.user_id, session.role, async (tx) => {
     for (const { raw: n, passphrase, passphrase_hash } of prepared) {
-      const [nominee] = await tx<{ id: string }[]>`
-        INSERT INTO nominees (vault_id, name, relationship, email,
-                              passphrase_hash, passphrase_set_at)
-        VALUES (${session.vault_id}, ${n.name.trim()},
-                ${n.relation?.trim() ?? null}, ${n.email?.trim() ?? null},
-                ${passphrase_hash}, now())
-        RETURNING id
-      `;
-      inserted += 1;
-      out.push({ id: nominee.id, name: n.name.trim(), passphrase });
+      const cleanName = n.name.trim();
+      const cleanRelation = n.relation?.trim() ?? null;
+      const cleanEmail = n.email?.trim() ?? null;
 
-      // Mirror nominee into people so face-recognition can later cluster them.
-      const [person] = await tx<{ id: string }[]>`
-        INSERT INTO people (vault_id, display_name, relation, nominee_id)
-        VALUES (${session.vault_id}, ${n.name.trim()},
-                ${n.relation?.trim() ?? 'nominee'}, ${nominee.id})
-        RETURNING id
+      // Idempotent: re-saving the same nominee updates the existing row
+      // (and rotates the passphrase) rather than inserting a duplicate.
+      const existing = await tx<{ id: string }[]>`
+        SELECT id FROM nominees
+         WHERE vault_id = ${session.vault_id}
+           AND lower(name) = lower(${cleanName})
+         LIMIT 1
       `;
+      let nomineeId: string;
+      if (existing[0]) {
+        await tx`
+          UPDATE nominees
+             SET relationship = ${cleanRelation},
+                 email = ${cleanEmail},
+                 passphrase_hash = ${passphrase_hash},
+                 passphrase_set_at = now()
+           WHERE id = ${existing[0].id}
+        `;
+        nomineeId = existing[0].id;
+      } else {
+        const [row] = await tx<{ id: string }[]>`
+          INSERT INTO nominees (vault_id, name, relationship, email,
+                                passphrase_hash, passphrase_set_at)
+          VALUES (${session.vault_id}, ${cleanName},
+                  ${cleanRelation}, ${cleanEmail},
+                  ${passphrase_hash}, now())
+          RETURNING id
+        `;
+        nomineeId = row.id;
+        inserted += 1;
+      }
+      out.push({ id: nomineeId, name: cleanName, passphrase });
+
+      // Mirror into people, idempotent by nominee_id.
+      const [existingPerson] = await tx<{ id: string }[]>`
+        SELECT id FROM people WHERE nominee_id = ${nomineeId} LIMIT 1
+      `;
+      const personId = existingPerson?.id ?? (
+        await tx<{ id: string }[]>`
+          INSERT INTO people (vault_id, display_name, relation, nominee_id)
+          VALUES (${session.vault_id}, ${cleanName},
+                  ${cleanRelation ?? 'nominee'}, ${nomineeId})
+          RETURNING id
+        `
+      )[0].id;
 
       if (n.birthday) {
-        const text = `${n.name}'s birthday`;
-        const emb = await embedOne(text);
-        await tx`
-          INSERT INTO life_events
-            (vault_id, kind, label, event_date, recurrence,
-             subject_person_id, embedding)
-          VALUES
-            (${session.vault_id}, 'birth', ${text}, ${n.birthday}, 'yearly',
-             ${person.id}, ${vec(emb)})
+        const text = `${cleanName}'s birthday`;
+        const [existingBday] = await tx<{ id: string }[]>`
+          SELECT id FROM life_events
+           WHERE vault_id = ${session.vault_id}
+             AND kind = 'birth'
+             AND subject_person_id = ${personId}
+           LIMIT 1
         `;
+        if (existingBday) {
+          await tx`
+            UPDATE life_events
+               SET event_date = ${n.birthday},
+                   recurrence = 'yearly',
+                   label = ${text}
+             WHERE id = ${existingBday.id}
+          `;
+        } else {
+          const emb = await embedOne(text);
+          await tx`
+            INSERT INTO life_events
+              (vault_id, kind, label, event_date, recurrence,
+               subject_person_id, embedding)
+            VALUES
+              (${session.vault_id}, 'birth', ${text}, ${n.birthday}, 'yearly',
+               ${personId}, ${vec(emb)})
+          `;
+        }
       }
     }
   });

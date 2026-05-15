@@ -503,19 +503,18 @@ function VoiceStep(props: { onBack: () => void; onContinue: () => void }) {
 
   return (
     <>
-      <p className="eyebrow mb-3">Step two</p>
-      <h1 className="h-title mb-3">A little of your voice.</h1>
-      <p className="p-body max-w-[520px] mb-2">
+      <p className="eyebrow mb-2">Step two</p>
+      <h1 className="h-title mb-2">A little of your voice.</h1>
+      <p className="p-body max-w-[520px] mb-1">
         Read this passage once, in your usual voice. The archive can then read
         anything you write back to your people in your own voice - verbatim,
         only the words you actually said or wrote.
       </p>
-      <p className="p-meta max-w-[520px] mb-6">
-        Optional. You can do this later from Settings - but most people find
-        it easier to record it now, before anything else.
+      <p className="p-meta max-w-[520px] mb-4">
+        Optional. You can do this later from Settings.
       </p>
 
-      <blockquote className="font-serif italic text-[19px] leading-[1.55] text-ink-soft border-l-2 border-rule pl-5 mb-8 text-wrap-pretty max-w-[600px]">
+      <blockquote className="font-serif italic text-[15px] leading-[1.5] text-ink-soft border-l-2 border-rule pl-4 mb-5 text-wrap-pretty max-w-[560px]">
         “{VOICE_SCRIPT}”
       </blockquote>
 
@@ -572,17 +571,17 @@ function VoiceStep(props: { onBack: () => void; onContinue: () => void }) {
         )}
       </div>
 
-      <div className="mt-12 flex items-center justify-between">
+      <div className="mt-6 flex items-center justify-between">
         <button
           type="button"
-          className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink"
+          className="font-mono text-[12px] tracking-[0.14em] uppercase text-ink-muted hover:text-ink py-2"
           onClick={props.onBack}
         >
           ← Back
         </button>
         <button
           type="button"
-          className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink underline"
+          className="font-mono text-[12px] tracking-[0.14em] uppercase text-ink-muted hover:text-ink underline py-2"
           onClick={props.onContinue}
         >
           Skip for now
@@ -866,19 +865,9 @@ function LettersStep(props: {
             them over in person, or store them somewhere safe out-of-band - this
             is how each person will open their archive.
           </p>
-          <ul className="flex flex-col gap-3">
+          <ul className="flex flex-col gap-4">
             {props.passphrases.map((p) => (
-              <li
-                key={p.name}
-                className="flex items-baseline justify-between gap-4 border-b border-rule-soft pb-2 last:border-0 last:pb-0"
-              >
-                <span className="font-serif italic text-[16px] text-ink">
-                  {p.name}
-                </span>
-                <code className="font-mono text-[15px] text-ink tracking-[0.04em] select-all">
-                  {p.passphrase}
-                </code>
-              </li>
+              <PassphraseRow key={p.name} name={p.name} passphrase={p.passphrase} />
             ))}
           </ul>
         </article>
@@ -970,5 +959,35 @@ function LetterDraftCard(props: {
         </button>
       )}
     </article>
+  );
+}
+
+function PassphraseRow({ name, passphrase }: { name: string; passphrase: string }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(passphrase);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      // Fallback: select the code text so the user can long-press copy
+    }
+  }
+  return (
+    <li className="flex flex-col gap-1.5 border-b border-rule-soft pb-3 last:border-0 last:pb-0">
+      <span className="font-serif italic text-[16px] text-ink">{name}</span>
+      <div className="flex items-center gap-3">
+        <code className="font-mono text-[13px] text-ink tracking-[0.03em] select-all break-all flex-1">
+          {passphrase}
+        </code>
+        <button
+          type="button"
+          onClick={copy}
+          className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink border border-rule rounded-full px-3 py-1.5 shrink-0"
+        >
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+    </li>
   );
 }
