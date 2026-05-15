@@ -99,7 +99,43 @@ export function SettingsClient({ initial }: { initial: Initial }) {
       <NotificationsSection />
 
       <VaultSection />
+
+      <SignOutSection />
     </div>
+  );
+}
+
+function SignOutSection() {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  async function signOut() {
+    setBusy(true);
+    try {
+      await fetch("/api/auth/sign-out", { method: "POST" });
+      router.replace("/portal");
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="eyebrow">Session</h2>
+      <p className="p-body max-w-[480px]">
+        Sign out to hand this device to someone else - the next person
+        opens the portal and signs in with their own passphrase.
+      </p>
+      <div>
+        <button
+          type="button"
+          className="btn-ghost"
+          onClick={signOut}
+          disabled={busy}
+        >
+          {busy ? "Signing out…" : "Sign out of this device"}
+        </button>
+      </div>
+    </section>
   );
 }
 
