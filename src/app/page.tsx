@@ -1,62 +1,12 @@
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import { readSession } from "@/lib/auth";
 import { getOnboardingStatus } from "@/lib/onboarding";
+import { getHomePayload } from "@/lib/home-data";
 import { BrandMark } from "./_components/brand-mark";
 import { Home } from "./_components/home";
 import { NomineeHome } from "./_components/nominee-home";
 
-type CreatorHome = {
-  role: "creator";
-  greeting: {
-    time_of_day: "morning" | "afternoon" | "evening";
-    display_name: string;
-  };
-  prompt_of_day: { id: string; text: string | null };
-  recent_captures: HomeCapture[];
-  stats: { captures: number; nominees: number };
-};
-
-type NomineeHomePayload = {
-  role: "nominee";
-  framing: {
-    from_name: string;
-    to_name: string;
-    letter_body: string | null;
-  };
-  released_captures: ReleasedCapture[];
-  newly_fired_letters: {
-    letter_id: string;
-    capture_id: string;
-    occasion_prompt: string;
-    trigger: string;
-  }[];
-  daily_memory: ReleasedCapture | null;
-  themed_albums: { theme: string; count: number; cover_id: string }[];
-  stats: { captures: number };
-};
-
-export type HomeCapture = {
-  id: string;
-  kind: "audio" | "photo" | "note" | "video";
-  status: "processing" | "ready" | "failed";
-  title: string | null;
-  body: string | null;
-  duration_ms: number | null;
-  captured_at: string;
-  transcript_snippet: string | null;
-};
-
-export type ReleasedCapture = {
-  id: string;
-  kind: "audio" | "photo" | "note" | "video";
-  title: string | null;
-  body: string | null;
-  duration_ms: number | null;
-  captured_at: string;
-  released_at: string;
-  transcript_snippet: string | null;
-};
+export type { HomeCapture, ReleasedCapture } from "@/lib/home-data";
 
 export default async function Root() {
   const session = await readSession();
@@ -68,21 +18,7 @@ export default async function Root() {
     if (!status.onboarded) redirect("/onboarding");
   }
 
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"}/api/me/home`,
-    {
-      headers: { cookie: `heirloom_session=${await sessionCookieValue()}` },
-      cache: "no-store",
-    },
-  );
-  if (!res.ok) {
-    return (
-      <main className="stage min-h-dvh p-8">
-        <p className="p-body">Home failed to load: HTTP {res.status}</p>
-      </main>
-    );
-  }
-  const data = (await res.json()) as CreatorHome | NomineeHomePayload;
+  const data = await getHomePayload(session);
 
   if (data.role === "nominee") {
     const moodChips = pickMoodChips(data.framing.from_name);
@@ -126,10 +62,6 @@ export default async function Root() {
       />
     </main>
   );
-}
-
-async function sessionCookieValue(): Promise<string> {
-  return (await cookies()).get("heirloom_session")?.value ?? "";
 }
 
 /** Mood-card chips per known seed archive. Each chip should either match

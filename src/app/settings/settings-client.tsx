@@ -710,7 +710,19 @@ type NotifStatus =
   | "unknown"
   | "denied"
   | "off"
-  | "on";
+  | "on"
+  | "native";
+
+/** WKWebView in the desktop bundle doesn't speak Web Push. Heirloom is
+ *  also always-on while the app is open, so the section just hides
+ *  itself rather than nagging about "this browser doesn't support push". */
+function isDesktopWebView(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    "__TAURI_INTERNALS__" in window ||
+    navigator.userAgent.includes("Heirloom/")
+  );
+}
 
 function ArchiveKeySection() {
   const [state, setState] = useState<{
@@ -857,6 +869,10 @@ function NotificationsSection() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      if (isDesktopWebView()) {
+        if (!cancelled) setStatus("native");
+        return;
+      }
       if (
         typeof window === "undefined" ||
         !("Notification" in window) ||
@@ -878,6 +894,10 @@ function NotificationsSection() {
       cancelled = true;
     };
   }, []);
+
+  // In the desktop bundle there's nothing meaningful to show. Render
+  // nothing rather than a stub error message.
+  if (status === "native") return null;
 
   /** Subscribe + POST to server, idempotent. Reuses an existing local
    *  subscription rather than failing if Safari still has one cached. */
