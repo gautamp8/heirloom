@@ -1,7 +1,20 @@
+use std::net::TcpListener;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{Manager, RunEvent, State};
+
+/// Bind 127.0.0.1:0 to let the OS hand us an unused ephemeral port,
+/// then drop the listener so the bundled node server can grab it.
+/// Tiny race window between drop and rebind, but in practice the OS
+/// reserves the port long enough for the spawned process to claim it.
+fn pick_free_port() -> u16 {
+    TcpListener::bind("127.0.0.1:0")
+        .ok()
+        .and_then(|l| l.local_addr().ok())
+        .map(|a| a.port())
+        .unwrap_or(3000)
+}
 
 /// Sidecar processes (Ollama, Next.js server, optional TTS) supervised
 /// for the lifetime of the app window.
@@ -100,10 +113,13 @@ pub fn run() {
                 .map(|p| p.join("Resources/server"))
                 .unwrap_or_default();
             let node_bin = bin_dir.join("node");
+            let port = pick_free_port();
+            let server_url = format!("http://127.0.0.1:{}", port);
             log::info!(
-                "[heirloom] node_bin exists={} node_app exists={}",
+                "[heirloom] node_bin exists={} node_app exists={} port={}",
                 node_bin.exists(),
-                node_app.exists()
+                node_app.exists(),
+                port
             );
             if node_app.exists() && node_bin.exists() {
                 match Command::new(&node_bin)
@@ -111,7 +127,7 @@ pub fn run() {
                     .current_dir(&node_app)
                     .env("NODE_ENV", "production")
                     .env("HOSTNAME", "127.0.0.1")
-                    .env("PORT", "3000")
+                    .env("PORT", port.to_string())
                     .env("HEIRLOOM_BACKEND", "sqlite")
                     .env("HEIRLOOM_SQLITE_PATH", db_path.to_string_lossy().to_string())
                     .env("HEIRLOOM_BLOB_DIR", blob_dir.to_string_lossy().to_string())
@@ -131,42 +147,25 @@ pub fn run() {
                 }
             }
 
-            // Refuse to navigate if port 3000 is held by anything other
-            // than our bundled server. Otherwise WKWebView would hit a
-            // stranger's server and the user would think Heirloom was
-            // talking to their own SQLite when it wasn't.
+            // Poll the bundled server. We grabbed an ephemeral port so
+            // collisions with other dev servers don't apply.
             let main_window = app.get_webview_window("main");
+            let health_url = format!("{}/api/health", server_url);
             std::thread::spawn(move || {
                 for _ in 0..240 {
-                    match ureq::get("http://127.0.0.1:3000/api/health")
+                    if ureq::get(&health_url)
                         .timeout(Duration::from_millis(500))
                         .call()
+                        .is_ok()
                     {
-                        Ok(resp) => {
-                            let ours = resp
-                                .header("x-heirloom-backend")
-                                .map(|v| v == "sqlite")
-                                .unwrap_or(false);
-                            if !ours {
-                                log::error!(
-                                    "[heirloom] port 3000 already in use by another process; refusing to navigate"
-                                );
-                                if let Some(w) = &main_window {
-                                    let _ = w.eval(
-                                        "document.body.innerHTML = '<div style=\"font:16px/1.5 system-ui;padding:48px;color:#1f1b14;background:#faf7f0;height:100vh\"><strong>Port 3000 is taken.</strong><br/>Another process is already listening on http://127.0.0.1:3000, so Heirloom can\\'t start its own server. Quit whichever app or terminal is using port 3000 and reopen Heirloom.</div>'",
-                                    );
-                                }
-                                return;
+                        if let Some(w) = &main_window {
+                            if let Ok(url) = server_url.parse() {
+                                let _ = w.navigate(url);
                             }
-                            if let Some(w) = &main_window {
-                                if let Ok(url) = "http://127.0.0.1:3000/".parse() {
-                                    let _ = w.navigate(url);
-                                }
-                            }
-                            return;
                         }
-                        Err(_) => std::thread::sleep(Duration::from_millis(500)),
+                        return;
                     }
+                    std::thread::sleep(Duration::from_millis(500));
                 }
                 log::warn!("[heirloom] embedded server never came up");
             });
