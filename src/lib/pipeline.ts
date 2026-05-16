@@ -10,33 +10,57 @@ import type { Session } from "./auth";
 
 type Kind = "audio" | "photo" | "note" | "video";
 
-/** Re-embed any 'ready' captures in the vault that have body or caption
- *  text but no transcript_chunks. Idempotent. Runs via admin because
- *  transcript_chunks INSERT is restricted to the creator role under RLS. */
+/** Re-embed captures that are either missing chunks entirely (the
+ *  detached pipeline dropped before writing) or whose chunks don't
+ *  cover the title (older rows that were indexed before titles were
+ *  part of the embedded text). Idempotent; runs via admin because
+ *  transcript_chunks INSERT is restricted to creators under RLS. */
 export async function backfillMissingChunks(session: Session): Promise<number> {
   if (!sqlAdmin) return 0;
 
-  const orphans = await sqlAdmin<{ id: string; vault_id: string; body: string | null; caption: string | null }[]>`
-    SELECT c.id, c.vault_id, c.body, c.caption
+  const candidates = await sqlAdmin<{
+    id: string;
+    vault_id: string;
+    title: string | null;
+    body: string | null;
+    caption: string | null;
+    chunk_count: number;
+    title_indexed: boolean;
+  }[]>`
+    SELECT c.id, c.vault_id, c.title, c.body, c.caption,
+           (SELECT COUNT(*) FROM transcript_chunks tc WHERE tc.capture_id = c.id)::int AS chunk_count,
+           EXISTS (
+             SELECT 1 FROM transcript_chunks tc
+              WHERE tc.capture_id = c.id
+                AND (c.title IS NULL OR position(lower(c.title) IN lower(tc.text)) > 0)
+           ) AS title_indexed
       FROM captures c
      WHERE c.vault_id = ${session.vault_id}
        AND c.status = 'ready'
        AND (coalesce(c.body, '') <> '' OR coalesce(c.caption, '') <> '')
-       AND NOT EXISTS (
-         SELECT 1 FROM transcript_chunks tc WHERE tc.capture_id = c.id
-       )
-     LIMIT 20
+     ORDER BY c.created_at DESC
+     LIMIT 50
   `;
+
+  const orphans = candidates.filter(
+    (c) => c.chunk_count === 0 || !c.title_indexed,
+  );
   if (orphans.length === 0) return 0;
 
   let healed = 0;
   for (const cap of orphans) {
-    const text = (cap.body ?? cap.caption ?? "").trim();
-    if (!text) continue;
+    const base = (cap.body ?? cap.caption ?? "").trim();
+    if (!base) continue;
+    const indexedText = cap.title?.trim()
+      ? `${cap.title.trim()}. ${base}`
+      : base;
     try {
-      const chunks = chunkText(text);
+      const chunks = chunkText(indexedText);
       if (chunks.length === 0) continue;
       const vectors = await embedAll(chunks.map((c) => c.text));
+      await sqlAdmin`
+        DELETE FROM transcript_chunks WHERE capture_id = ${cap.id}
+      `;
       for (let i = 0; i < chunks.length; i++) {
         await sqlAdmin`
           INSERT INTO transcript_chunks
@@ -121,7 +145,12 @@ export async function runCapturePipeline(
       return;
     }
 
-    const chunks = chunkText(text);
+    // Prepend the title (if any) so a user-typed title like "Wedding
+    // planning" is retrievable even when the body doesn't repeat it.
+    const indexedText = cap.title?.trim()
+      ? `${cap.title.trim()}. ${text}`
+      : text;
+    const chunks = chunkText(indexedText);
     if (chunks.length > 0) {
       const vectors = await embedAll(chunks.map((c) => c.text));
       await withRls(session.user_id, session.role, async (tx) => {
