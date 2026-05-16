@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Heirloom records short voice notes that stay on this device. Nothing leaves the archive.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Heirloom uses your camera to capture photos and a reference selfie for face recognition. Everything stays on this device.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Heirloom lets you add photos from your library to the archive. They stay on this device.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>Heirloom can save photos to your library if you choose to export them. Nothing else is shared.</string>
+</dict>
+</plist>

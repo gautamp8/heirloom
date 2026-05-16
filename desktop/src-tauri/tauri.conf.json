@@ -8,6 +8,7 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
         "label": "main",
@@ -46,6 +47,7 @@
     ],
     "macOS": {
       "minimumSystemVersion": "13.0",
+      "infoPlist": "Info.plist",
       "dmg": {
         "background": null,
         "windowSize": { "width": 660, "height": 400 }
