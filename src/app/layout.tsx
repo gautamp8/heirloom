@@ -62,8 +62,9 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${sourceSerif.variable} ${geist.variable} ${jetbrainsMono.variable}`}
+      suppressHydrationWarning
     >
-      <body className="min-h-dvh bg-paper text-ink">
+      <body className="min-h-dvh bg-paper text-ink" suppressHydrationWarning>
         {children}
         <ServiceWorkerRegister />
       </body>
