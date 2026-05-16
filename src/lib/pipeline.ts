@@ -10,11 +10,36 @@ import type { Session } from "./auth";
 
 type Kind = "audio" | "photo" | "note" | "video";
 
-/** Re-embed captures that are either missing chunks entirely (the
- *  detached pipeline dropped before writing) or whose chunks don't
- *  cover the title (older rows that were indexed before titles were
- *  part of the embedded text). Idempotent; runs via admin because
- *  transcript_chunks INSERT is restricted to creators under RLS. */
+/** Concatenate every distinct, non-empty textual field on a capture so
+ *  the embedding covers title, body, photo caption, and audio
+ *  transcript. Reflect retrieves over chunks of this combined text. */
+function composeIndexedText(fields: {
+  title?: string | null;
+  body?: string | null;
+  caption?: string | null;
+  transcript?: string | null;
+}): string {
+  const seen = new Set<string>();
+  const parts: string[] = [];
+  for (const raw of [
+    fields.title,
+    fields.body,
+    fields.caption,
+    fields.transcript,
+  ]) {
+    const v = raw?.trim();
+    if (!v || seen.has(v)) continue;
+    seen.add(v);
+    parts.push(v);
+  }
+  return parts.join(". ");
+}
+
+/** Re-embed captures whose chunks don't cover every textual field
+ *  (title + body + caption + transcript). Catches both detached
+ *  pipelines that never wrote chunks and older rows indexed before
+ *  the title/caption fields were folded into the embedding. Runs via
+ *  admin because transcript_chunks INSERT is creator-only under RLS. */
 export async function backfillMissingChunks(session: Session): Promise<number> {
   if (!sqlAdmin) return 0;
 
@@ -24,16 +49,13 @@ export async function backfillMissingChunks(session: Session): Promise<number> {
     title: string | null;
     body: string | null;
     caption: string | null;
-    chunk_count: number;
-    title_indexed: boolean;
+    transcript: string | null;
+    joined_chunks: string | null;
   }[]>`
     SELECT c.id, c.vault_id, c.title, c.body, c.caption,
-           (SELECT COUNT(*) FROM transcript_chunks tc WHERE tc.capture_id = c.id)::int AS chunk_count,
-           EXISTS (
-             SELECT 1 FROM transcript_chunks tc
-              WHERE tc.capture_id = c.id
-                AND (c.title IS NULL OR position(lower(c.title) IN lower(tc.text)) > 0)
-           ) AS title_indexed
+           (SELECT t.text FROM transcripts t WHERE t.capture_id = c.id LIMIT 1) AS transcript,
+           (SELECT string_agg(tc.text, ' ' ORDER BY tc.chunk_index)
+              FROM transcript_chunks tc WHERE tc.capture_id = c.id) AS joined_chunks
       FROM captures c
      WHERE c.vault_id = ${session.vault_id}
        AND c.status = 'ready'
@@ -42,18 +64,23 @@ export async function backfillMissingChunks(session: Session): Promise<number> {
      LIMIT 50
   `;
 
-  const orphans = candidates.filter(
-    (c) => c.chunk_count === 0 || !c.title_indexed,
+  const orphans = candidates.filter((c) =>
+    needsReindex(
+      { title: c.title, body: c.body, caption: c.caption, transcript: c.transcript },
+      c.joined_chunks,
+    ),
   );
   if (orphans.length === 0) return 0;
 
   let healed = 0;
   for (const cap of orphans) {
-    const base = (cap.body ?? cap.caption ?? "").trim();
-    if (!base) continue;
-    const indexedText = cap.title?.trim()
-      ? `${cap.title.trim()}. ${base}`
-      : base;
+    const indexedText = composeIndexedText({
+      title: cap.title,
+      body: cap.body,
+      caption: cap.caption,
+      transcript: cap.transcript,
+    });
+    if (!indexedText) continue;
     try {
       const chunks = chunkText(indexedText);
       if (chunks.length === 0) continue;
@@ -76,6 +103,31 @@ export async function backfillMissingChunks(session: Session): Promise<number> {
     }
   }
   return healed;
+}
+
+/** True when any non-empty textual field on the capture isn't already
+ *  represented in the concatenated chunk text. Substring checks are
+ *  lowercase; long fields are sampled by their first ~80 chars so a
+ *  natural sentence break inside the body doesn't trigger a false
+ *  positive. */
+function needsReindex(
+  fields: {
+    title: string | null;
+    body: string | null;
+    caption: string | null;
+    transcript: string | null;
+  },
+  joinedChunks: string | null,
+): boolean {
+  const hay = (joinedChunks ?? "").toLowerCase();
+  if (!hay) return true;
+  for (const raw of [fields.title, fields.body, fields.caption, fields.transcript]) {
+    const v = raw?.trim().toLowerCase();
+    if (!v) continue;
+    const probe = v.slice(0, 80);
+    if (!hay.includes(probe)) return true;
+  }
+  return false;
 }
 
 /** Runs ingest for a capture: transcribe/caption, chunk + embed, auto-release
@@ -138,18 +190,18 @@ export async function runCapturePipeline(
         await tx`UPDATE captures SET caption = ${caption} WHERE id = ${cap.id}`;
       });
     }
-    if (!text.trim()) {
+    const indexedText = composeIndexedText({
+      title: cap.title,
+      body: cap.body,
+      caption: cap.kind === "photo" ? text : cap.caption,
+      transcript: cap.kind === "audio" ? text : null,
+    });
+    if (!indexedText) {
       await withRls(session.user_id, session.role, async (tx) => {
         await tx`UPDATE captures SET status = 'ready' WHERE id = ${cap.id}`;
       });
       return;
     }
-
-    // Prepend the title (if any) so a user-typed title like "Wedding
-    // planning" is retrievable even when the body doesn't repeat it.
-    const indexedText = cap.title?.trim()
-      ? `${cap.title.trim()}. ${text}`
-      : text;
     const chunks = chunkText(indexedText);
     if (chunks.length > 0) {
       const vectors = await embedAll(chunks.map((c) => c.text));
