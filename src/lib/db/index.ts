@@ -12,3 +12,11 @@ export const withRls = backend.withRls;
 export const vec = backend.vec;
 export const cosineDist = backend.cosineDist;
 export const cosineSim = backend.cosineSim;
+
+/** Datetime columns come back as Date from the Postgres driver and as
+ *  ISO strings from better-sqlite3. Normalise both to ISO-8601. */
+export function asISO(v: Date | string | null | undefined): string | null {
+  if (!v) return null;
+  if (v instanceof Date) return v.toISOString();
+  return v;
+}

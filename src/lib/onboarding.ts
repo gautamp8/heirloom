@@ -1,5 +1,5 @@
 import argon2 from "argon2";
-import { withRls, vec } from "./db";
+import { asISO, withRls, vec } from "./db";
 import { embedOne } from "./embed";
 import { syncIdentityIndexForSession } from "./identity-index";
 import { generatePassphrase, normalisePassphrase } from "./passphrase";
@@ -495,16 +495,14 @@ export async function getSettings(session: Session): Promise<{
     `;
     return {
       user: { display_name: user?.display_name ?? "Friend" },
-      vault: { onboarded_at: vault?.onboarded_at?.toISOString() ?? null },
+      vault: { onboarded_at: asISO(vault?.onboarded_at) },
       life_events: life_events.map((e) => ({
         ...e,
-        event_date: e.event_date
-          ? e.event_date.toISOString().slice(0, 10)
-          : null,
+        event_date: asISO(e.event_date)?.slice(0, 10) ?? null,
       })),
       nominees: nominees.map((n) => ({
         ...n,
-        passphrase_set_at: n.passphrase_set_at?.toISOString() ?? null,
+        passphrase_set_at: asISO(n.passphrase_set_at),
       })),
     };
   });

@@ -123,13 +123,33 @@ async function readFacts(sql: Sql, vault_id: string): Promise<IdentityFacts> {
     JOIN vaults v ON v.creator_id = u.id
     WHERE v.id = ${vault_id} LIMIT 1
   `;
-  const life_events = await sql<IdentityFacts["life_events"]>`
-    SELECT kind, label,
-           to_char(event_date, 'YYYY-MM-DD') AS event_date,
-           recurrence, description
+  const rawEvents = await sql<
+    {
+      kind: string;
+      label: string;
+      event_date: Date | string | null;
+      recurrence: string | null;
+      description: string | null;
+    }[]
+  >`
+    SELECT kind, label, event_date, recurrence, description
     FROM life_events WHERE vault_id = ${vault_id}
     ORDER BY event_date NULLS LAST, label
   `;
+  const life_events: IdentityFacts["life_events"] = rawEvents.map((e) => ({
+    kind: e.kind,
+    label: e.label,
+    event_date: e.event_date
+      ? e.event_date instanceof Date
+        ? e.event_date.toISOString().slice(0, 10)
+        : String(e.event_date).slice(0, 10)
+      : null,
+    recurrence:
+      e.recurrence === "yearly" || e.recurrence === "once"
+        ? e.recurrence
+        : null,
+    description: e.description,
+  }));
   const nominees = await sql<IdentityFacts["nominees"]>`
     SELECT name, relationship, letter_body
     FROM nominees WHERE vault_id = ${vault_id}

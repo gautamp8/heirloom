@@ -1,6 +1,6 @@
 import argon2 from "argon2";
 import { errorResponse, HttpError, requireSession } from "@/lib/auth";
-import { withRls } from "@/lib/db";
+import { asISO, withRls } from "@/lib/db";
 import { generatePassphrase, normalisePassphrase } from "@/lib/passphrase";
 
 export const dynamic = "force-dynamic";
@@ -51,7 +51,7 @@ export async function GET() {
 
     return Response.json({
       has_passphrase: !!row?.has_passphrase,
-      passphrase_set_at: row?.passphrase_set_at?.toISOString() ?? null,
+      passphrase_set_at: asISO(row?.passphrase_set_at ?? null),
     });
   } catch (err) {
     return errorResponse(err);
