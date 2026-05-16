@@ -297,12 +297,10 @@ export async function importVault(
     gunzipSync(compressed).toString("utf8"),
   ) as VaultPlaintext;
 
-  // 3) Restore into the CURRENT user's vault - re-keyed, not the original
-  //    UUIDs. We map every old id -> new id (or self.id where appropriate).
-  //
-  // For v1 we keep this simple: nuke the current vault's data and replace
-  // it with the imported snapshot. This is what the recipient wants: open
-  // the bundle, see exactly what the creator saved.
+  // Restore into the current user's vault under fresh ids: every old
+  // id is mapped to a new one (or self.id where appropriate). Existing
+  // rows in the target vault are dropped first; the import is a full
+  // replacement, not a merge.
   await sqlAdmin.begin(async (tx) => {
     await tx`DELETE FROM captures      WHERE vault_id = ${session.vault_id}`;
     await tx`DELETE FROM nominees      WHERE vault_id = ${session.vault_id}`;
@@ -311,8 +309,8 @@ export async function importVault(
     await tx`DELETE FROM sealed_letters WHERE vault_id = ${session.vault_id}`;
   });
 
-  // Restore captures + blobs + transcripts + chunks + tags. We rewrite blob
-  // paths so the imported files live alongside our normal storage.
+  // Captures + blobs + transcripts + chunks + tags. Blob paths are
+  // rewritten so imported files land in the normal storage tree.
   const counts: Record<string, number> = {};
   await sqlAdmin.begin(async (tx) => {
     const blobNameMap: Record<string, string> = {};

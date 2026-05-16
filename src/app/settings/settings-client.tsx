@@ -247,9 +247,8 @@ function AddLifeEventForm({
         }),
       });
       if (r.ok) {
-        // We don't get the id back from this minimal endpoint - onChanged
-        // will refresh the server data so the new row appears with its id.
-        // Stub it locally so the optimistic UI doesn't flash empty.
+        // The endpoint doesn't return the id; onChanged refreshes after,
+        // this stub is only to avoid an empty row flash.
         onSaved({
           id: `tmp-${Date.now()}`,
           label: label.trim(),

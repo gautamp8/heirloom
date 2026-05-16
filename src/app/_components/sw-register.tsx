@@ -2,10 +2,8 @@
 
 import { useEffect } from "react";
 
-/** Registers /sw.js on the client. Skipped in dev (HMR conflicts), in
- *  the Tauri desktop wrapper (the bundle is already a native app and
- *  the SW cache leaks stale assets across updates), and when
- *  `NEXT_PUBLIC_DISABLE_SW=1`. */
+/** Registers /sw.js on the client. Skipped in dev, in the Tauri shell,
+ *  and when NEXT_PUBLIC_DISABLE_SW=1. */
 export function ServiceWorkerRegister() {
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -18,8 +16,8 @@ export function ServiceWorkerRegister() {
       navigator.userAgent.includes("Heirloom/");
 
     if (isTauri) {
-      // Unregister any leftover SW from a prior install so cached CSS
-      // chunks from an older bundle don't get served on the new one.
+      // Drop any SW that survived a prior install so cached chunks from
+      // an older bundle don't get served on the new one.
       navigator.serviceWorker.getRegistrations().then((regs) => {
         for (const r of regs) r.unregister().catch(() => {});
       });

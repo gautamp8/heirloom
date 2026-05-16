@@ -10,18 +10,12 @@ import type { Session } from "./auth";
 
 type Kind = "audio" | "photo" | "note" | "video";
 
-/** Re-embed any 'ready' captures in the session's vault that have text
- *  but no transcript_chunks. The pipeline is detached from the request
- *  with `void runCapturePipeline`, so a server restart or dropped
- *  connection between INSERT and embed can leave a capture stranded
- *  in the ready state with no retrievable text. This catches those. */
+/** Re-embed any 'ready' captures in the vault that have body or caption
+ *  text but no transcript_chunks. Idempotent. Runs via admin because
+ *  transcript_chunks INSERT is restricted to the creator role under RLS. */
 export async function backfillMissingChunks(session: Session): Promise<number> {
   if (!sqlAdmin) return 0;
 
-  // RLS on transcript_chunks only allows the creator to INSERT, so we
-  // do the orphan scan + writes via the admin client. The vault scope
-  // is still tied to the session: creators only touch their own vault,
-  // nominees only touch the vault they're a nominee on.
   const orphans = await sqlAdmin<{ id: string; vault_id: string; body: string | null; caption: string | null }[]>`
     SELECT c.id, c.vault_id, c.body, c.caption
       FROM captures c
@@ -57,14 +51,11 @@ export async function backfillMissingChunks(session: Session): Promise<number> {
       console.warn("[backfillMissingChunks] failed for", cap.id, err);
     }
   }
-  if (healed > 0) {
-    console.log(`[backfillMissingChunks] healed ${healed}/${orphans.length}`);
-  }
   return healed;
 }
 
-/** Fire-and-forget after `POST /api/capture` inserts the row. Failures
- *  mark the capture 'failed' but never throw to the detached caller. */
+/** Runs ingest for a capture: transcribe/caption, chunk + embed, auto-release
+ *  to nominees, then tag and title. Failures mark the row 'failed'. */
 export async function runCapturePipeline(
   captureId: string,
   session: Session,
@@ -89,8 +80,6 @@ export async function runCapturePipeline(
     });
     if (!cap) return;
 
-    // audio → Whisper transcript. photo → Gemma 4 vision caption
-    // (also persisted to captures.caption). note → cap.body.
     let text = cap.body ?? "";
     if (cap.kind === "audio" && cap.blob_url) {
       const abs = resolveBlob(cap.blob_url);
@@ -148,8 +137,7 @@ export async function runCapturePipeline(
       });
     }
 
-    // Auto-release to every nominee, unless this capture is the body of
-    // a sealed letter - those release via the condition engine.
+    // Sealed letters release via the condition engine, not this auto-path.
     await withRls(session.user_id, session.role, async (tx) => {
       const [sealed] = await tx<{ has_letter: number }[]>`
         SELECT EXISTS (
@@ -172,8 +160,8 @@ export async function runCapturePipeline(
       }
     });
 
-    // Mark ready before the slow Gemma calls so the user sees "Saved"
-    // immediately; tags and auto-title fill in on the next home load.
+    // Mark ready before tag/title synthesis so the UI shows the capture
+    // immediately; tags fill in on the next home load.
     await withRls(session.user_id, session.role, async (tx) => {
       await tx`UPDATE captures SET status = 'ready' WHERE id = ${cap.id}`;
     });

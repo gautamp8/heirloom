@@ -51,10 +51,6 @@ chmod +x "$SIDE/node-$TRIPLE"
 ok "node-$TRIPLE staged"
 
 # 3. Stage the Next.js standalone server next to the binaries -----------
-# Next traces dependencies into .next/standalone/, but on this codebase
-# Turbopack's NFT widens to the whole project tree (anything reachable
-# through dynamic path.join'd paths). We copy only the files the server
-# actually needs to boot.
 heading "Server bundle"
 SERVER_OUT="desktop/server"
 rm -rf "$SERVER_OUT"
@@ -90,8 +86,8 @@ HEIRLOOM_BACKEND=sqlite pnpm exec tauri build --config desktop/src-tauri/tauri.c
 ok "tauri build done"
 
 # 5. Inject the standalone server tree into the .app ----------------------
-# Tauri's resources globs flatten directory structure (a known limitation),
-# so we mirror desktop/server/ into Contents/Resources/server/ directly.
+# Tauri's resources globs flatten directory structure, so mirror
+# desktop/server/ into Contents/Resources/server/ directly.
 APP_DIR="desktop/src-tauri/target/release/bundle/macos/Heirloom.app"
 TARGET_SERVER="$APP_DIR/Contents/Resources/server"
 rm -rf "$TARGET_SERVER"
@@ -99,10 +95,9 @@ cp -R desktop/server "$TARGET_SERVER"
 ok "server copied into bundle ($(du -sh "$TARGET_SERVER" | cut -f1))"
 
 # 5b. Stage the TTS sidecar source + installer in Resources/tts ----------
-# We DON'T bundle the venv (LuxTTS + torch ~ 2 GB). The user runs
-# install-tts.sh once to set things up under ~/Library/Application
-# Support/Heirloom/tts/. Heirloom's Rust shell checks for that path on
-# boot and spawns the sidecar automatically when it's present.
+# The venv (LuxTTS + torch ~ 2 GB) isn't bundled; install-tts.sh sets
+# it up under ~/Library/Application Support/Heirloom/tts/ on first
+# run. The Rust shell auto-spawns the sidecar when that path exists.
 TARGET_TTS="$APP_DIR/Contents/Resources/tts"
 rm -rf "$TARGET_TTS"
 mkdir -p "$TARGET_TTS"
@@ -117,8 +112,6 @@ ok "tts sidecar source + installer staged (run with 'open $TARGET_TTS/install-tt
 heading "Repack .dmg"
 DMG_DIR="desktop/src-tauri/target/release/bundle/dmg"
 rm -f "$DMG_DIR"/*.dmg
-# Tauri's bundle_dmg.sh (fork of create-dmg) renders the Finder window
-# with the standard "drag Heirloom → Applications" layout.
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 cp -R "$APP_DIR" "$STAGE/"

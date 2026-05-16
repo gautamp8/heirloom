@@ -64,11 +64,8 @@ export default async function Root() {
   );
 }
 
-/** Mood-card chips per known seed archive. Each chip should either match
- *  a sealed letter trigger (so tapping fires it) or be a phrasing the
- *  Reflection retrieval will land on confidently. The fallback set are
- *  generic prompts kept for family archives where we have no special
- *  hand-tuning. */
+/** Mood-card chips: matched to sealed-letter triggers for the seed
+ *  archives, generic for everyone else. */
 function pickMoodChips(fromName: string): string[] {
   const key = fromName.toLowerCase().trim();
   if (key.includes("carl sagan")) {

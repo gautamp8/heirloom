@@ -71,7 +71,7 @@ Every screen in this document serves that narrative.
 └─────────────────────────────────────────────────────────┘
 ```
 
-Everything is on the user's machine. No cloud. The demo shows airplane mode on.
+Everything is on the user's machine. No cloud.
 
 ### Gemma 4 responsibilities
 

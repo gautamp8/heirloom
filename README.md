@@ -121,9 +121,8 @@ laptop, with no external API.
 - **Anniversary nudges.** The daily cron also queues push deliveries
   when a date-triggered release fires, so a nominee learns "there is
   a letter for today" the moment it unlocks.
-- **Dev trigger.** `POST /api/dev/send-memory` fires a memory release
-  to a given nominee on demand - useful for staging notifications
-  during a demo or QA pass.
+- **Manual trigger.** `POST /api/dev/send-memory` fires a release to
+  a given nominee on demand, useful for verifying notification setup.
 
 ### Nominee surface
 

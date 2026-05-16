@@ -5,20 +5,15 @@ use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{Manager, RunEvent, State};
 
-/// Sidecars are pure CLIs (ollama, node, python). Without this, macOS
-/// treats them as children of the GUI app's session and shows a generic
-/// "exec" icon for each in the Dock. `process_group(0)` makes the child
-/// a new process group leader, detaching it from the app's job-control
-/// session so LaunchServices ignores it.
+/// Detach a sidecar from the GUI app's session so macOS doesn't show
+/// a "generic exec" Dock tile for it.
 fn detach_from_app_session(cmd: &mut Command) {
     cmd.process_group(0);
     cmd.stdin(Stdio::null());
 }
 
-/// Bind 127.0.0.1:0 to let the OS hand us an unused ephemeral port,
-/// then drop the listener so the bundled node server can grab it.
-/// Tiny race window between drop and rebind, but in practice the OS
-/// reserves the port long enough for the spawned process to claim it.
+/// Ask the OS for a free port. The listener is dropped immediately so
+/// the spawned server can claim it.
 fn pick_free_port() -> u16 {
     TcpListener::bind("127.0.0.1:0")
         .ok()
@@ -27,8 +22,6 @@ fn pick_free_port() -> u16 {
         .unwrap_or(3000)
 }
 
-/// Sidecar processes (Ollama, Next.js server, optional TTS) supervised
-/// for the lifetime of the app window.
 #[derive(Default)]
 struct AppChildren {
     children: Mutex<Vec<Child>>,
@@ -72,8 +65,8 @@ pub fn run() {
             let blob_dir = app_data.join("blobs");
             std::fs::create_dir_all(&blob_dir).ok();
 
-            // Reuse the user's existing ~/.ollama/models cache so a fresh
-            // install doesn't have to re-pull the ~10 GB gemma4:e4b.
+            // Reuse ~/.ollama/models so a fresh install doesn't re-pull
+            // the gemma4 weights.
             let ollama_home = app
                 .path()
                 .home_dir()
@@ -86,7 +79,6 @@ pub fn run() {
                 .and_then(|p| p.parent().map(|p| p.to_path_buf()))
                 .unwrap_or_default();
             let ollama_bin = bin_dir.join("ollama");
-            eprintln!("[heirloom] bin_dir={:?} ollama_bin exists={}", bin_dir, ollama_bin.exists());
             if ollama_bin.exists() {
                 let mut cmd = Command::new(&ollama_bin);
                 cmd.arg("serve")
@@ -97,16 +89,13 @@ pub fn run() {
                     .stdout(Stdio::null())
                     .stderr(Stdio::null());
                 detach_from_app_session(&mut cmd);
-                match cmd.spawn() {
-                    Ok(child) => app.state::<AppChildren>().push(child),
-                    Err(e) => eprintln!("[heirloom] ollama spawn failed: {}", e),
+                if let Ok(child) = cmd.spawn() {
+                    app.state::<AppChildren>().push(child);
                 }
             }
 
-            // Optional voice-cloning sidecar. install-tts.sh writes the
-            // venv + launcher under ~/Library/Application Support/Heirloom/tts/
-            // (the display name, not our bundle identifier), so we resolve
-            // that path explicitly here instead of joining off app_data_dir.
+            // Voice-cloning sidecar (optional). install-tts.sh writes
+            // to ~/Library/Application Support/Heirloom/tts/.
             let tts_home = app
                 .path()
                 .home_dir()
@@ -114,9 +103,6 @@ pub fn run() {
                 .map(|h| h.join("Library/Application Support/Heirloom/tts"))
                 .unwrap_or_else(|| app_data.join("tts"));
             let tts_run = tts_home.join("run.sh");
-            // Each DMG update ships a fresh server.py; copy it over the
-            // installed one so timbre/seed/cache-key fixes actually reach
-            // users who already ran install-tts.sh.
             let bundled_server_py = bin_dir
                 .parent()
                 .map(|p| p.join("Resources/tts/server.py"))
@@ -133,28 +119,17 @@ pub fn run() {
                     _ => false,
                 };
                 if should_copy {
-                    match std::fs::copy(&bundled_server_py, &target) {
-                        Ok(_) => eprintln!(
-                            "[heirloom] refreshed tts server.py at {:?}",
-                            target
-                        ),
-                        Err(e) => eprintln!(
-                            "[heirloom] tts server.py refresh failed: {}",
-                            e
-                        ),
-                    }
+                    let _ = std::fs::copy(&bundled_server_py, &target);
                 }
             }
-            eprintln!("[heirloom] tts_run exists={}", tts_run.exists());
             if tts_run.exists() {
                 let mut cmd = Command::new("/bin/bash");
                 cmd.arg(&tts_run)
                     .stdout(Stdio::null())
                     .stderr(Stdio::null());
                 detach_from_app_session(&mut cmd);
-                match cmd.spawn() {
-                    Ok(child) => app.state::<AppChildren>().push(child),
-                    Err(e) => eprintln!("[heirloom] tts spawn failed: {}", e),
+                if let Ok(child) = cmd.spawn() {
+                    app.state::<AppChildren>().push(child);
                 }
             }
 
@@ -165,12 +140,6 @@ pub fn run() {
             let node_bin = bin_dir.join("node");
             let port = pick_free_port();
             let server_url = format!("http://127.0.0.1:{}", port);
-            eprintln!(
-                "[heirloom] node_bin exists={} node_app exists={} port={}",
-                node_bin.exists(),
-                node_app.exists(),
-                port
-            );
             if node_app.exists() && node_bin.exists() {
                 let mut cmd = Command::new(&node_bin);
                 cmd.arg(node_app.join("server.js"))
@@ -191,52 +160,37 @@ pub fn run() {
                     .stdout(Stdio::null())
                     .stderr(Stdio::null());
                 detach_from_app_session(&mut cmd);
-                match cmd.spawn() {
-                    Ok(child) => app.state::<AppChildren>().push(child),
-                    Err(e) => eprintln!("[heirloom] node spawn failed: {}", e),
+                if let Ok(child) = cmd.spawn() {
+                    app.state::<AppChildren>().push(child);
                 }
             }
 
-            // Poll the bundled server. We grabbed an ephemeral port so
-            // collisions with other dev servers don't apply. Once it
-            // answers, navigate the WebView away from the static splash
-            // (desktop/dist/index.html) to the live Next.js app.
+            // Poll until the bundled server answers, then pivot the
+            // WebView from the static splash to the live Next.js app.
             let main_window = app.get_webview_window("main");
             let health_url = format!("{}/api/health", server_url);
             let nav_url = server_url.clone();
             std::thread::spawn(move || {
-                for i in 0..240 {
-                    match ureq::get(&health_url)
+                for _ in 0..240 {
+                    if ureq::get(&health_url)
                         .timeout(Duration::from_millis(500))
                         .call()
+                        .is_ok()
                     {
-                        Ok(_) => {
-                            eprintln!("[heirloom] server up after {} polls, navigating to {}", i, nav_url);
-                            if let Some(w) = &main_window {
-                                match url::Url::parse(&nav_url) {
-                                    Ok(u) => match w.navigate(u) {
-                                        Ok(_) => eprintln!("[heirloom] navigate ok"),
-                                        Err(e) => {
-                                            eprintln!("[heirloom] navigate failed: {} — falling back to eval", e);
-                                            let _ = w.eval(&format!("location.replace('{}')", nav_url));
-                                        }
-                                    },
-                                    Err(e) => eprintln!("[heirloom] url parse failed: {}", e),
-                                }
-                            } else {
-                                eprintln!("[heirloom] no main window handle");
-                            }
-                            return;
-                        }
-                        Err(e) => {
-                            if i % 20 == 0 {
-                                eprintln!("[heirloom] health poll {}: {}", i, e);
+                        if let (Some(w), Ok(u)) =
+                            (&main_window, url::Url::parse(&nav_url))
+                        {
+                            if w.navigate(u).is_err() {
+                                let _ = w.eval(&format!(
+                                    "location.replace('{}')",
+                                    nav_url
+                                ));
                             }
                         }
+                        return;
                     }
                     std::thread::sleep(Duration::from_millis(500));
                 }
-                eprintln!("[heirloom] embedded server never came up");
             });
 
             Ok(())
