@@ -1,4 +1,4 @@
-import { withRls, vec } from "./db";
+import { withRls, vec, sqlAdmin } from "./db";
 import { resolveBlob } from "./storage";
 import { transcribeAudio } from "./whisper";
 import { captionPhoto } from "./vision";
@@ -9,6 +9,59 @@ import { generateNoteTitle } from "./prompts";
 import type { Session } from "./auth";
 
 type Kind = "audio" | "photo" | "note" | "video";
+
+/** Re-embed any 'ready' captures in the session's vault that have text
+ *  but no transcript_chunks. The pipeline is detached from the request
+ *  with `void runCapturePipeline`, so a server restart or dropped
+ *  connection between INSERT and embed can leave a capture stranded
+ *  in the ready state with no retrievable text. This catches those. */
+export async function backfillMissingChunks(session: Session): Promise<number> {
+  if (!sqlAdmin) return 0;
+
+  // RLS on transcript_chunks only allows the creator to INSERT, so we
+  // do the orphan scan + writes via the admin client. The vault scope
+  // is still tied to the session: creators only touch their own vault,
+  // nominees only touch the vault they're a nominee on.
+  const orphans = await sqlAdmin<{ id: string; vault_id: string; body: string | null; caption: string | null }[]>`
+    SELECT c.id, c.vault_id, c.body, c.caption
+      FROM captures c
+     WHERE c.vault_id = ${session.vault_id}
+       AND c.status = 'ready'
+       AND (coalesce(c.body, '') <> '' OR coalesce(c.caption, '') <> '')
+       AND NOT EXISTS (
+         SELECT 1 FROM transcript_chunks tc WHERE tc.capture_id = c.id
+       )
+     LIMIT 20
+  `;
+  if (orphans.length === 0) return 0;
+
+  let healed = 0;
+  for (const cap of orphans) {
+    const text = (cap.body ?? cap.caption ?? "").trim();
+    if (!text) continue;
+    try {
+      const chunks = chunkText(text);
+      if (chunks.length === 0) continue;
+      const vectors = await embedAll(chunks.map((c) => c.text));
+      for (let i = 0; i < chunks.length; i++) {
+        await sqlAdmin`
+          INSERT INTO transcript_chunks
+            (capture_id, vault_id, chunk_index, text, embedding)
+          VALUES
+            (${cap.id}, ${cap.vault_id}, ${chunks[i].index},
+             ${chunks[i].text}, ${vec(vectors[i])})
+        `;
+      }
+      healed++;
+    } catch (err) {
+      console.warn("[backfillMissingChunks] failed for", cap.id, err);
+    }
+  }
+  if (healed > 0) {
+    console.log(`[backfillMissingChunks] healed ${healed}/${orphans.length}`);
+  }
+  return healed;
+}
 
 /** Fire-and-forget after `POST /api/capture` inserts the row. Failures
  *  mark the capture 'failed' but never throw to the detached caller. */
