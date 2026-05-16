@@ -61,11 +61,24 @@ def _sanitize_for_tts(text: str) -> str:
     return re.sub(r"\s+", " ", t).strip()
 
 
-def _seed_for(voice_id: str, text: str) -> int:
-    """Deterministic seed so repeated synthesis of the same line is
-    bit-identical to the first run."""
-    h = hashlib.sha256(f"{voice_id}|{text}".encode("utf-8")).digest()
+def _stable_seed(voice_id: str) -> int:
+    """Per-voice seed, NOT per-text. LuxTTS's flow-matching path is
+    stochastic at the noise level; mixing the text into the seed meant
+    every sentence started from a different initial noise, and the
+    voice timbre drifted run-to-run. Holding the seed fixed for a
+    voice_id keeps the timbre identical across all utterances; the
+    text still varies the conditioning so each line is its own
+    sentence, just spoken in a single consistent voice."""
+    h = hashlib.sha256(voice_id.encode("utf-8")).digest()
     return int.from_bytes(h[:4], "big") & 0x7FFFFFFF
+
+
+def _cache_key(voice_id: str, text: str) -> str:
+    """File-system-safe cache key per (voice_id, sanitized text). The
+    seed is no longer text-dependent so it can't double as a cache
+    key on its own."""
+    h = hashlib.sha256(f"{voice_id}|{text}".encode("utf-8")).digest()
+    return h[:16].hex()
 
 
 class TTSEngine:
@@ -108,8 +121,7 @@ class TTSEngine:
 
     def speak(self, voice_id: str, text: str) -> tuple[np.ndarray, int]:
         clean = _sanitize_for_tts(text)
-        seed = _seed_for(voice_id, clean)
-        cache_path = CACHE_DIR / f"{voice_id}_{seed:08x}.wav"
+        cache_path = CACHE_DIR / f"{voice_id}_{_cache_key(voice_id, clean)}.wav"
         if cache_path.exists():
             wav, sr = sf.read(str(cache_path), dtype="float32")
             return wav, sr
@@ -122,6 +134,7 @@ class TTSEngine:
 
         self._ensure_loaded()
         t0 = time.time()
+        seed = _stable_seed(voice_id)
         torch.manual_seed(seed)
         if torch.backends.mps.is_available():
             torch.mps.manual_seed(seed)

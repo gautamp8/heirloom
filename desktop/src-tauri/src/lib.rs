@@ -103,9 +103,48 @@ pub fn run() {
                 }
             }
 
-            // Optional voice-cloning sidecar. Present iff the user has
-            // run Contents/Resources/tts/install-tts.sh.
-            let tts_run = app_data.join("tts").join("run.sh");
+            // Optional voice-cloning sidecar. install-tts.sh writes the
+            // venv + launcher under ~/Library/Application Support/Heirloom/tts/
+            // (the display name, not our bundle identifier), so we resolve
+            // that path explicitly here instead of joining off app_data_dir.
+            let tts_home = app
+                .path()
+                .home_dir()
+                .ok()
+                .map(|h| h.join("Library/Application Support/Heirloom/tts"))
+                .unwrap_or_else(|| app_data.join("tts"));
+            let tts_run = tts_home.join("run.sh");
+            // Each DMG update ships a fresh server.py; copy it over the
+            // installed one so timbre/seed/cache-key fixes actually reach
+            // users who already ran install-tts.sh.
+            let bundled_server_py = bin_dir
+                .parent()
+                .map(|p| p.join("Resources/tts/server.py"))
+                .unwrap_or_default();
+            if tts_home.exists() && bundled_server_py.exists() {
+                let target = tts_home.join("server.py");
+                let should_copy = match (
+                    std::fs::metadata(&bundled_server_py)
+                        .and_then(|m| m.modified()),
+                    std::fs::metadata(&target).and_then(|m| m.modified()),
+                ) {
+                    (Ok(src), Ok(dst)) => src > dst,
+                    (Ok(_), Err(_)) => true,
+                    _ => false,
+                };
+                if should_copy {
+                    match std::fs::copy(&bundled_server_py, &target) {
+                        Ok(_) => eprintln!(
+                            "[heirloom] refreshed tts server.py at {:?}",
+                            target
+                        ),
+                        Err(e) => eprintln!(
+                            "[heirloom] tts server.py refresh failed: {}",
+                            e
+                        ),
+                    }
+                }
+            }
             eprintln!("[heirloom] tts_run exists={}", tts_run.exists());
             if tts_run.exists() {
                 let mut cmd = Command::new("/bin/bash");
