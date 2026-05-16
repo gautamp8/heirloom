@@ -131,23 +131,42 @@ pub fn run() {
                 }
             }
 
-            // Poll the bundled server until it answers, then point the window at it.
+            // Refuse to navigate if port 3000 is held by anything other
+            // than our bundled server. Otherwise WKWebView would hit a
+            // stranger's server and the user would think Heirloom was
+            // talking to their own SQLite when it wasn't.
             let main_window = app.get_webview_window("main");
             std::thread::spawn(move || {
                 for _ in 0..240 {
-                    if ureq::get("http://127.0.0.1:3000/api/health")
+                    match ureq::get("http://127.0.0.1:3000/api/health")
                         .timeout(Duration::from_millis(500))
                         .call()
-                        .is_ok()
                     {
-                        if let Some(w) = &main_window {
-                            if let Ok(url) = "http://127.0.0.1:3000/".parse() {
-                                let _ = w.navigate(url);
+                        Ok(resp) => {
+                            let ours = resp
+                                .header("x-heirloom-backend")
+                                .map(|v| v == "sqlite")
+                                .unwrap_or(false);
+                            if !ours {
+                                log::error!(
+                                    "[heirloom] port 3000 already in use by another process; refusing to navigate"
+                                );
+                                if let Some(w) = &main_window {
+                                    let _ = w.eval(
+                                        "document.body.innerHTML = '<div style=\"font:16px/1.5 system-ui;padding:48px;color:#1f1b14;background:#faf7f0;height:100vh\"><strong>Port 3000 is taken.</strong><br/>Another process is already listening on http://127.0.0.1:3000, so Heirloom can\\'t start its own server. Quit whichever app or terminal is using port 3000 and reopen Heirloom.</div>'",
+                                    );
+                                }
+                                return;
                             }
+                            if let Some(w) = &main_window {
+                                if let Ok(url) = "http://127.0.0.1:3000/".parse() {
+                                    let _ = w.navigate(url);
+                                }
+                            }
+                            return;
                         }
-                        return;
+                        Err(_) => std::thread::sleep(Duration::from_millis(500)),
                     }
-                    std::thread::sleep(Duration::from_millis(500));
                 }
                 log::warn!("[heirloom] embedded server never came up");
             });

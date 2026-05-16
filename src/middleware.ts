@@ -8,10 +8,16 @@ import type { NextRequest } from "next/server";
  */
 export function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
-  if (pathname.startsWith("/_next/static") || pathname === "/favicon.ico") {
-    return NextResponse.next();
-  }
   const res = NextResponse.next();
+  // Identifies a response as coming from the bundled SQLite server -
+  // the Tauri shell checks for this on /api/health before navigating
+  // the WebView, so an unrelated process on port 3000 can't impersonate it.
+  if (process.env.HEIRLOOM_BACKEND === "sqlite") {
+    res.headers.set("x-heirloom-backend", "sqlite");
+  }
+  if (pathname.startsWith("/_next/static") || pathname === "/favicon.ico") {
+    return res;
+  }
   res.headers.set("Cache-Control", "no-store, must-revalidate");
   return res;
 }

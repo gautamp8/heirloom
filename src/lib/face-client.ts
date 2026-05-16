@@ -52,9 +52,12 @@ export async function extractFaces(file: File): Promise<DetectedFace[]> {
   const W = img.naturalWidth || img.width;
   const H = img.naturalHeight || img.height;
 
+  // Larger inputSize keeps small faces in group photos detectable;
+  // lower scoreThreshold avoids rejecting partially-lit / off-angle
+  // faces that are still clearly people.
   const options = new faceapi.TinyFaceDetectorOptions({
-    inputSize: 416,
-    scoreThreshold: 0.5,
+    inputSize: 608,
+    scoreThreshold: 0.3,
   });
 
   const results = await faceapi
