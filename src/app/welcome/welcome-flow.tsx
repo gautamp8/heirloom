@@ -98,6 +98,15 @@ export function WelcomeFlow() {
 
   return (
     <main className="stage relative min-h-dvh overflow-hidden flex flex-col items-center justify-center px-6">
+      {stage === "envelope" && (
+        <button
+          type="button"
+          onClick={() => router.push("/portal")}
+          className="absolute top-5 left-5 z-30 font-mono text-[10px] tracking-[0.18em] uppercase text-ink-muted hover:text-ink py-2"
+        >
+          ← Back
+        </button>
+      )}
       {/* The envelope is mounted for all stages except reading-final; the
           letter content takes over once the unfold completes. */}
       <AnimatePresence>
