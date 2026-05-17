@@ -127,6 +127,13 @@ Voice interaction focuses on:
 * memory narration
 * preserved messages
 
+For voice notes, the player always streams the creator's original
+recording. The cloned voice is reserved for notes, captions, and
+other text-only sources where no audio of the creator exists. The
+whole archive shares one canonical playback text per capture, so the
+same line sounds identical on Home, the Reflect drawer, and the
+nominee surface.
+
 The system never:
 
 * pretends the person is currently alive
@@ -183,7 +190,7 @@ The application functions offline / local-first whenever possible. Privacy is a 
 
 ## Deployment Posture
 
-Heirloom is **local-first by default**. The canonical install is `./install.sh` on the creator's own Mac. That is the recommended path for almost everyone - nothing leaves the device, the model runs on-device, the archive lives on the user's own disk.
+Heirloom is **local-first by default**. The two supported local paths are the dev server (`./install.sh` + `pnpm dev`) for contributors, and the **macOS .app bundle** for everyone else. The Tauri shell is built by `desktop/scripts/package.sh` and ships a self-contained Node server, the same SQL schema running on SQLite + sqlite-vec, a code-signed whisper-cpp with `ggml-base.en` baked in, and a small splash that pivots to the embedded server on an ephemeral port. Voice-cloning is opt-in (run `Contents/Resources/tts/install-tts.sh` once to drop the LuxTTS venv at `~/Library/Application Support/Heirloom/tts/`). The shell auto-spawns whichever sidecars are present and silently re-syncs `server.py` from the bundle on each launch so DMG updates carry through.
 
 Two other deployment shapes are supported, in this order of preference:
 

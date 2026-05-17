@@ -39,38 +39,58 @@ laptop, with no external API.
 
 - **Face detection runs in the browser** via `face-api.js`. 128-d
   descriptors never leave the device unencrypted.
-- **Self-person + nominee photos** can be set at onboarding *or* later
+- **Self-person + nominee photos** can be set at onboarding or later
   from Settings → Your photo / Settings → Nominees. Photo can come from
   the camera or the photo library.
 - **Identity-aware captions.** When face recognition matches a known
   person in a new photo, the vision prompt is rewritten so the caption
   starts with their name ("Anisha holding a cup of coffee" instead of
   "a young woman in a dark top").
+- **Strict match threshold.** Cosine similarity must clear `0.90`
+  before a face is linked to a known person. Look-alikes in the same
+  demographic typically land at 0.5–0.7 and stay unlabeled. If a
+  threshold change retroactively drops a link, the matching photo's
+  caption is re-rendered without the wrong name.
 
 ### Voice
 
 - **Voice cloning, offline.** LuxTTS (a ZipVoice flow-matching model)
   runs as a local FastAPI sidecar on `127.0.0.1:11435`. The creator
-  records ~30 seconds of natural speech once; future captures can be
-  played back in their own voice on demand.
-- **Verbatim contract.** TTS only ever speaks text that already exists
-  in the archive - a capture body, a transcript line, the verbatim
-  snippet behind a Reflection citation. There is no free-text "speak
-  this" affordance, and never will be.
-- **Deterministic synthesis.** Each rendered line is keyed by
-  `sha256(voice_id|text)`. The same line always sounds identical and
-  the second play returns from an on-disk WAV cache.
+  records ~15 seconds of natural speech once; text-only captures can
+  be played back in their cloned voice on demand.
+- **Original-recording playback.** For voice notes, the player streams
+  the creator's actual recording rather than synthesizing a clone of
+  their own audio. The cloned voice is reserved for notes, photo
+  captions, and other text-only sources where no original recording
+  exists.
+- **Verbatim contract.** When TTS does speak, it only speaks text that
+  exists in the archive: a capture body, a transcript line, the
+  verbatim snippet behind a Reflection citation. There is no free-text
+  "speak this" affordance.
+- **Stable timbre.** The flow-matching seed is fixed per voice, not
+  per utterance. Every sentence starts from the same noise vector so
+  the same voice sounds the same across notes, citations, and lines
+  of varying length. Synthesised lines are cached on disk keyed by
+  `(voice_id, text)`.
 - **Calm prosody.** A small punctuation sanitiser softens dramatic
-  emphasis (`!` → `.`, ellipses normalised, ALL-CAPS softened) before
-  the model sees the text, so a sentence like *"will always be yours!"*
-  is read as *"will always be yours."*
+  emphasis (`!` to `.`, ellipses normalised, ALL-CAPS softened) before
+  the model sees the text.
 - **Adaptive prompt window.** Encoded prompts use up to 15 seconds of
   the reference (LuxTTS's recommended ceiling); recordings shorter
-  than 10 seconds are rejected so general users don't end up with a
+  than 10 seconds are rejected so users don't end up with a
   degenerate clone.
 
 ### Grounded reflection
 
+- **Whole-capture indexing.** Every textual field on a capture (title,
+  body, photo caption, audio transcript) is concatenated, sentence
+  chunked, embedded, and written to the vector index. A note titled
+  "Wedding planning" is retrievable by its title even when the body
+  doesn't repeat the word.
+- **Self-healing index.** Reflect calls a one-shot backfill before
+  retrieval. If a capture is `ready` but its chunks are missing or
+  pre-date a field that should now be indexed, it re-embeds before
+  searching. Idempotent and a no-op on a healthy vault.
 - **Retrieval before model.** Every question is embedded
   (`EmbeddingGemma`, 768-d) and matched against the archive's pgvector
   HNSW index. If the top chunk falls below cosine `0.40`, the empty
@@ -203,6 +223,34 @@ Open `http://localhost:3000`. The first visit walks the creator through a
 four-step welcome (name + selfie → life anchors → nominees → seed letters);
 subsequent visits land on the creator home. `/dev` is the role-switcher
 console for testing the nominee + executor surfaces side-by-side.
+
+### Coming back to an archive
+
+"Begin a new archive" mints a fresh creator and shows a four-word
+passphrase once. Write it down. After signing out, the portal's
+"I have a passphrase" door re-opens that same archive on the same
+device, without an email or password. Each "Begin a new archive" call
+creates an independent vault, so a single host can carry several side
+by side.
+
+### Mac app (DMG)
+
+The `desktop/` workspace builds a Tauri `.app` that ships its own
+Node server, Ollama-pulled gemma4 weights, and a whisper.cpp binary
+with `ggml-base.en` baked in. Build it with:
+
+```bash
+pnpm install
+bash desktop/scripts/package.sh
+```
+
+Output lands at
+`desktop/src-tauri/target/release/bundle/dmg/Heirloom.dmg` (~210 MB).
+The shell picks an ephemeral port at startup so it never collides
+with a developer's dev server on `:3000`. Voice-cloning is opt-in:
+run `Contents/Resources/tts/install-tts.sh` once to drop a Python
+venv with LuxTTS at `~/Library/Application Support/Heirloom/tts/`,
+which the shell auto-spawns on next launch.
 
 ## Self-host on a cloud VM (optional)
 
