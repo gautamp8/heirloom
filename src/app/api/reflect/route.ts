@@ -2,7 +2,7 @@ import { streamObject } from "ai";
 import { withRls, vec } from "@/lib/db";
 import { embedOne } from "@/lib/embed";
 import { fetchTopK } from "@/lib/retrieval";
-import { backfillMissingChunks } from "@/lib/pipeline";
+import { backfillMissingChunks, cleanupMislabeledFaces } from "@/lib/pipeline";
 import { ollama, SYNTHESIS_MODEL } from "@/lib/ollama";
 import { fireLetterConditions } from "@/lib/letter-conditions";
 import {
@@ -67,13 +67,17 @@ export async function POST(req: Request) {
           );
 
           // Self-heal: catch any ready captures whose detached pipeline
-          // dropped before writing chunks. Cheap when there's nothing to
-          // do (single indexed query) and prevents Reflect from silently
-          // missing notes the user just wrote.
+          // dropped before writing chunks, and drop any face → person
+          // links whose similarity now falls below the matching gate.
           try {
             await backfillMissingChunks(session);
           } catch (e) {
             console.warn("[/api/reflect] backfill failed", e);
+          }
+          try {
+            await cleanupMislabeledFaces(session);
+          } catch (e) {
+            console.warn("[/api/reflect] face cleanup failed", e);
           }
 
           const qEmb = await embedOne(question);

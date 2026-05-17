@@ -4,6 +4,7 @@ import { transcribeAudio } from "./whisper";
 import { captionPhoto } from "./vision";
 import { chunkText } from "./chunking";
 import { embedAll } from "./embed";
+import { FACE_MATCH_THRESHOLD } from "./faces";
 import { tagCapture, type CaptureTags } from "./tagging";
 import { generateNoteTitle } from "./prompts";
 import type { Session } from "./auth";
@@ -33,6 +34,23 @@ function composeIndexedText(fields: {
     parts.push(v);
   }
   return parts.join(". ");
+}
+
+/** Drop any face → person link whose similarity falls below the
+ *  current matching threshold. Idempotent: a healed vault sees an
+ *  empty UPDATE on every call. */
+export async function cleanupMislabeledFaces(session: Session): Promise<number> {
+  if (!sqlAdmin) return 0;
+  const rows = await sqlAdmin<{ id: string }[]>`
+    UPDATE face_appearances
+       SET person_id = NULL
+     WHERE vault_id = ${session.vault_id}
+       AND person_id IS NOT NULL
+       AND similarity IS NOT NULL
+       AND similarity < ${FACE_MATCH_THRESHOLD}
+     RETURNING id
+  `;
+  return rows.length;
 }
 
 /** Re-embed captures whose chunks don't cover every textual field

@@ -6,10 +6,12 @@ export type FaceInput = {
   embedding: number[];
 };
 
-// face-api.js descriptors drift with lighting, expression, and pose.
-// 0.45 cosine similarity matches a known person without colliding
-// across distinct people in a single-vault archive.
-const MATCH_THRESHOLD = 0.45;
+// face-api.js's FaceNet-style descriptors put true same-person matches
+// around 0.9-0.97 cosine; distinct people in the same demographic can
+// still hit 0.5-0.7. A strict gate avoids mislabeling everyone as the
+// creator just because they're the only known face in the vault.
+export const FACE_MATCH_THRESHOLD = 0.78;
+const MATCH_THRESHOLD = FACE_MATCH_THRESHOLD;
 
 /** Store detected faces for a capture. For each face, look for the
  *  closest person in the vault and link them when cosine similarity
