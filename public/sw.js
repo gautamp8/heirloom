@@ -14,6 +14,7 @@
 const VERSION = "heirloom-v1";
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
+const IS_DEV = new URL(self.location.href).searchParams.get("dev") === "1";
 
 const SHELL_ASSETS = [
   "/",
@@ -25,6 +26,10 @@ const SHELL_ASSETS = [
 ];
 
 self.addEventListener("install", (event) => {
+  if (IS_DEV) {
+    self.skipWaiting();
+    return;
+  }
   event.waitUntil(
     caches.open(SHELL_CACHE).then((cache) =>
       cache.addAll(SHELL_ASSETS).catch(() => {
@@ -50,6 +55,11 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+  // In dev the SW exists only to wire push + notificationclick. Don't
+  // intercept fetches, so Next HMR + content-addressed chunks aren't
+  // shadowed by a stale cache.
+  if (IS_DEV) return;
+
   const req = event.request;
   if (req.method !== "GET") return;
 

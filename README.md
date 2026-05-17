@@ -160,14 +160,21 @@ laptop, with no external API.
 ### Encrypted vault export
 
 - **One file, self-contained.** A creator can export the entire
-  archive - audio blobs, transcripts, embeddings, life events,
-  letters - as a single passphrase-encrypted `.hloom` file.
+  archive - captures, transcripts, embeddings, people, face links,
+  voice profile (with reference audio), nominees, sealed letters,
+  release schedule, life events - as a single passphrase-encrypted
+  `.hloom` file. Embeddings round-trip through a backend-agnostic
+  `number[]` form so Postgres bundles import cleanly into SQLite and
+  vice versa.
 - **argon2id + ChaCha20-Poly1305.** Key derivation tuned to
   m=64 MiB, t=3, p=4. The bundle is self-describing (magic header
-  `HLOOM`, version 1, KDF params, nonce, ciphertext, tag).
+  `HLOOM`, version 2, KDF params, nonce, ciphertext, tag). v1
+  bundles still decrypt for forward compatibility.
 - **Import is symmetric.** The recipient runs Heirloom on their own
-  device, imports the bundle, and from that moment the archive lives
-  on their own hardware. No server ever sees the data decrypted.
+  device. The entry portal exposes "Import an existing archive"
+  directly - choose the `.hloom`, enter its passphrase, and a fresh
+  creator is minted with a new local key. From that moment the archive
+  lives on their own hardware. No server ever sees the data decrypted.
 
 ### Privacy posture
 
@@ -231,7 +238,10 @@ passphrase once. Write it down. After signing out, the portal's
 "I have a passphrase" door re-opens that same archive on the same
 device, without an email or password. Each "Begin a new archive" call
 creates an independent vault, so a single host can carry several side
-by side.
+by side. The same portal also exposes "Import an existing archive" -
+hand it a `.hloom` bundle + its passphrase and it mints a fresh
+creator that's pre-populated with the bundle's content, hands back a
+new local key, and signs you in.
 
 ### Mac app (DMG)
 
