@@ -1,7 +1,7 @@
 import { streamObject } from "ai";
 import { withRls, vec } from "@/lib/db";
 import { embedOne } from "@/lib/embed";
-import { fetchTopK } from "@/lib/retrieval";
+import { fetchTopK, canonicalSourceText } from "@/lib/retrieval";
 import { backfillMissingChunks, cleanupMislabeledFaces } from "@/lib/pipeline";
 import { ollama, SYNTHESIS_MODEL } from "@/lib/ollama";
 import { fireLetterConditions } from "@/lib/letter-conditions";
@@ -193,9 +193,16 @@ export async function POST(req: Request) {
                 text: c.text,
                 citations: validCitations.map((cid) => {
                   const ch = chunks.find((x) => x.capture_id === cid)!;
+                  const source = canonicalSourceText(ch);
                   return {
                     capture_id: cid,
-                    snippet: trimToSentence(ch.text, 800),
+                    // Display snippet: short, derived from the chunk so it
+                    // reflects what actually matched the query. Source
+                    // text: the user's own body / transcript / caption,
+                    // used for SpeakButton TTS so it never reads the
+                    // title prefix that lives in the index.
+                    snippet: trimToSentence(source || ch.text, 800),
+                    source_text: source,
                     kind: ch.kind,
                     blob_url: ch.blob_url,
                   };

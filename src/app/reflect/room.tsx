@@ -8,6 +8,7 @@ import { VoiceInput } from "@/app/_components/voice-input";
 type Citation = {
   capture_id: string;
   snippet: string;
+  source_text?: string;
   kind?: "audio" | "photo" | "note" | "video";
   blob_url?: string | null;
 };
@@ -330,7 +331,15 @@ export function ReflectionRoom({
             )}
             <div className="mt-2 mb-5 flex flex-col gap-4">
               {(drawer.kind === "note" || drawer.kind === "audio") && (
-                <SpeakButton text={drawer.snippet} variant="big" />
+                <SpeakButton
+                  text={drawer.source_text || drawer.snippet}
+                  audioUrl={
+                    drawer.kind === "audio"
+                      ? `/api/blob/${drawer.capture_id}`
+                      : undefined
+                  }
+                  variant="big"
+                />
               )}
               <p className="font-serif italic text-[17px] leading-[1.6] text-ink-soft text-wrap-pretty">
                 {drawer.snippet}

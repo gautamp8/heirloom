@@ -307,7 +307,12 @@ function CapRow({ cap }: { cap: HomeCapture }) {
           cap.status === "ready" &&
           (cap.kind === "note" || cap.kind === "audio") && (
             <div className="mt-2">
-              <SpeakButton text={cap.transcript_snippet} />
+              <SpeakButton
+                text={cap.body ?? cap.transcript_snippet ?? ""}
+                audioUrl={
+                  cap.kind === "audio" ? `/api/blob/${cap.id}` : undefined
+                }
+              />
             </div>
           )}
       </div>

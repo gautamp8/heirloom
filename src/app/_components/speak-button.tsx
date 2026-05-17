@@ -5,20 +5,25 @@ import { useEffect, useRef, useState } from "react";
 type State = "hidden" | "idle" | "loading" | "playing" | "error";
 
 /**
- * "Hear in their voice" affordance - synthesizes `text` in the
- * creator's cloned voice and plays it.
+ * "Hear in their voice" affordance.
  *
- * Verbatim-only contract: only ever pass exact source material from
- * the archive (a capture body, a transcript line, the verbatim
- * snippet behind a Reflection citation). Never pass Gemma-synthesized
- * answer text.
+ * If `audioUrl` is set (e.g. an audio capture's blob URL), plays the
+ * creator's actual recording. Otherwise synthesizes `text` in the
+ * cloned voice via /api/voice/speak.
+ *
+ * Verbatim contract: when falling back to TTS, callers must pass
+ * exact source material from the archive (a capture body, a
+ * transcript line, the verbatim snippet behind a Reflection
+ * citation). Never pass Gemma-synthesized answer text.
  */
 export function SpeakButton({
   text,
+  audioUrl,
   variant = "small",
   label,
 }: {
-  text: string;
+  text?: string;
+  audioUrl?: string | null;
   variant?: "small" | "big";
   label?: string;
 }) {
@@ -26,9 +31,20 @@ export function SpeakButton({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const blobUrlRef = useRef<string | null>(null);
 
+  // A pre-recorded audio URL needs no TTS profile and no synthesis;
+  // it should always be playable. TTS fallback only renders when the
+  // creator has a cloned voice on file.
+  const hasOriginal = !!audioUrl;
+  const canTts = !!text;
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      if (hasOriginal) {
+        if (!cancelled) setState("idle");
+        return;
+      }
+      if (!canTts) return;
       try {
         const r = await fetch("/api/voice/profile", { cache: "no-store" });
         if (!r.ok) return;
@@ -46,25 +62,30 @@ export function SpeakButton({
       audioRef.current?.pause();
       if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
     };
-  }, []);
+  }, [hasOriginal, canTts]);
 
   if (state === "hidden") return null;
 
   async function play() {
     setState("loading");
     try {
-      const r = await fetch("/api/voice/speak", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
-      if (!r.ok) {
-        setState("error");
-        return;
+      let url: string;
+      if (audioUrl) {
+        url = audioUrl;
+      } else {
+        const r = await fetch("/api/voice/speak", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+        if (!r.ok) {
+          setState("error");
+          return;
+        }
+        const blob = await r.blob();
+        url = URL.createObjectURL(blob);
+        blobUrlRef.current = url;
       }
-      const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
-      blobUrlRef.current = url;
       const audio = new Audio(url);
       audioRef.current = audio;
       audio.addEventListener("ended", () => {

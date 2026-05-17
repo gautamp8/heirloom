@@ -218,7 +218,14 @@ function DailyHero({ capture }: { capture: ReleasedCapture }) {
       )}
       {body && (capture.kind === "note" || capture.kind === "audio") && (
         <div className="mt-4">
-          <SpeakButton text={body} variant="big" label="Hear it in their voice" />
+          <SpeakButton
+            text={body}
+            audioUrl={
+              capture.kind === "audio" ? `/api/blob/${capture.id}` : undefined
+            }
+            variant="big"
+            label="Hear it in their voice"
+          />
         </div>
       )}
       {lightbox && (
@@ -406,6 +413,9 @@ function UnlockedLetterCard({
         <div className="mt-4">
           <SpeakButton
             text={capture.body}
+            audioUrl={
+              capture.kind === "audio" ? `/api/blob/${capture.id}` : undefined
+            }
             variant="big"
             label="Hear them read this"
           />
@@ -521,7 +531,10 @@ function ReleasedRow({ cap }: { cap: ReleasedCapture }) {
           )}
           {fullText && (isAudio || cap.kind === "note") && (
             <div className="mt-2">
-              <SpeakButton text={fullText} />
+              <SpeakButton
+                text={fullText}
+                audioUrl={isAudio ? `/api/blob/${cap.id}` : undefined}
+              />
             </div>
           )}
         </div>
@@ -576,7 +589,11 @@ function ReleasedRow({ cap }: { cap: ReleasedCapture }) {
             </p>
             {(isAudio || cap.kind === "note") && (
               <div className="mt-5">
-                <SpeakButton text={fullText} variant="big" />
+                <SpeakButton
+                  text={fullText}
+                  audioUrl={isAudio ? `/api/blob/${cap.id}` : undefined}
+                  variant="big"
+                />
               </div>
             )}
           </div>
