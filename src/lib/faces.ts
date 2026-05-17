@@ -6,11 +6,13 @@ export type FaceInput = {
   embedding: number[];
 };
 
-// face-api.js's FaceNet-style descriptors put true same-person matches
-// around 0.9-0.97 cosine; distinct people in the same demographic can
-// still hit 0.5-0.7. A strict gate avoids mislabeling everyone as the
-// creator just because they're the only known face in the vault.
-export const FACE_MATCH_THRESHOLD = 0.78;
+// Empirically, true same-person matches on face-api.js's 128-d
+// descriptors score 0.93-0.97 cosine; distinct people in the same
+// demographic (similar age, beard, skin tone) can collide as high as
+// 0.86-0.88, so a strict gate is the only thing keeping a single-
+// selfie vault from labeling every photo as the creator. 0.90 sits
+// cleanly between the two clusters.
+export const FACE_MATCH_THRESHOLD = 0.9;
 const MATCH_THRESHOLD = FACE_MATCH_THRESHOLD;
 
 /** Store detected faces for a capture. For each face, look for the

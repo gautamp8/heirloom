@@ -37,20 +37,78 @@ function composeIndexedText(fields: {
 }
 
 /** Drop any face → person link whose similarity falls below the
- *  current matching threshold. Idempotent: a healed vault sees an
- *  empty UPDATE on every call. */
+ *  current matching threshold, then re-caption any photo whose link
+ *  was just nulled so the stored caption stops naming the wrong
+ *  person. Idempotent: a healed vault sees zero rows. */
 export async function cleanupMislabeledFaces(session: Session): Promise<number> {
   if (!sqlAdmin) return 0;
-  const rows = await sqlAdmin<{ id: string }[]>`
+  const cleaned = await sqlAdmin<{ capture_id: string }[]>`
     UPDATE face_appearances
        SET person_id = NULL
      WHERE vault_id = ${session.vault_id}
        AND person_id IS NOT NULL
        AND similarity IS NOT NULL
        AND similarity < ${FACE_MATCH_THRESHOLD}
-     RETURNING id
+     RETURNING capture_id
   `;
-  return rows.length;
+  if (cleaned.length === 0) return 0;
+
+  const affected = Array.from(new Set(cleaned.map((r) => r.capture_id)));
+  for (const captureId of affected) {
+    try {
+      await recaptionPhoto(captureId, session);
+    } catch (err) {
+      console.warn("[cleanupMislabeledFaces] recaption failed for", captureId, err);
+    }
+  }
+  return cleaned.length;
+}
+
+/** Run the vision model again on a photo capture and replace its
+ *  caption. Only does work for photos with a blob; safe to call
+ *  against notes/audio (no-op). */
+async function recaptionPhoto(captureId: string, session: Session): Promise<void> {
+  if (!sqlAdmin) return;
+  const [cap] = await sqlAdmin<{
+    id: string;
+    vault_id: string;
+    kind: Kind;
+    blob_url: string | null;
+  }[]>`
+    SELECT id, vault_id, kind, blob_url
+      FROM captures WHERE id = ${captureId}
+  `;
+  if (!cap || cap.kind !== "photo" || !cap.blob_url) return;
+
+  const recognized = await sqlAdmin<{ display_name: string }[]>`
+    SELECT p.display_name
+      FROM face_appearances fa
+      JOIN people p ON p.id = fa.person_id
+     WHERE fa.capture_id = ${cap.id}
+       AND fa.person_id IS NOT NULL
+       AND p.display_name IS NOT NULL
+  `;
+
+  const abs = resolveBlob(cap.blob_url);
+  const caption = await captionPhoto(abs, { people: recognized });
+  await sqlAdmin`UPDATE captures SET caption = ${caption} WHERE id = ${cap.id}`;
+
+  // The chunks may quote the old caption verbatim; flag for backfill.
+  await sqlAdmin`DELETE FROM transcript_chunks WHERE capture_id = ${cap.id}`;
+  void runCapturePipelineEmbedOnly(cap.id, session);
+}
+
+/** Embed-only re-run: assumes the capture is already 'ready' and just
+ *  needs its chunks rebuilt from current title/body/caption. */
+async function runCapturePipelineEmbedOnly(
+  captureId: string,
+  session: Session,
+): Promise<void> {
+  try {
+    await backfillMissingChunks(session);
+  } catch (err) {
+    console.warn("[runCapturePipelineEmbedOnly]", captureId, err);
+  }
 }
 
 /** Re-embed captures whose chunks don't cover every textual field
