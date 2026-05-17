@@ -293,9 +293,16 @@ function VoiceCapture({
 
   async function commit() {
     setState("uploading");
-    const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+    const webm = new Blob(chunksRef.current, { type: "audio/webm" });
     const durationMs =
       startedAtRef.current > 0 ? Date.now() - startedAtRef.current : elapsedMs;
+
+    // Decode + re-encode to PCM WAV client-side. whisper-cpp accepts WAV
+    // directly; doing this in the browser means the server-side pipeline
+    // never has to shell out to ffmpeg, which doesn't ship in the Mac
+    // bundle.
+    const { webmBlobToWav } = await import("@/lib/voice-record");
+    const blob = await webmBlobToWav(webm);
 
     // Survive a dropped network or closed tab - drafts live in IndexedDB
     // and resume from the home banner.
@@ -316,7 +323,7 @@ function VoiceCapture({
     }
 
     const fd = new FormData();
-    fd.set("file", new File([blob], "capture.webm", { type: "audio/webm" }));
+    fd.set("file", new File([blob], "capture.wav", { type: "audio/wav" }));
     fd.set(
       "metadata",
       JSON.stringify({ kind: "audio", duration_ms: durationMs }),

@@ -140,6 +140,11 @@ pub fn run() {
             let node_bin = bin_dir.join("node");
             let port = pick_free_port();
             let server_url = format!("http://127.0.0.1:{}", port);
+            let whisper_bin = bin_dir.join("whisper-cli");
+            let whisper_model = bin_dir
+                .parent()
+                .map(|p| p.join("Resources/whisper-models/ggml-base.en.bin"))
+                .unwrap_or_default();
             if node_app.exists() && node_bin.exists() {
                 let mut cmd = Command::new(&node_bin);
                 cmd.arg(node_app.join("server.js"))
@@ -152,6 +157,8 @@ pub fn run() {
                     .env("HEIRLOOM_BLOB_DIR", blob_dir.to_string_lossy().to_string())
                     .env("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
                     .env("HEIRLOOM_TTS_URL", "http://127.0.0.1:11435")
+                    .env("HEIRLOOM_WHISPER_BIN", whisper_bin.to_string_lossy().to_string())
+                    .env("HEIRLOOM_WHISPER_MODEL", whisper_model.to_string_lossy().to_string())
                     .env(
                         "JWT_SECRET",
                         std::env::var("JWT_SECRET")

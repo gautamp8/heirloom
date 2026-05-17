@@ -45,6 +45,28 @@ cp -f "$WHISPER_SRC" "$SIDE/whisper-cli-$TRIPLE"
 chmod +x "$SIDE/whisper-cli-$TRIPLE"
 ok "whisper-cli-$TRIPLE staged"
 
+# whisper-cli's dyld references absolute homebrew paths. We capture the
+# three libraries it needs so the post-bundle step can stage them next
+# to the binary with the rpaths rewritten.
+WHISPER_LIB_DIR="$(brew --prefix whisper-cpp 2>/dev/null)/lib"
+GGML_LIB_DIR="$(brew --prefix ggml 2>/dev/null)/lib"
+if [[ ! -f "$WHISPER_LIB_DIR/libwhisper.1.dylib" || ! -f "$GGML_LIB_DIR/libggml.0.dylib" ]]; then
+  echo "whisper-cpp / ggml libraries not found - reinstall via brew" >&2
+  exit 1
+fi
+ok "whisper dylibs located"
+
+# Whisper speech model. ~150 MB for base.en, sufficient quality for
+# short voice notes. Downloaded on first package run, cached locally.
+WHISPER_MODEL="storage/whisper-models/ggml-base.en.bin"
+if [[ ! -f "$WHISPER_MODEL" ]]; then
+  mkdir -p "$(dirname "$WHISPER_MODEL")"
+  curl -fsSL -o "$WHISPER_MODEL" \
+    "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin" \
+    || { echo "couldn't fetch whisper model" >&2; exit 1; }
+fi
+ok "whisper model present ($(du -h "$WHISPER_MODEL" | cut -f1))"
+
 NODE_SRC="$(readlink -f "$(command -v node)")"
 cp -f "$NODE_SRC" "$SIDE/node-$TRIPLE"
 chmod +x "$SIDE/node-$TRIPLE"
@@ -93,6 +115,44 @@ TARGET_SERVER="$APP_DIR/Contents/Resources/server"
 rm -rf "$TARGET_SERVER"
 cp -R desktop/server "$TARGET_SERVER"
 ok "server copied into bundle ($(du -sh "$TARGET_SERVER" | cut -f1))"
+
+# 5a. Stage whisper-cpp libraries next to whisper-cli + rewrite rpaths --
+# Tauri's externalBin only carries the executable; the dyld references
+# in whisper-cli point at absolute /opt/homebrew paths that won't exist
+# on a user's machine. Copy each dependent dylib into Contents/MacOS/
+# and rewrite the load paths to be relative to the executable.
+APP_MACOS="$APP_DIR/Contents/MacOS"
+cp -f "$WHISPER_LIB_DIR/libwhisper.1.8.4.dylib" "$APP_MACOS/libwhisper.1.dylib"
+cp -f "$GGML_LIB_DIR/libggml.0.11.1.dylib"       "$APP_MACOS/libggml.0.dylib"
+cp -f "$GGML_LIB_DIR/libggml-base.0.11.1.dylib"  "$APP_MACOS/libggml-base.0.dylib"
+chmod +w "$APP_MACOS/libwhisper.1.dylib" "$APP_MACOS/libggml.0.dylib" "$APP_MACOS/libggml-base.0.dylib"
+
+install_name_tool -id "@executable_path/libwhisper.1.dylib"   "$APP_MACOS/libwhisper.1.dylib"
+install_name_tool -id "@executable_path/libggml.0.dylib"       "$APP_MACOS/libggml.0.dylib"
+install_name_tool -id "@executable_path/libggml-base.0.dylib"  "$APP_MACOS/libggml-base.0.dylib"
+
+install_name_tool \
+  -change "@rpath/libwhisper.1.dylib" "@executable_path/libwhisper.1.dylib" \
+  -change "/opt/homebrew/opt/ggml/lib/libggml.0.dylib" "@executable_path/libggml.0.dylib" \
+  -change "/opt/homebrew/opt/ggml/lib/libggml-base.0.dylib" "@executable_path/libggml-base.0.dylib" \
+  "$APP_MACOS/whisper-cli"
+install_name_tool \
+  -change "/opt/homebrew/opt/ggml/lib/libggml.0.dylib" "@executable_path/libggml.0.dylib" \
+  -change "/opt/homebrew/opt/ggml/lib/libggml-base.0.dylib" "@executable_path/libggml-base.0.dylib" \
+  "$APP_MACOS/libwhisper.1.dylib"
+install_name_tool \
+  -change "@rpath/libggml-base.0.dylib" "@executable_path/libggml-base.0.dylib" \
+  -change "/opt/homebrew/opt/ggml/lib/libggml-base.0.dylib" "@executable_path/libggml-base.0.dylib" \
+  "$APP_MACOS/libggml.0.dylib"
+codesign --force --sign - "$APP_MACOS/libwhisper.1.dylib" "$APP_MACOS/libggml.0.dylib" "$APP_MACOS/libggml-base.0.dylib" "$APP_MACOS/whisper-cli" 2>/dev/null || true
+ok "whisper dylibs staged + rpaths rewritten"
+
+# Whisper speech model into Resources so the bundled server can find
+# it via HEIRLOOM_WHISPER_MODEL.
+TARGET_MODEL_DIR="$APP_DIR/Contents/Resources/whisper-models"
+mkdir -p "$TARGET_MODEL_DIR"
+cp -f "$WHISPER_MODEL" "$TARGET_MODEL_DIR/"
+ok "whisper model copied ($(du -h "$TARGET_MODEL_DIR" | tail -1 | cut -f1))"
 
 # 5b. Stage the TTS sidecar source + installer in Resources/tts ----------
 # The venv (LuxTTS + torch ~ 2 GB) isn't bundled; install-tts.sh sets
