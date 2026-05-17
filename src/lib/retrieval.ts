@@ -45,7 +45,7 @@ export async function fetchTopK(
   });
 }
 
-/** Source text for verbatim playback / display — the user's body for
+/** Source text for verbatim playback / display - the user's body for
  *  notes, the whisper transcript for audio, the vision caption for
  *  photos. Never the chunk text (which has the title prepended for
  *  retrieval purposes). */

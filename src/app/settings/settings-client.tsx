@@ -799,7 +799,7 @@ function ArchiveKeySection() {
           }}
         >
           <p className="font-mono text-[10px] tracking-[0.16em] uppercase text-wax">
-            Write this down — shown only once
+            Write this down - shown only once
           </p>
           <code className="font-mono text-[16px] text-ink select-all break-words">
             {revealed}

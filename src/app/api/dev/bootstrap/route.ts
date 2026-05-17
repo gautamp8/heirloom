@@ -12,7 +12,7 @@ import { generatePassphrase, normalisePassphrase } from "@/lib/passphrase";
 export const dynamic = "force-dynamic";
 
 /**
- * POST /api/dev/bootstrap — entry point for "Begin a new archive".
+ * POST /api/dev/bootstrap - entry point for "Begin a new archive".
  *
  * If the caller already has a creator session, return it unchanged.
  * Otherwise mint a fresh user + vault, generate a creator passphrase

@@ -4,7 +4,7 @@ import { withRls } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-/** POST /api/onboarding/self — set the creator's display_name
+/** POST /api/onboarding/self - set the creator's display_name
  *  and/or the reference face_embedding for self-recognition. */
 export async function POST(req: Request) {
   try {
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   }
 }
 
-/** GET /api/onboarding/self — used by Settings to know whether a
+/** GET /api/onboarding/self - used by Settings to know whether a
  *  reference selfie is already on file. */
 export async function GET() {
   try {

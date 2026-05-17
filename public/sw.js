@@ -1,5 +1,5 @@
 /*
- * Heirloom service worker — minimal app-shell + offline fallback.
+ * Heirloom service worker - minimal app-shell + offline fallback.
  *
  * We deliberately keep this small. Two strategies:
  *  - Static files (Next.js _next/static, icons, manifest, fonts): cache-first,
@@ -59,7 +59,7 @@ self.addEventListener("fetch", (event) => {
   // SSE / long-running streams must always go straight to the network.
   if (req.headers.get("accept")?.includes("text/event-stream")) return;
 
-  // Static, fingerprinted Next.js assets — cache-first.
+  // Static, fingerprinted Next.js assets - cache-first.
   if (
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.startsWith("/fonts/") ||
@@ -69,7 +69,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Everything else (pages, JSON) — network-first with a stale fallback.
+  // Everything else (pages, JSON) - network-first with a stale fallback.
   event.respondWith(networkFirst(req));
 });
 
@@ -106,7 +106,7 @@ async function networkFirst(req) {
   }
 }
 
-// Web Push — sealed-letter unlocks + daily memory.
+// Web Push - sealed-letter unlocks + daily memory.
 // Payload (JSON, server-supplied): { title, body, url?, tag? }
 self.addEventListener("push", (event) => {
   let data = {};

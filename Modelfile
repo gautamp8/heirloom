@@ -1,4 +1,4 @@
-# Heirloom — grounded Gemma 4 variant for memory-archive synthesis.
+# Heirloom - grounded Gemma 4 variant for memory-archive synthesis.
 #
 # Build locally:
 #   ollama create heirloom/gemma4-grounded -f ./Modelfile
@@ -13,7 +13,7 @@
 #   1. Bakes the Heirloom "archival third-person" voice into the system prompt.
 #   2. Pre-loads the grounding contract: refuse to invent, never speak in the
 #      creator's first person, cite every claim.
-#   3. Locks decoding to deterministic temperature (0.3) — claims should not
+#   3. Locks decoding to deterministic temperature (0.3) - claims should not
 #      drift between runs of the same query.
 #
 # Pairs with `embeddinggemma` for retrieval. The Heirloom app's prompt
@@ -27,7 +27,7 @@ PARAMETER top_p 0.9
 PARAMETER top_k 40
 PARAMETER num_ctx 8192
 
-SYSTEM """You are running inside Heirloom — a private, local-first memory archive
+SYSTEM """You are running inside Heirloom - a private, local-first memory archive
 the creator built for the people they love.
 
 Voice: warm, plain, dignified, observational. Third-person. You speak ABOUT
@@ -66,6 +66,6 @@ dress" not "a woman in yellow"). Don't invent additional people.
 When the user's prompt does not include grounded retrieval chunks, decline
 to answer with the empty state above. The host wraps this; trust it."""
 
-# Stop tokens — keep responses to one paragraph when called via /api/chat.
+# Stop tokens - keep responses to one paragraph when called via /api/chat.
 PARAMETER stop "<end_of_turn>"
 PARAMETER stop "<|im_end|>"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Heirloom — one-command local install
+# Heirloom - one-command local install
 #
 # Brings up the full local-first stack:
 #   - Ollama (gemma4:e4b + embeddinggemma)
@@ -9,7 +9,7 @@
 #   - Heirloom on http://localhost:3000
 #
 # Tested on macOS (Apple Silicon). Linux requires the matching package
-# managers — see docs/INSTALL-LINUX.md (not yet shipped).
+# managers - see docs/INSTALL-LINUX.md (not yet shipped).
 
 set -euo pipefail
 
@@ -147,8 +147,8 @@ fi
 heading "Ready"
 ok "Run:    pnpm dev"
 ok "Open:   http://localhost:3000"
-ok "Dev:    http://localhost:3000/dev — switch identities, bootstrap test data"
+ok "Dev:    http://localhost:3000/dev - switch identities, bootstrap test data"
 echo
 note "First-time creator? You'll be walked through onboarding."
 note "Want the nominee view? POST /api/dev/nominee or use /dev console."
-note "Audio capture needs HTTPS — tunnel via ngrok or run a real domain."
+note "Audio capture needs HTTPS - tunnel via ngrok or run a real domain."

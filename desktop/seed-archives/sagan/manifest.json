@@ -5,7 +5,7 @@
   "voice_reference": "audio/reference.wav",
   "voice_reference_text": "Look again at that dot. That's here. That's home. That's us. On it everyone you love, everyone you know, everyone you ever heard of, every human being who ever was, lived out their lives.",
   "voice_reference_is_placeholder": true,
-  "voice_reference_note": "PLACEHOLDER. Drop a 15–30s WAV of Carl Sagan reading anything into audio/reference.wav and rebuild — Sagan's actual recordings are estate-controlled and not redistributable in this repo.",
+  "voice_reference_note": "PLACEHOLDER. Drop a 15–30s WAV of Carl Sagan reading anything into audio/reference.wav and rebuild - Sagan's actual recordings are estate-controlled and not redistributable in this repo.",
   "framing_letter": {
     "from_name": "Carl Sagan",
     "to_name": "the reader",
@@ -49,9 +49,9 @@
       "kind": "photo",
       "captured_at": "1980-01-01",
       "blob": "photos/sagan-planetary-society-1980.jpg",
-      "caption": "Carl Sagan in 1980, the year he founded The Planetary Society with Bruce Murray and Louis Friedman. He was in his mid-forties — already the public face of planetary exploration, already arguing that humanity's first duty was to its own pale blue dot.",
+      "caption": "Carl Sagan in 1980, the year he founded The Planetary Society with Bruce Murray and Louis Friedman. He was in his mid-forties - already the public face of planetary exploration, already arguing that humanity's first duty was to its own pale blue dot.",
       "source_url": "https://commons.wikimedia.org/wiki/File:Carl_Sagan_Planetary_Society.JPG",
-      "license": "Wikimedia Commons — CC BY-SA 3.0 / public domain elements."
+      "license": "Wikimedia Commons - CC BY-SA 3.0 / public domain elements."
     },
     {
       "title": "The Pale Blue Dot",
@@ -60,16 +60,16 @@
       "blob": "photos/pale-blue-dot.png",
       "caption": "The Earth photographed by Voyager 1 on February 14, 1990 from 3.7 billion miles away. Sagan had asked NASA to turn the spacecraft's camera back toward home. The pale blue speck a bit right of center is everyone you have ever loved.",
       "source_url": "https://commons.wikimedia.org/wiki/File:Pale_Blue_Dot_cropped_2.png",
-      "license": "NASA/JPL-Caltech — public domain."
+      "license": "NASA/JPL-Caltech - public domain."
     },
     {
       "title": "The Sounds of Earth",
       "kind": "photo",
       "captured_at": "1977-08-20",
       "blob": "photos/golden-record.jpg",
-      "caption": "The Voyager Golden Record, attached to the two Voyager spacecraft in 1977. Sagan chaired the committee that chose the sounds — greetings in 55 languages, whale song, Bach, Chuck Berry, the laughter of a child. He wanted whoever found it, billions of years from now, to know that we loved each other and that we tried.",
+      "caption": "The Voyager Golden Record, attached to the two Voyager spacecraft in 1977. Sagan chaired the committee that chose the sounds - greetings in 55 languages, whale song, Bach, Chuck Berry, the laughter of a child. He wanted whoever found it, billions of years from now, to know that we loved each other and that we tried.",
       "source_url": "https://commons.wikimedia.org/wiki/File:The_Sounds_of_Earth_-_GPN-2000-001976.jpg",
-      "license": "NASA — public domain."
+      "license": "NASA - public domain."
     }
   ],
   "sealed_letters": [

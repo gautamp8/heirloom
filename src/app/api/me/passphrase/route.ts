@@ -5,7 +5,7 @@ import { generatePassphrase, normalisePassphrase } from "@/lib/passphrase";
 
 export const dynamic = "force-dynamic";
 
-/** POST /api/me/passphrase — regenerate the creator's archive key.
+/** POST /api/me/passphrase - regenerate the creator's archive key.
  *  Returns the new plaintext once; the old key stops working. */
 export async function POST() {
   try {
@@ -32,7 +32,7 @@ export async function POST() {
   }
 }
 
-/** GET /api/me/passphrase — has one been set? When? */
+/** GET /api/me/passphrase - has one been set? When? */
 export async function GET() {
   try {
     const session = await requireSession();

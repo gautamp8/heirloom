@@ -1,4 +1,4 @@
-# Heirloom — desktop bundle
+# Heirloom - desktop bundle
 
 Tauri-bundled macOS `.dmg` that runs the same Heirloom code as the
 web app, but fully self-contained:
@@ -32,7 +32,7 @@ On launch the shell:
    the app-data dir.
 3. If `<app_data>/tts/run.sh` exists (created by `install-tts.sh`),
    spawns the LuxTTS voice-cloning sidecar on `127.0.0.1:11435`.
-   Otherwise voice features stay disabled — text, photo, retrieval
+   Otherwise voice features stay disabled - text, photo, retrieval
    all work unchanged.
 4. Spawns the bundled Node + Next.js server on `127.0.0.1:3000` with
    `HEIRLOOM_BACKEND=sqlite`.
@@ -52,7 +52,7 @@ bash "/Applications/Heirloom.app/Contents/Resources/tts/install-tts.sh"
 
 The installer creates a venv at `~/Library/Application Support/Heirloom/tts/`
 with the required wheels and a launcher script. Quit and relaunch
-Heirloom — the shell auto-detects the sidecar and starts it next time.
+Heirloom - the shell auto-detects the sidecar and starts it next time.
 
 Settings → Voice surfaces the same instruction when TTS is offline,
 so end users don't have to dig through the bundle.
@@ -77,7 +77,7 @@ desktop/src-tauri/target/release/bundle/dmg/Heirloom.dmg     (~92 MB)
 desktop/src-tauri/target/release/bundle/macos/Heirloom.app   (~214 MB)
 ```
 
-The first-run user still needs to pull the models — the shell points
+The first-run user still needs to pull the models - the shell points
 `OLLAMA_MODELS` at the app-data dir, so a one-shot
 `ollama pull gemma4:e4b` from inside the app's terminal (or a future
 in-app pull screen) populates the cache.
