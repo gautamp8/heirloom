@@ -126,12 +126,9 @@ export async function backfillMissingChunks(session: Session): Promise<number> {
     body: string | null;
     caption: string | null;
     transcript: string | null;
-    joined_chunks: string | null;
   }[]>`
     SELECT c.id, c.vault_id, c.title, c.body, c.caption,
-           (SELECT t.text FROM transcripts t WHERE t.capture_id = c.id LIMIT 1) AS transcript,
-           (SELECT string_agg(tc.text, ' ' ORDER BY tc.chunk_index)
-              FROM transcript_chunks tc WHERE tc.capture_id = c.id) AS joined_chunks
+           (SELECT t.text FROM transcripts t WHERE t.capture_id = c.id LIMIT 1) AS transcript
       FROM captures c
      WHERE c.vault_id = ${session.vault_id}
        AND c.status = 'ready'
@@ -140,10 +137,23 @@ export async function backfillMissingChunks(session: Session): Promise<number> {
      LIMIT 50
   `;
 
+  // string_agg/group_concat differs across Postgres vs SQLite. Pulling
+  // every chunk in the vault and grouping in JS keeps this portable.
+  const chunkRows = await sqlAdmin<{ capture_id: string; text: string }[]>`
+    SELECT capture_id, text
+      FROM transcript_chunks
+     WHERE vault_id = ${session.vault_id}
+  `;
+  const joinedByCapture: Record<string, string> = {};
+  for (const r of chunkRows) {
+    joinedByCapture[r.capture_id] =
+      (joinedByCapture[r.capture_id] ?? "") + " " + r.text;
+  }
+
   const orphans = candidates.filter((c) =>
     needsReindex(
       { title: c.title, body: c.body, caption: c.caption, transcript: c.transcript },
-      c.joined_chunks,
+      joinedByCapture[c.id] ?? null,
     ),
   );
   if (orphans.length === 0) return 0;
