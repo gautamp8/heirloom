@@ -15,14 +15,10 @@ export const dynamic = "force-dynamic";
 const MAX_BUNDLE_BYTES = 200 * 1024 * 1024;
 
 /**
- * POST /api/portal/import - one-shot landing page flow for someone who
- * already has a .hloom bundle on this device. Mints a fresh creator
- * user + vault, sets the session cookie, decrypts and replays the
- * bundle into the new vault, then returns the auto-generated creator
- * passphrase so the user can sign back in next time.
- *
- * If decryption fails (wrong bundle passphrase or corruption) the
- * just-created user + vault are removed so the portal stays clean.
+ * POST /api/portal/import - mint a fresh creator + vault, replay the
+ * uploaded .hloom into it, sign the caller in, return the new local
+ * creator passphrase. On decryption failure, the just-created
+ * user + vault are removed.
  */
 export async function POST(req: Request) {
   try {

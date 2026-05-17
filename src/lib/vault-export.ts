@@ -11,19 +11,14 @@ import { sqlAdmin, vec } from "./db";
 import { resolveBlob } from "./storage";
 
 /**
- * .hloom v2 wire format. A UTF-8 JSON envelope wrapping base64
- * ciphertext that AEAD-decrypts to a gzipped JSON payload of the full
- * vault (rows + blobs).
+ * .hloom wire format. A UTF-8 JSON envelope wrapping base64 ciphertext
+ * that AEAD-decrypts to a gzipped JSON payload of the full vault
+ * (rows + blobs).
  *
- *   { magic: "HLOOM", version: 2,
- *     kdf:    { type: "argon2id", salt, memory_kib, time, parallelism },
- *     cipher: { type: "chacha20-poly1305", nonce, aad },
- *     ciphertext, tag, meta }
+ *   { magic: "HLOOM", version, kdf, cipher, ciphertext, tag, meta }
  *
- * v2 normalizes vector columns to `number[]` so bundles round-trip
- * across Postgres (pgvector text) and SQLite (Float32LE BLOB). v1
- * bundles still decrypt, but their embeddings were pgvector strings
- * and only re-import cleanly on Postgres.
+ * Vector columns are normalized to `number[]` so bundles round-trip
+ * across Postgres (pgvector text) and SQLite (Float32LE BLOB).
  */
 
 const MAGIC = "HLOOM";
@@ -327,9 +322,7 @@ export async function importVault(
     tag: string;
   };
   if (env.magic !== MAGIC) throw new Error("not_a_heirloom_bundle");
-  if (env.version !== 1 && env.version !== 2) {
-    throw new Error("unsupported_version");
-  }
+  if (env.version !== VERSION) throw new Error("unsupported_version");
   if (env.kdf.type !== "argon2id" || env.cipher.type !== "chacha20-poly1305") {
     throw new Error("unsupported_algorithm");
   }
@@ -369,7 +362,6 @@ export async function importVault(
     gunzipSync(compressed).toString("utf8"),
   ) as VaultPlaintext;
 
-  // Tables that v1 didn't carry are gracefully treated as empty.
   const rows = {
     users: plaintext.rows.users ?? [],
     vault: plaintext.rows.vault ?? null,
@@ -491,7 +483,7 @@ export async function importVault(
     }
     counts.transcripts = rows.transcripts.length;
 
-    // 5) Chunks. Embedding is v2 number[] or v1 pgvector text.
+    // 5) Chunks.
     let chunkCount = 0;
     for (const ch of rows.transcript_chunks as {
       capture_id: string;
@@ -652,8 +644,8 @@ export async function importVault(
     }
     counts.sealed_letters = letterCount;
 
-    // 11) Nominee releases. thread_id rows are skipped (threads
-    //     intentionally aren't in the bundle yet).
+    // 11) Nominee releases. Capture-scoped only; thread-scoped rows
+    //     are skipped.
     let releaseCount = 0;
     for (const r of rows.nominee_releases as {
       nominee_id: string;

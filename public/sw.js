@@ -1,14 +1,10 @@
 /*
- * Heirloom service worker - minimal app-shell + offline fallback.
+ * Heirloom service worker. App-shell + offline fallback + Web Push.
  *
- * We deliberately keep this small. Two strategies:
- *  - Static files (Next.js _next/static, icons, manifest, fonts): cache-first,
- *    safe because Next fingerprints them on every build.
- *  - Everything else (pages, /api/*): network-first with a stale fallback,
- *    so a flaky tether doesn't blank the home, but a successful response
- *    always wins.
- *
- * API mutations (POST/PUT/PATCH/DELETE) are never cached.
+ *  - Static fingerprinted assets (Next.js _next/static, icons, fonts):
+ *    cache-first.
+ *  - Everything else (pages, /api/*): network-first with stale fallback.
+ *  - POST/PUT/PATCH/DELETE: never cached.
  */
 
 const VERSION = "heirloom-v1";

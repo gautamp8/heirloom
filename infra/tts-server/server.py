@@ -175,12 +175,8 @@ class WarmRequest(BaseModel):
 
 @app.on_event("startup")
 async def _warm_on_startup() -> None:
-    """Load the model in the background and encode every voice file we
-    already have on disk. Cold-start the first /speak otherwise stalls
-    several seconds while LuxTTS loads + the prompt is encoded; that
-    delay was visible to the user as a failed first tap. Running this
-    eagerly means the first synthesis after a sidecar restart is
-    already warm."""
+    """Load the model and encode every voice file on disk so the first
+    /speak after a sidecar restart is already warm."""
 
     def _warm() -> None:
         try:

@@ -71,9 +71,8 @@ export function SpeakButton({
 
   if (state === "hidden") return null;
 
-  /** Try /api/voice/speak once; on a transient failure (cold start
-   *  from the LuxTTS sidecar usually presents as a slow 5xx or a
-   *  network reset), wait briefly and try a second time. */
+  /** Fetch the synthesized audio, retrying once after a brief pause
+   *  so a cold sidecar gets a chance to warm. */
   async function synthesize(): Promise<Blob | null> {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
@@ -84,11 +83,9 @@ export function SpeakButton({
         });
         if (r.ok) return await r.blob();
       } catch {
-        /* fall through to retry */
+        /* retry below */
       }
       if (attempt === 0) {
-        // Best effort - if a warm round-trip happens during this
-        // pause the retry will land on a hot model.
         fetch("/api/voice/warm", { method: "POST" }).catch(() => {});
         await new Promise((r) => setTimeout(r, 600));
       }

@@ -197,6 +197,3 @@ export function cosineSim(column: string, query: number[]): Fragment {
   ]);
 }
 
-export function newId(): string {
-  return randomUUID();
-}

@@ -154,7 +154,6 @@ export async function POST(req: Request) {
 
           send("grounded", { grounded: true });
 
-          // 5) Synthesis via Gemma 4 (structured JSON output)
           const prompt = buildReflectionPrompt(
             question,
             meta?.display_name ?? "the creator",
@@ -168,9 +167,8 @@ export async function POST(req: Request) {
             temperature: 0.3,
           });
 
-          // 6) Stream the answer + claims as they arrive.
-          //    `answer_partial` carries prose as Gemma extends it; `claim`
-          //    fires once a claim has both text and a validated citation.
+          // `answer_partial` carries prose as Gemma extends it; `claim`
+          // fires once a claim has both text and a validated citation.
           let lastAnswer = "";
           const sentClaims = new Set<number>();
           for await (const partial of partialObjectStream) {
@@ -220,7 +218,6 @@ export async function POST(req: Request) {
             });
           }
 
-          // 7) Final validation - citation set + first-person scrubber + non-empty claims
           const final: ReflectionAnswer = await object;
           const cite = validateCitations(final, chunks);
           const noClaims = final.claims.length === 0;
