@@ -7,9 +7,54 @@ import { z } from "zod";
  * model. See `design-system/handoff/GUARDRAILS.md`.
  */
 
-/** Calibrated against EmbeddingGemma 300m; recalibrate if the embedding
- *  model changes. */
-export const REFLECTION_SIMILARITY_THRESHOLD = 0.40;
+/** Calibrated against EmbeddingGemma 300m. Cosine similarities for this
+ *  model run low for short keyword queries against richer chunks (0.24
+ *  to 0.34 for clearly-relevant matches; 0.14 to 0.23 for unrelated
+ *  topics) so the vector floor sits below the half-way point. Lexical
+ *  overlap fills in the remaining recall gap via `hasLexicalOverlap`. */
+export const REFLECTION_SIMILARITY_THRESHOLD = 0.30;
+
+/** Short, generic words ignored when checking for keyword overlap
+ *  between a query and a retrieved chunk. Anything left after this
+ *  filter is concrete enough that, if it appears in a chunk, the
+ *  question is at least partly about the same thing. */
+const LEXICAL_STOPWORDS = new Set([
+  "the","a","an","and","or","but","of","to","in","on","at","for","with",
+  "any","anything","about","tell","me","our","us","your","his","her","their",
+  "is","was","were","be","been","being","am","are","do","does","did","done",
+  "have","has","had","please","my","i","you","we","they","it","this","that",
+  "these","those","what","when","where","who","why","how","some","more","less",
+  "from","into","onto","over","under","again","also","still","just","like",
+  "very","really","much","many","one","two","ever","never","always","things",
+  "thing","kind","sort","type","there","here","yes","no","not","can","could",
+  "would","should","will","shall","may","might","must","get","got","go","going",
+]);
+
+function tokenize(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 3 && !LEXICAL_STOPWORDS.has(w));
+}
+
+/** True if any of the question's substantive tokens appear in any
+ *  retrieved chunk. Used as the second leg of a hybrid grounding gate:
+ *  a query like "anything about wedding?" can sit just under the
+ *  vector threshold yet still clearly be about the chunk that contains
+ *  the word "wedding". */
+export function hasLexicalOverlap(
+  question: string,
+  chunks: { text: string }[],
+): boolean {
+  const qTokens = tokenize(question);
+  if (qTokens.length === 0) return false;
+  for (const ch of chunks) {
+    const lower = ch.text.toLowerCase();
+    if (qTokens.some((t) => lower.includes(t))) return true;
+  }
+  return false;
+}
 
 export const EMPTY_STATE_ANSWER =
   "I don't have that in the archive. Try asking another way?";

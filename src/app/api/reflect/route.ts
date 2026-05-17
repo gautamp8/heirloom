@@ -11,6 +11,7 @@ import {
   ReflectionSchema,
   buildReflectionPrompt,
   hasFirstPersonOutsideQuotes,
+  hasLexicalOverlap,
   validateCitations,
   type ReflectionAnswer,
 } from "@/lib/reflection";
@@ -110,8 +111,16 @@ export async function POST(req: Request) {
           const topSim = chunks[0]?.similarity ?? 0;
           send("retrieved", { hit_count: chunks.length, top_similarity: topSim });
 
-          // Grounding gate. Never bypass this.
-          if (chunks.length === 0 || topSim < REFLECTION_SIMILARITY_THRESHOLD) {
+          // Hybrid grounding gate: vector similarity OR substantive
+          // keyword overlap. Either one means the chunk is plausibly
+          // about the question; downstream LLM + citation guards still
+          // collapse to empty state if no real claim can be made.
+          const lexicalHit = hasLexicalOverlap(question, chunks);
+          const grounded =
+            chunks.length > 0 &&
+            (topSim >= REFLECTION_SIMILARITY_THRESHOLD || lexicalHit);
+
+          if (!grounded) {
             send("grounded", { grounded: false });
             send("answer", { text: EMPTY_STATE_ANSWER });
             const reflection_id = await saveReflection(
