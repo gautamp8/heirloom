@@ -169,6 +169,34 @@ class SpeakRequest(BaseModel):
     text: str
 
 
+class WarmRequest(BaseModel):
+    voice_id: Optional[str] = None
+
+
+@app.on_event("startup")
+async def _warm_on_startup() -> None:
+    """Load the model in the background and encode every voice file we
+    already have on disk. Cold-start the first /speak otherwise stalls
+    several seconds while LuxTTS loads + the prompt is encoded; that
+    delay was visible to the user as a failed first tap. Running this
+    eagerly means the first synthesis after a sidecar restart is
+    already warm."""
+
+    def _warm() -> None:
+        try:
+            engine._ensure_loaded()
+            for wav_path in VOICE_DIR.glob("*.wav"):
+                vid = wav_path.stem
+                try:
+                    engine.encode(vid, wav_path)
+                except Exception as e:
+                    log.warning("[warm] encode %s failed: %s", vid, e)
+        except Exception as e:
+            log.warning("[warm] startup warm-up failed: %s", e)
+
+    asyncio.get_running_loop().run_in_executor(None, _warm)
+
+
 @app.get("/healthz")
 def healthz() -> dict:
     return {
@@ -177,6 +205,29 @@ def healthz() -> dict:
         "loaded": engine._model is not None,
         "voices_cached": list(engine._prompt_cache.keys()),
     }
+
+
+@app.post("/warm")
+async def warm(req: WarmRequest) -> dict:
+    """Ensure the model is loaded and (optionally) a specific voice's
+    prompt is encoded, without synthesizing anything. Called from the
+    Next.js side on home-page load so the first user tap on THEIR
+    VOICE doesn't have to wait for the cold path."""
+    try:
+        await asyncio.to_thread(engine._ensure_loaded)
+        encoded = False
+        if req.voice_id:
+            wav_path = VOICE_DIR / f"{req.voice_id}.wav"
+            if wav_path.exists():
+                await asyncio.to_thread(engine.encode, req.voice_id, wav_path)
+                encoded = True
+        return {
+            "ok": True,
+            "loaded": engine._model is not None,
+            "voice_encoded": encoded,
+        }
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
 
 @app.post("/encode")

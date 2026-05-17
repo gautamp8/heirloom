@@ -51,3 +51,19 @@ export async function ttsHealth(): Promise<{
     return { ok: false, device: "unknown", loaded: false };
   }
 }
+
+/** Best-effort warm: loads the LuxTTS model and encodes the voice's
+ *  prompt without synthesizing. Safe to call repeatedly. */
+export async function warmVoice(voice_id?: string | null): Promise<boolean> {
+  try {
+    const r = await fetch(`${TTS_BASE}/warm`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ voice_id: voice_id ?? null }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}

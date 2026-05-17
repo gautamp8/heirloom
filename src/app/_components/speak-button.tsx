@@ -52,7 +52,12 @@ export function SpeakButton({
           profile: unknown;
           tts_available: boolean;
         };
-        if (!cancelled && d.profile && d.tts_available) setState("idle");
+        if (!cancelled && d.profile && d.tts_available) {
+          setState("idle");
+          // Fire-and-forget warm so the first user tap on Their Voice
+          // doesn't have to wait for LuxTTS to load + encode.
+          fetch("/api/voice/warm", { method: "POST" }).catch(() => {});
+        }
       } catch {
         /* leave hidden */
       }
@@ -66,6 +71,31 @@ export function SpeakButton({
 
   if (state === "hidden") return null;
 
+  /** Try /api/voice/speak once; on a transient failure (cold start
+   *  from the LuxTTS sidecar usually presents as a slow 5xx or a
+   *  network reset), wait briefly and try a second time. */
+  async function synthesize(): Promise<Blob | null> {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const r = await fetch("/api/voice/speak", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+        if (r.ok) return await r.blob();
+      } catch {
+        /* fall through to retry */
+      }
+      if (attempt === 0) {
+        // Best effort - if a warm round-trip happens during this
+        // pause the retry will land on a hot model.
+        fetch("/api/voice/warm", { method: "POST" }).catch(() => {});
+        await new Promise((r) => setTimeout(r, 600));
+      }
+    }
+    return null;
+  }
+
   async function play() {
     setState("loading");
     try {
@@ -73,16 +103,11 @@ export function SpeakButton({
       if (audioUrl) {
         url = audioUrl;
       } else {
-        const r = await fetch("/api/voice/speak", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ text }),
-        });
-        if (!r.ok) {
+        const blob = await synthesize();
+        if (!blob) {
           setState("error");
           return;
         }
-        const blob = await r.blob();
         url = URL.createObjectURL(blob);
         blobUrlRef.current = url;
       }
