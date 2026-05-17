@@ -26,7 +26,12 @@ export default async function Root() {
       <main className="stage relative min-h-dvh flex flex-col">
         <div className="px-6 pt-6 pb-2 flex items-center justify-between relative z-10">
           <BrandMark href={null} />
-          <span className="eyebrow">Archive</span>
+          <a
+            href="/settings"
+            className="eyebrow hover:text-ink transition-colors"
+          >
+            Settings
+          </a>
         </div>
 
         <NomineeHome
