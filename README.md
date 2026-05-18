@@ -235,9 +235,9 @@ at `/transparency`.
 
 ## Try Heirloom
 
-Four paths in order of how committed you want to be.
+Pick the path that matches what you want to do.
 
-### Try without installing
+### Just look around (~30 seconds)
 
 Visit [withheirloom.app](https://withheirloom.app) and tap
 *Try the Sagan archive*. You'll land in a pre-loaded archive of
@@ -249,33 +249,17 @@ The demo runs on a small Azure VM; latencies are higher than a
 local install, and anything you submit there lives on the VM,
 not your device.
 
-### Install as a PWA (iOS, Android, desktop browsers)
-
-Heirloom ships a Progressive Web App manifest, so any deployed
-instance is installable as a real app.
-
-- **iOS Safari**: tap *Share* → *Add to Home Screen*.
-- **Android Chrome**: open the page menu → *Install app*.
-- **Desktop Chrome / Edge**: click the install icon in the address bar.
-
-For a quick try, install it from the Sagan demo URL - the icon and
-launch behave like a native app, the page is fully offline-capable
-after the first load, and your data lives on the host you installed
-it from. To use your own archive instead of the demo, install the
-PWA from a Heirloom instance you control (the macOS app below, or a
-self-hosted VM).
-
-### Install on macOS
+### Install on macOS (~15 minutes, then a real app)
 
 1. Download `Heirloom.dmg` from the
    [latest release](https://github.com/gautamp8/heirloom/releases/latest).
-2. **One-time prep.** Pull the two Gemma 4 models with Ollama
-   (~10 minutes on a decent connection):
+2. **One-time prep.** Install [Ollama](https://ollama.com), then
+   pull the two Gemma 4 models (~10 minutes on a decent connection):
    ```bash
    ollama pull gemma4:e4b
    ollama pull embeddinggemma
    ```
-   This release candidate doesn't auto-pull yet; the next RC will.
+   This release candidate does not auto-pull yet; the next RC will.
    See [issue #1](https://github.com/gautamp8/heirloom/issues/1).
 3. Open the DMG, drag *Heirloom* into your Applications folder.
 4. **First open**: right-click *Heirloom* in Applications and choose
@@ -284,19 +268,67 @@ self-hosted VM).
    Gatekeeper.
 
 Everything else is bundled: Ollama, Node, the Next.js server,
-`whisper.cpp` with `ggml-base.en` baked in, the SQLite database
-in `~/Library/Application Support/app.heirloom.desktop/`. Voice
+`whisper.cpp` with `ggml-base.en` baked in, and the SQLite database
+at `~/Library/Application Support/app.heirloom.desktop/`. Voice
 cloning is opt-in: run `Contents/Resources/tts/install-tts.sh`
 once after install to drop a Python venv with LuxTTS into
 `~/Library/Application Support/Heirloom/tts/` (~2 GB).
 
-### Self-host on a Mac or Ubuntu VM
+### Try as a PWA on your phone (~20 minutes, full features)
 
-For someone who wants the archive at a URL they own.
+iOS Safari and Android Chrome refuse to install a PWA from an
+unencrypted `http://localhost`. The smoothest path is to run a
+local instance on your Mac, tunnel it through ngrok for HTTPS,
+then install the resulting URL as a PWA on the phone.
+
+**On your Mac:**
+
+```bash
+# 1. Clone and install the local stack (~10 min)
+git clone https://github.com/gautamp8/heirloom
+cd heirloom
+./install.sh
+
+# 2. Start the dev server (terminal stays open)
+pnpm dev
+
+# 3. In a second terminal, install ngrok if needed, then expose :3000
+brew install ngrok           # or: https://ngrok.com/download
+ngrok config add-authtoken <your-token>   # one-time, free at ngrok.com
+ngrok http 3000
+```
+
+`ngrok http 3000` prints a forwarding URL that looks like
+`https://abcd-1234.ngrok-free.app`. That URL is your phone-facing
+endpoint as long as both terminals stay open.
+
+**On your phone:**
+
+1. Open the ngrok URL in Safari (iOS) or Chrome (Android).
+2. Walk through the four-step onboarding the first time:
+   name + selfie, life anchors, nominees, seed letters.
+3. Install the PWA:
+   - **iOS Safari**: tap *Share* → *Add to Home Screen*.
+   - **Android Chrome**: open the page menu → *Install app*.
+4. Open *Heirloom* from your home screen. It runs full-screen as a
+   real app and uses Web Push, the camera, the microphone, and
+   IndexedDB for offline drafts.
+
+Caveats. The free ngrok URL changes every time you restart ngrok;
+re-installing the PWA picks up the new one. Closing your laptop
+or the dev server breaks the PWA's connection. For a permanent
+phone install, point the PWA at a self-hosted instance (next
+section), where the URL doesn't change.
+
+### Self-host for a permanent install
+
+For someone who wants the archive at a URL they own, with a stable
+address the PWA can keep using.
 
 **On a Mac mini at home.** Clone the repo, run `./install.sh` to
 bring up the local stack, then `pnpm build && pnpm start` for the
-production server. Expose via Cloudflare Tunnel for HTTPS.
+production server. Expose via Cloudflare Tunnel for HTTPS and a
+stable hostname.
 
 **On an Ubuntu 22.04 VM** (Hetzner, DigitalOcean, AWS, Azure, etc.).
 Bootstrap is idempotent and takes about ten minutes.
@@ -319,7 +351,7 @@ CPU inference is slow (30 to 90 seconds to first token on a
 CPU-only VM, versus seconds on Apple Silicon). The full runbook
 lives in [`docs/DEPLOY-AZURE-VM.md`](./docs/DEPLOY-AZURE-VM.md).
 
-### Build from source (contributors)
+### Build from source
 
 Apple Silicon recommended; 48 GB unified memory is comfortable.
 
