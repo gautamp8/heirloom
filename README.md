@@ -60,9 +60,8 @@ chose, in the rooms of their own house, on hardware they own.
   it never asks. People should come back when they want to, not
   because an app pulled them in.
 - **Not stored in a cloud.** No telemetry, no managed inference, no
-  third-party model providers. The canonical install is on the
-  creator's own laptop or a Mac mini the family owns. The optional
-  cloud deployment is a single VM the creator controls.
+  third-party model providers. Heirloom installs on the creator's own
+  laptop or a Mac mini the family owns; everything stays there.
 
 The fuller treatment of these choices, and what we refused to build
 along the way, lives in [`docs/ETHICS-AND-DESIGN.md`](./docs/ETHICS-AND-DESIGN.md).
@@ -335,45 +334,47 @@ Open `http://localhost:3000`. The first visit walks a creator
 through a four-step welcome: name + selfie → life anchors →
 nominees → seed letters. Subsequent visits land on the home.
 
-### Self-hosted on a single VM (last resort)
+### Self-hosted on any Ubuntu VM (for non-technical recipients)
 
-Local is the recommended path. The cloud option exists for the
-specific case where someone you love can't run Ollama themselves
-and you want them to receive the archive at a URL instead.
-
-Same code, same architecture, just on a single VM you control. The
-full runbook lives at
-[`docs/DEPLOY-AZURE-VM.md`](./docs/DEPLOY-AZURE-VM.md).
+When someone you love can't run Ollama themselves and you want
+them to reach the archive at a URL, the same code runs on a
+single Ubuntu 22.04 VM you control. Any provider works: Hetzner,
+DigitalOcean, AWS, Azure, a Raspberry Pi at home behind a
+Cloudflare Tunnel. The runbook in
+[`docs/DEPLOY-AZURE-VM.md`](./docs/DEPLOY-AZURE-VM.md) walks
+through one concrete example. Bootstrap is `infra/vm-setup.sh` +
+`infra/build-and-start.sh`.
 
 ```bash
-# Provision an Azure VM (no GPU required)
-RG=heirloom-rg LOCATION=eastus2 VM=heirloom-vm
-DNS_NAME=heirloom-$(openssl rand -hex 3)
+# 1. Provision an Ubuntu 22.04 VM, ~8 vCPU / 32 GB RAM / 64 GB disk
+#    Open ports 22 (SSH) and 443 (HTTPS). Point a DNS A record
+#    at the public IP. Add your SSH key to the heirloom user.
 
-az group create -n "$RG" -l "$LOCATION"
-az vm create -g "$RG" -n "$VM" \
-    --image Ubuntu2204 --size Standard_D8as_v5 \
-    --admin-username heirloom --ssh-key-values ~/.ssh/id_rsa.pub \
-    --public-ip-address-dns-name "$DNS_NAME" \
-    --os-disk-size-gb 64 --storage-sku Premium_LRS
-az vm open-port -g "$RG" -n "$VM" --port 443 --priority 901
+# 2. Run the bootstrap on the VM (idempotent, ~10 min):
+scp infra/vm-setup.sh heirloom@<host>:/tmp/
+ssh heirloom@<host> \
+    "sudo PUBLIC_HOST=<your.fqdn> bash /tmp/vm-setup.sh"
 
-# Bootstrap the stack (Ollama, Postgres, Whisper, Caddy + LE certs)
-scp infra/vm-setup.sh heirloom@<vm-ip>:/tmp/
-ssh heirloom@<vm-ip> \
-    "sudo PUBLIC_HOST=$DNS_NAME.eastus2.cloudapp.azure.com bash /tmp/vm-setup.sh"
-
+# 3. Push code and start the app:
 rsync -az --exclude=node_modules/ --exclude=.next/ \
-    --exclude=storage/ ./ heirloom@<vm-ip>:/opt/heirloom/app/
-scp infra/build-and-start.sh heirloom@<vm-ip>:/tmp/
-ssh heirloom@<vm-ip> 'sudo bash /tmp/build-and-start.sh'
+    --exclude=storage/ ./ heirloom@<host>:/opt/heirloom/app/
+scp infra/build-and-start.sh heirloom@<host>:/tmp/
+ssh heirloom@<host> 'sudo bash /tmp/build-and-start.sh'
 ```
+
+The scripts install Node 22, pnpm, PostgreSQL 16 + pgvector,
+Ollama (CPU mode), whisper-cpp, ffmpeg, and Caddy with automatic
+Let's Encrypt certificates. No cloud-specific dependencies; the
+only outbound HTTPS the VM ever makes is to ollama.com for the
+initial model pull and letsencrypt.org for cert renewal.
 
 Things to know if you go this route:
 
-- v1 is **single-creator per VM**. The first person through
-  onboarding becomes the creator; concurrent visitors see each
-  other's data. Share the URL only with the recipient you intend.
+- **Multiple archives are supported.** Each *Begin a new archive*
+  mints an independent creator with its own passphrase and
+  RLS-scoped vault. Two creators on one host can't see each
+  other's content. Nominees and creators sign in and out via
+  their own passphrases.
 - CPU inference is **slow**. A Reflection that streams in seconds
   on a GPU laptop can take 30 to 90 seconds on a CPU-only VM.
 - **You are the admin.** SSH access equals full access to every
@@ -383,14 +384,28 @@ Things to know if you go this route:
   file that imports into the recipient's own local Heirloom. The
   data never touches a third party decrypted.
 
+Native iOS and Android apps are on the roadmap. They will ship
+the model alongside the app so the privacy story still holds
+without a server in the loop.
+
 ### Coming back to an archive
 
 The four-word passphrase shown at *Begin a new archive* is the
 local key. Write it down. The portal's *I have a passphrase* door
-re-opens the archive on the same device. Each archive is
-independent - one host can carry several side by side. The
-*Import* door takes a `.hloom` and unlocks it into a fresh local
-creator account.
+re-opens the archive on the same device, scoped to the creator
+who owns that passphrase. Each archive on a host is independent -
+one install can carry several side by side, isolated by per-row
+RLS at the database. The *Import* door takes a `.hloom` and
+unlocks it into a fresh local creator account.
+
+### Handing an archive to someone else
+
+When the recipient is also able to run a local Heirloom, the
+private path is the `.hloom` bundle. `POST /api/vault/export`
+produces a single passphrase-encrypted file (argon2id +
+ChaCha20-Poly1305 over a gzipped snapshot of every row and blob).
+The recipient drops it into the portal's *Import* door on their
+own machine. The data never touches a third party decrypted.
 
 ---
 

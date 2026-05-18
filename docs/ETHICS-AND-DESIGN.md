@@ -137,10 +137,14 @@ So the local-first posture is non-negotiable:
 - The only outbound HTTPS the running app makes is the first
   Ollama model pull and (if you self-host on a VM) Let's Encrypt
   for cert renewal. No telemetry. No analytics. No update pings.
-- The self-hosted single-VM mode exists for one specific case:
+- The self-hosted Ubuntu VM mode exists for one specific case:
   the recipient can't run Ollama themselves and the creator
   wants the archive to be accessible at a URL. The VM is one
-  the creator controls. It is not a multi-tenant service.
+  the creator controls, on any provider; the bootstrap is
+  cloud-agnostic. Multiple creators can share one host without
+  seeing each other's data, but there is still no admin panel,
+  no signup flow, no account recovery. It is not a multi-tenant
+  service.
 - The most private multi-device path is the encrypted `.hloom`
   export, which goes from one local install to another. Data
   never touches a third party decrypted.
@@ -385,7 +389,7 @@ model with row-level-security policies. Postgres + pgvector gives
 both in one process. The alternative - a separate vector store
 plus a separate relational DB - adds an integration surface and
 a synchronisation problem in exchange for a marginal speed gain
-that doesn't matter at the data volumes a single-creator archive
+that doesn't matter at the data volumes a personal archive
 generates. The desktop bundle uses SQLite + sqlite-vec for the
 same reason, with the same query shape.
 
@@ -441,10 +445,13 @@ unlabeled, which is the safer default.
 
 ## What's still open
 
-- **Multi-tenant deployment.** v1 is single-creator per install
-  by design. A shared cloud deployment with proper per-user
-  signup is tracked but explicitly deferred - it's a different
-  product shape with different trust assumptions.
+- **Real signup and account recovery.** Multiple creators can
+  share one host today through per-creator passphrases and
+  per-row RLS, but there is no email-bound signup, no MFA,
+  no "I forgot my passphrase" flow. The plan is to push toward
+  native iOS and Android apps where the model ships alongside
+  the app and the device's own keychain holds the key, rather
+  than building a hosted account system.
 - **Audio understanding through Gemma directly.** Gemma 4
   has an audio adapter that Ollama hasn't published yet. When
   it lands, the Whisper transcription step can collapse into the

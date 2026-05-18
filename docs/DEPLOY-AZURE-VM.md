@@ -1,4 +1,4 @@
-# Self-hosting Heirloom on a single VM
+# Self-hosting Heirloom on an Ubuntu VM
 
 Heirloom is local-first by design. The recommended path is to run it on
 your own laptop with `./install.sh`. But sometimes you need a cloud
@@ -6,8 +6,13 @@ instance - most commonly when you want a loved one who can't install
 Ollama to be able to open the archive themselves, or when you want a
 public URL for sharing.
 
-This document is the runbook for that case. It walks you from a fresh
-Azure subscription to a working `https://your-host` in about 20 minutes.
+This document is the runbook for that case. The scripts (`infra/vm-setup.sh`
+and `infra/build-and-start.sh`) are provider-agnostic and run on any
+Ubuntu 22.04 host with ≥ 32 GB RAM and ≥ 64 GB disk. Azure is what we
+happened to deploy on while writing this, so the example commands below
+use the `az` CLI; pick the equivalent in your own provider's tooling
+(`hcloud`, `doctl`, `aws ec2`, etc.) and the rest of the runbook is the
+same. The walkthrough takes about 20 minutes end to end.
 
 The shape is deliberately simple: **everything on one VM**, no GPU, no
 managed Postgres, no Vercel, no separate storage bucket. That keeps
@@ -61,15 +66,17 @@ host. Specifically:
   certificate renewal (Caddy) and to ollama.com on first run to pull
   the Gemma 4 weights.
 - **Anyone with the public URL can reach `/portal` and click "Begin a
-  new archive".** v1 is single-creator - the first person through
-  onboarding becomes the creator and the rest see their data. Until
-  per-user signup lands, treat the URL as semi-private and share it
-  only with the recipient you intend.
+  new archive".** Each click mints an independent vault with its own
+  creator passphrase, so two creators on the same host don't see each
+  other's data. But there is no signup flow, no captcha, no rate limit
+  on archive creation - if you share the URL widely, anyone who finds
+  it can spin up an archive on your disk. Share the URL only with the
+  recipient(s) you intend, the same way you'd share a passphrase.
 
-If those tradeoffs aren't acceptable, the local install is the right
-answer. The cloud option exists for the specific case where a non-
-technical loved one needs to receive the archive without learning what
-Ollama is.
+If those tradeoffs aren't acceptable, the local install or the
+encrypted `.hloom` bundle handoff is the right answer. The cloud option
+exists for the specific case where a non-technical loved one needs to
+receive the archive without learning what Ollama is.
 
 ## Choosing a host
 

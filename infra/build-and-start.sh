@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Runs ON the VM after the source has been rsync'd into /opt/heirloom/app.
-# Builds the production bundle, applies migrations, starts the systemd unit.
+# Builds the production bundle, applies migrations, restarts the systemd
+# unit. Idempotent: safe to run on every deploy.
 
 set -euo pipefail
 
@@ -9,47 +10,50 @@ if [[ "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
+ENV_FILE="/opt/heirloom/.env"
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "$ENV_FILE missing - run infra/vm-setup.sh first." >&2
+  exit 1
+fi
+
 heading() { printf "\n\033[1;35m=== %s ===\033[0m\n" "$1"; }
 ok()      { printf "  \033[32mok\033[0m  %s\n" "$1"; }
 note()    { printf "  \033[90m..\033[0m  %s\n" "$1"; }
 
-# 1. Fix ownership of the rsync'd source --------------------------------
+# 1. Ownership + storage dirs -------------------------------------------
 heading "Ownership"
+mkdir -p /opt/heirloom/app/storage/blobs
 chown -R heirloom:heirloom /opt/heirloom/app
+chown -R heirloom:heirloom /opt/heirloom/app/storage
 ok "/opt/heirloom/app owned by heirloom"
 
 # 2. pnpm install + build -----------------------------------------------
-# We deliberately don't use --frozen-lockfile so a lockfile checked in
-# from a different pnpm version (eg the developer's mac on pnpm 8, vm
-# on pnpm 10) doesn't block the build. Production safety still comes
-# from the package.json semver pins.
-#
 # Next.js evaluates every route handler at build time (page-data
 # collection), so lib/db.ts gets imported and throws if DATABASE_URL
-# isn't set. We source /opt/heirloom/.env into the build environment.
+# isn't set. Source /opt/heirloom/.env into the build environment.
 heading "Build"
 cd /opt/heirloom/app
 sudo -u heirloom pnpm install --prefer-offline
 sudo -u heirloom --preserve-env=PATH bash -c \
-    'set -a; source /opt/heirloom/.env; set +a; pnpm build'
+    "set -a; source $ENV_FILE; set +a; pnpm build"
 ok "production build ready"
 
 # 3. Database migrations -------------------------------------------------
-# /opt/heirloom is owned by the heirloom user with restrictive perms,
-# so we pipe the SQL through stdin rather than letting the postgres
-# user try to open the file directly.
 heading "Migrations"
 if ! sudo -u postgres psql -d heirloom -tAc "SELECT 1 FROM pg_tables WHERE tablename='captures'" | grep -q 1; then
   note "Applying base SCHEMA.sql"
-  cat /opt/heirloom/app/design-system/handoff/SCHEMA.sql | sudo -u postgres psql -d heirloom >/dev/null
+  sudo -u postgres psql -d heirloom -v ON_ERROR_STOP=1 \
+      -f /opt/heirloom/app/design-system/handoff/SCHEMA.sql >/dev/null
   ok "base schema applied"
 fi
 for mig in /opt/heirloom/app/migrations/*.sql; do
   [[ -e "$mig" ]] || continue
   note "Applying $(basename "$mig")"
-  cat "$mig" | sudo -u postgres psql -d heirloom -v ON_ERROR_STOP=0 >/dev/null 2>&1 || true
+  if ! sudo -u postgres psql -d heirloom -v ON_ERROR_STOP=0 -f "$mig" >/tmp/heirloom-mig.log 2>&1; then
+    note "migration emitted warnings (see /tmp/heirloom-mig.log)"
+  fi
 done
-ok "migrations done"
+ok "migrations applied"
 
 # 4. heirloom/gemma4-grounded variant ------------------------------------
 if [[ -f /opt/heirloom/app/Modelfile ]]; then
@@ -59,14 +63,26 @@ if [[ -f /opt/heirloom/app/Modelfile ]]; then
   ok "heirloom/gemma4-grounded available"
 fi
 
-# 5. Start the Heirloom systemd unit ------------------------------------
+# 5. Restart the Heirloom systemd unit ----------------------------------
 heading "Starting heirloom.service"
 systemctl restart heirloom
-sleep 5
-systemctl --no-pager status heirloom | head -12
-ok "Heirloom up - Caddy now serves https traffic"
 
+# Wait for the app to actually respond on localhost:3000 before
+# declaring success. systemd "active" only means the process is alive,
+# not that Next.js finished initialising.
+note "Waiting for the app to bind to :3000"
+for i in $(seq 1 30); do
+  if curl -fsS -o /dev/null http://127.0.0.1:3000/api/health 2>/dev/null \
+      || curl -fsS -o /dev/null http://127.0.0.1:3000/portal 2>/dev/null; then
+    ok "app responding"
+    break
+  fi
+  sleep 2
+done
+
+systemctl --no-pager status heirloom | head -10
+
+PUBLIC_HOST=$(grep -E '^[a-z0-9.-]+\s*\{' /etc/caddy/Caddyfile | head -1 | awk '{print $1}')
 echo
 echo "Reachable at:"
-grep -oE '^[a-z0-9.-]+\.cloudapp\.azure\.com' /etc/caddy/Caddyfile | head -1 \
-    | xargs -I {} echo "  https://{}"
+echo "  https://$PUBLIC_HOST"

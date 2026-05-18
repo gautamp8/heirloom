@@ -32,9 +32,9 @@ The canonical path. `./install.sh` on the creator's Mac. Ollama, Postgres 16 + p
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 1b. Single-VM self-host
+### 1b. Self-hosted Ubuntu VM
 
-Same code, same architecture, on infrastructure the user owns. Ubuntu 22.04, `Standard_D8as_v5` or equivalent. The full runbook lives in [`docs/DEPLOY-AZURE-VM.md`](../../docs/DEPLOY-AZURE-VM.md). Bootstrap is `infra/vm-setup.sh` + `infra/build-and-start.sh`. Caddy terminates TLS, reverse-proxies to the Next.js app at `:3000`. CPU inference is slow (Reflection ~27 s to first token vs ~3 s on a GPU laptop); acceptable for a small audience, not acceptable for a public launch. v1 is **single-creator per VM**.
+Same code, same architecture, on infrastructure the user owns. Any Ubuntu 22.04 host with ~8 vCPU / 32 GB RAM works; the example runbook in [`docs/DEPLOY-AZURE-VM.md`](../../docs/DEPLOY-AZURE-VM.md) uses Azure but `infra/vm-setup.sh` is provider-agnostic. Bootstrap is `infra/vm-setup.sh` + `infra/build-and-start.sh`. Caddy terminates TLS, reverse-proxies to the Next.js app at `:3000`. CPU inference is slow (Reflection ~27 s to first token vs ~3 s on a GPU laptop); acceptable for a small audience, not acceptable for a public launch. Multiple creators can share one host - each *Begin a new archive* mints an independent vault with its own creator passphrase, RLS-scoped per session.
 
 ### 1c. macOS .dmg desktop bundle
 

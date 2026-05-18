@@ -210,7 +210,7 @@ The empty state is uniform and unannounced. There is no "your question was flagg
 
 ## §9  Account deletion safety
 
-Account deletion is **not yet built**. The self-hosted instance is single-creator; uninstalling Heirloom is account deletion. The vault export (`.hloom`) and import flow give the creator a way to take their archive elsewhere before tearing down the install.
+Account deletion is **not yet built**. On a self-hosted host, uninstalling Heirloom (or `DROP DATABASE heirloom; rm -rf /opt/heirloom/storage`) is account deletion. The vault export (`.hloom`) and import flow give the creator a way to take their archive elsewhere before tearing down the install.
 
 When in-app deletion lands, the design is **7-day soft delete** with a confirmation phrase. During the 7 days the account hides from sign-in, releases pause, nominees see "this archive is currently unavailable." After 7 days: blobs deleted, rows cascade-deleted.
 

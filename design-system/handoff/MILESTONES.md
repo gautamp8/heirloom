@@ -155,9 +155,9 @@ Output: `Heirloom.dmg` ~92 MB / `Heirloom.app` ~214 MB.
 
 ---
 
-## Phase 12 - Self-hosted single-VM deployment - **shipped**
+## Phase 12 - Self-hosted Ubuntu VM deployment - **shipped**
 
-`docs/DEPLOY-AZURE-VM.md` is the runbook. `infra/vm-setup.sh` + `infra/build-and-start.sh` bootstrap Ubuntu 22.04:
+`docs/DEPLOY-AZURE-VM.md` is the example runbook (provider-agnostic; Azure happens to be where ours runs). `infra/vm-setup.sh` + `infra/build-and-start.sh` bootstrap any Ubuntu 22.04 host:
 - Postgres 16 + pgvector
 - Ollama (CPU-only systemd unit; no GPU drivers)
 - whisper-cpp from source
@@ -168,7 +168,7 @@ Output: `Heirloom.dmg` ~92 MB / `Heirloom.app` ~214 MB.
 
 Tradeoff matrix on CPU vs GPU latencies is in the runbook (CPU is ~10-20× slower than M-series; acceptable for a small audience, not a public launch).
 
-v1 is **single-creator per VM**.
+Multiple creators can share one host. Each *Begin a new archive* mints an independent vault with its own creator passphrase; sessions are RLS-scoped via `app.user_id`.
 
 ---
 
@@ -178,7 +178,7 @@ v1 is **single-creator per VM**.
 - **Threads.** Tables + RLS policies exist; no UI surfaces them. The recent-captures feed alone is fine for v1.
 - **Preview-as-nominee.** Designed in APP.md; not built. The `/dev` page covers the developer's use case.
 - **Saved passages.** `saved_passages` table exists; no UI surfaces them.
-- **Multi-tenancy.** v1 is single-creator-per-instance; per-vault folder namespacing, real signup/signin, per-user RLS scopes - all deferred.
+- **Real signup / account recovery.** Multi-vault on one host works through per-creator passphrases, but there is no email-bound signup, no MFA, no "forgot your passphrase" flow. Lose the passphrase, lose the vault. Native mobile apps + cloud-key-escrow would change this.
 - **Background-sync queue for offline captures.** Drafts table is notes-only.
 - **Video capture UI.** Chip is rendered disabled; the rest of the stack handles `kind='video'`.
 - **Lighthouse CI / a11y CI.** Manual checks only.

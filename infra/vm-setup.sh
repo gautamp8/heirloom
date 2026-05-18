@@ -1,20 +1,18 @@
 #!/usr/bin/env bash
 # Heirloom - Ubuntu 22.04 CPU-only single-VM bootstrap.
 #
-# Runs ON the target VM as root (via cloud-init or `sudo bash`). Brings
-# up the full Heirloom stack: Node + pnpm, Ollama (CPU), whisper-cpp,
-# PostgreSQL 16 + pgvector, ffmpeg, Caddy with automatic TLS.
+# Runs ON the target VM as root (via cloud-init or `sudo bash`).
+# Idempotent: safe to re-run to pick up new defaults.
 #
-# The Heirloom app itself is rsync'd in separately from the deploy
-# script; this file leaves a placeholder systemd unit pointed at
-# /opt/heirloom/app that the deploy step will populate.
+# Required: PUBLIC_HOST=your.fqdn.example
+# Optional: DB_PASS, DB_ADMIN_PASS, JWT_SECRET, VAPID_PUBLIC_KEY,
+#           VAPID_PRIVATE_KEY, VAPID_SUBJECT (auto-generated if absent
+#           on first run; preserved across re-runs).
 
 set -euo pipefail
 
-PUBLIC_HOST="${PUBLIC_HOST:?must provide PUBLIC_HOST=heirloom-xxx.region.cloudapp.azure.com}"
-DB_PASS="${DB_PASS:-$(openssl rand -hex 16)}"
-DB_ADMIN_PASS="${DB_ADMIN_PASS:-$(openssl rand -hex 16)}"
-JWT_SECRET="${JWT_SECRET:-$(openssl rand -hex 32)}"
+PUBLIC_HOST="${PUBLIC_HOST:?must provide PUBLIC_HOST=your.fqdn.example}"
+ENV_FILE="/opt/heirloom/.env"
 
 heading() { printf "\n\033[1;35m=== %s ===\033[0m\n" "$1"; }
 ok()      { printf "  \033[32mok\033[0m  %s\n" "$1"; }
@@ -26,6 +24,33 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 export DEBIAN_FRONTEND=noninteractive
+
+# Helper: load an existing key from the env file, or generate one and
+# print it. Lets us preserve secrets across re-runs.
+read_or_generate() {
+  local key="$1"
+  local generator="$2"
+  if [[ -f "$ENV_FILE" ]] && grep -qE "^${key}=" "$ENV_FILE"; then
+    grep -E "^${key}=" "$ENV_FILE" | head -1 | cut -d= -f2-
+  else
+    eval "$generator"
+  fi
+}
+
+DB_PASS="${DB_PASS:-$(read_or_generate DATABASE_URL 'openssl rand -hex 16')}"
+DB_ADMIN_PASS="${DB_ADMIN_PASS:-$(read_or_generate DATABASE_ADMIN_URL 'openssl rand -hex 16')}"
+JWT_SECRET="${JWT_SECRET:-$(read_or_generate JWT_SECRET 'openssl rand -hex 32')}"
+
+# DATABASE_URL / DATABASE_ADMIN_URL embed the password; pull just the
+# password out if we're preserving them.
+if [[ -f "$ENV_FILE" ]]; then
+  EXISTING_DB_PASS=$(grep -E '^DATABASE_URL=' "$ENV_FILE" 2>/dev/null \
+      | sed -E 's|.*://[^:]+:([^@]+)@.*|\1|' || true)
+  EXISTING_ADMIN_PASS=$(grep -E '^DATABASE_ADMIN_URL=' "$ENV_FILE" 2>/dev/null \
+      | sed -E 's|.*://[^:]+:([^@]+)@.*|\1|' || true)
+  [[ -n "${EXISTING_DB_PASS:-}" ]] && DB_PASS="$EXISTING_DB_PASS"
+  [[ -n "${EXISTING_ADMIN_PASS:-}" ]] && DB_ADMIN_PASS="$EXISTING_ADMIN_PASS"
+fi
 
 # 1. Base packages -------------------------------------------------------
 heading "Base packages"
@@ -44,7 +69,8 @@ apt-get install -y --no-install-recommends \
     debian-keyring \
     debian-archive-keyring \
     apt-transport-https \
-    cmake
+    cmake \
+    rsync
 ok "base packages installed"
 
 # 2. Node 22 + pnpm -------------------------------------------------------
@@ -76,9 +102,6 @@ systemctl enable --now postgresql
 sleep 2
 ok "postgres $(psql --version | head -1)"
 
-# Initialise the database + app role idempotently.
-# CREATE DATABASE can't run inside a DO block, so we use psql's \gexec
-# and a separate DO for the role.
 sudo -u postgres psql -v ON_ERROR_STOP=1 <<SQL
 SELECT 'CREATE DATABASE heirloom'
  WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'heirloom')\gexec
@@ -94,8 +117,6 @@ BEGIN
     END IF;
 END
 \$\$;
--- Set a password on the postgres superuser too - sqlAdmin connects
--- over TCP from the Heirloom node process and needs password auth.
 ALTER USER postgres WITH PASSWORD '$DB_ADMIN_PASS';
 SQL
 sudo -u postgres psql -d heirloom <<'SQL'
@@ -114,7 +135,6 @@ heading "Ollama (CPU)"
 if ! command -v ollama >/dev/null 2>&1; then
   curl -fsSL https://ollama.com/install.sh | sh
 fi
-# Override the unit to run on localhost with sane CPU defaults
 cat > /etc/systemd/system/ollama.service <<'EOF'
 [Unit]
 Description=Ollama serving Heirloom (CPU)
@@ -141,9 +161,6 @@ systemctl enable --now ollama
 sleep 5
 ok "ollama serving on 127.0.0.1:11434"
 
-# Warm-up unit - fires a tiny inference + embed after Ollama starts so
-# the first real user request doesn't pay the cold-load tax. Keeps both
-# models resident for the OLLAMA_KEEP_ALIVE window.
 cat > /etc/systemd/system/ollama-warmup.service <<'WARMUP'
 [Unit]
 Description=Pre-warm Gemma 4 + EmbeddingGemma after Ollama starts
@@ -166,10 +183,14 @@ systemctl daemon-reload
 systemctl enable --now ollama-warmup
 ok "ollama-warmup unit registered"
 
-note "Pulling gemma4:e4b (9.6 GB) - this takes ~5 minutes"
-sudo -u ollama ollama pull gemma4:e4b
-note "Pulling embeddinggemma (621 MB)"
-sudo -u ollama ollama pull embeddinggemma
+if ! sudo -u ollama ollama list 2>/dev/null | grep -q '^gemma4:e4b'; then
+  note "Pulling gemma4:e4b (9.6 GB) - takes ~5 minutes"
+  sudo -u ollama ollama pull gemma4:e4b
+fi
+if ! sudo -u ollama ollama list 2>/dev/null | grep -q '^embeddinggemma'; then
+  note "Pulling embeddinggemma (621 MB)"
+  sudo -u ollama ollama pull embeddinggemma
+fi
 ok "models in place"
 
 # 5. whisper-cpp ----------------------------------------------------------
@@ -196,22 +217,49 @@ mkdir -p /opt/heirloom/app /opt/heirloom/app/storage/blobs
 chown -R heirloom:heirloom /opt/heirloom
 ok "user 'heirloom' + /opt/heirloom/app ready"
 
-# 7. Environment file (consumed by the systemd unit) ---------------------
+# 7. VAPID keys for Web Push ---------------------------------------------
+heading "Web Push (VAPID) keys"
+VAPID_PUBLIC_KEY="${VAPID_PUBLIC_KEY:-}"
+VAPID_PRIVATE_KEY="${VAPID_PRIVATE_KEY:-}"
+VAPID_SUBJECT="${VAPID_SUBJECT:-mailto:admin@$PUBLIC_HOST}"
+if [[ -f "$ENV_FILE" ]]; then
+  EXISTING_VPUB=$(grep -E '^VAPID_PUBLIC_KEY=' "$ENV_FILE" | cut -d= -f2- || true)
+  EXISTING_VPRIV=$(grep -E '^VAPID_PRIVATE_KEY=' "$ENV_FILE" | cut -d= -f2- || true)
+  [[ -n "${EXISTING_VPUB:-}" ]] && VAPID_PUBLIC_KEY="$EXISTING_VPUB"
+  [[ -n "${EXISTING_VPRIV:-}" ]] && VAPID_PRIVATE_KEY="$EXISTING_VPRIV"
+fi
+if [[ -z "$VAPID_PUBLIC_KEY" || -z "$VAPID_PRIVATE_KEY" ]]; then
+  note "Generating VAPID keypair via npx web-push"
+  VAPID_JSON=$(npx -y web-push generate-vapid-keys --json 2>/dev/null)
+  VAPID_PUBLIC_KEY=$(echo "$VAPID_JSON" | grep -oE '"publicKey"\s*:\s*"[^"]+"' | sed -E 's/.*"([^"]+)"$/\1/')
+  VAPID_PRIVATE_KEY=$(echo "$VAPID_JSON" | grep -oE '"privateKey"\s*:\s*"[^"]+"' | sed -E 's/.*"([^"]+)"$/\1/')
+fi
+ok "VAPID keys present"
+
+# 8. Environment file ----------------------------------------------------
 heading "Environment"
-cat > /opt/heirloom/.env <<EOF
+umask 077
+cat > "$ENV_FILE" <<EOF
 NODE_ENV=production
 PORT=3000
 DATABASE_URL=postgres://heirloom_app:$DB_PASS@127.0.0.1:5432/heirloom
 DATABASE_ADMIN_URL=postgres://postgres:$DB_ADMIN_PASS@127.0.0.1:5432/heirloom
 OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_SYNTHESIS_MODEL=heirloom/gemma4-grounded
+OLLAMA_EMBEDDING_MODEL=embeddinggemma
 JWT_SECRET=$JWT_SECRET
 NEXT_PUBLIC_BASE_URL=https://$PUBLIC_HOST
+HEIRLOOM_ALLOW_DEV_FIXTURES=0
+VAPID_PUBLIC_KEY=$VAPID_PUBLIC_KEY
+VAPID_PRIVATE_KEY=$VAPID_PRIVATE_KEY
+VAPID_SUBJECT=$VAPID_SUBJECT
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=$VAPID_PUBLIC_KEY
 EOF
-chown heirloom:heirloom /opt/heirloom/.env
-chmod 600 /opt/heirloom/.env
-ok "/opt/heirloom/.env written"
+chown heirloom:heirloom "$ENV_FILE"
+chmod 600 "$ENV_FILE"
+ok "$ENV_FILE written"
 
-# 8. systemd unit for the Next.js app ------------------------------------
+# 9. systemd unit for the Next.js app ------------------------------------
 heading "Heirloom systemd unit"
 cat > /etc/systemd/system/heirloom.service <<'EOF'
 [Unit]
@@ -234,10 +282,10 @@ LimitNOFILE=65536
 WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
-# Don't start yet - the deploy step still needs to rsync the code + build
-ok "heirloom.service registered (not started)"
+systemctl enable heirloom.service
+ok "heirloom.service registered + enabled (start via build-and-start.sh)"
 
-# 9. Caddy reverse proxy + TLS -------------------------------------------
+# 10. Caddy reverse proxy + TLS ------------------------------------------
 heading "Caddy + TLS"
 if ! command -v caddy >/dev/null 2>&1; then
   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
@@ -254,7 +302,7 @@ $PUBLIC_HOST {
     }
     encode gzip zstd
     request_body {
-        max_size 60MB
+        max_size 200MB
     }
     log {
         output file /var/log/caddy/heirloom.log {
@@ -268,9 +316,9 @@ systemctl enable caddy
 systemctl reload caddy 2>/dev/null || systemctl restart caddy
 ok "Caddy proxy at https://$PUBLIC_HOST -> :3000"
 
-# 10. Done ----------------------------------------------------------------
+# 11. Done ----------------------------------------------------------------
 heading "Setup phase complete"
 echo
 echo "Next step (run from your laptop):"
-echo "  rsync the Heirloom source to /opt/heirloom/app, then"
-echo "  ssh in and run /opt/heirloom/build-and-start.sh"
+echo "  rsync the source to /opt/heirloom/app, then"
+echo "  ssh in and run: sudo bash /opt/heirloom/app/infra/build-and-start.sh"
