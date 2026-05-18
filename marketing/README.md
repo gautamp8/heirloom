@@ -1,6 +1,6 @@
 # Heirloom marketing
 
-The `heirloom.vercel.app` landing site. Standalone Next.js app, deployed to
+The `withheirloom.app` landing site. Standalone Next.js app, deployed to
 Vercel from this subdirectory so the product app's runtime dependencies
 (Postgres, Ollama, whisper-cpp, face-api.js) stay out of the bundle.
 
@@ -34,7 +34,7 @@ Environment variables (all optional — sensible defaults exist):
 |---|---|---|
 | `NEXT_PUBLIC_AZURE_URL` | `https://heirloom-1ab066.eastus2.cloudapp.azure.com` | Where the *Try the archive* button points |
 | `NEXT_PUBLIC_GITHUB_URL` | `https://github.com/gautamp8/heirloom` | The source-code link |
-| `NEXT_PUBLIC_SITE_URL` | `https://heirloom.vercel.app` | Canonical + OG metadata |
+| `NEXT_PUBLIC_SITE_URL` | `https://withheirloom.app` | Canonical + OG metadata |
 
 ## Routes
 
