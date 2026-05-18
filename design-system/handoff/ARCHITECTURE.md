@@ -2,6 +2,10 @@
 
 System architecture for Heirloom as it ships.
 
+![Heirloom system architecture diagram](../../docs/architecture.png)
+
+The diagram above is the single-page reference. The sections below walk each band in detail.
+
 ---
 
 ## 1. Deployment shapes

@@ -411,31 +411,7 @@ own machine. The data never touches a third party decrypted.
 
 ## Architecture
 
-```
-        ┌──────────────────────────┐
-        │  Creator / nominee PWA   │
-        │  Next.js 16, RSC,        │
-        │  face-api.js (client)    │
-        └────────────┬─────────────┘
-                     │
-        ┌────────────▼─────────────┐
-        │ Next.js API routes       │
-        │  - /api/capture          │
-        │  - /api/reflect (SSE)    │
-        │  - /api/nominee/mood     │
-        │  - /api/vault/export     │
-        │  - /api/transparency     │
-        └─┬──────────┬──────────┬──┘
-          │          │          │
-   ┌──────▼──┐ ┌─────▼────┐ ┌───▼────────┐
-   │ Ollama  │ │ whisper- │ │ Postgres   │
-   │  :11434 │ │ cli      │ │  + pgvector│
-   │         │ │          │ │            │
-   │ gemma4  │ │ small.en │ │ HNSW       │
-   │ embed-  │ │          │ │ RLS gates  │
-   │ gemma   │ │          │ │            │
-   └─────────┘ └──────────┘ └────────────┘
-```
+<img src="docs/architecture.png" width="100%" alt="Heirloom system architecture — three vertical bands: the PWA / macOS client on the left with face-api.js running on-device, Next.js 16 route handlers in the middle with the /api/reflect endpoint marked in wax red, and the sidecars on the right (Ollama serving gemma4:e4b and embeddinggemma, whisper-cpp, an opt-in LuxTTS / ZipVoice sidecar, Postgres + pgvector or SQLite + sqlite-vec). A footer strip carries the five-step grounding contract and the verbatim refusal sentence.">
 
 The full handoff package - schema, API contracts, prompt set,
 guardrails, screen flows - lives in

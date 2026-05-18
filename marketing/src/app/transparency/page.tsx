@@ -157,6 +157,33 @@ export default function TransparencyPage() {
         </div>
       </section>
 
+      {/* Architecture diagram */}
+      <section className="py-16 md:py-24">
+        <div className="mx-auto max-w-[1180px] px-5">
+          <div className="text-center mb-10 max-w-[640px] mx-auto">
+            <p className="p-meta">The whole system, on one page</p>
+            <h2 className="h-display mt-2">
+              What runs, where, and why.
+            </h2>
+          </div>
+          <div
+            style={{
+              borderRadius: 16,
+              overflow: "hidden",
+              border: "1px solid var(--color-rule-soft)",
+              boxShadow: "var(--shadow-paper-2)",
+              background: "var(--color-paper)",
+            }}
+          >
+            <img
+              src="/architecture.png"
+              alt="Heirloom system architecture: client surfaces on the left, Next.js route handlers in the middle with the /api/reflect endpoint in wax red, sidecars on the right (Ollama with gemma4:e4b and embeddinggemma, whisper-cpp, opt-in LuxTTS, Postgres with pgvector and a SQLite + sqlite-vec mirror), and the five-step grounding contract along the bottom."
+              style={{ width: "100%", display: "block" }}
+            />
+          </div>
+        </div>
+      </section>
+
       {/* What the model does not see */}
       <section
         style={{ borderTop: "1px solid var(--color-rule-soft)" }}
