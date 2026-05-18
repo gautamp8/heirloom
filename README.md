@@ -1,253 +1,305 @@
+<div align="center">
+  <img src="public/seal-2x.png" width="120" alt="Heirloom wax seal">
+
 # Heirloom
 
-> Preserve presence across generations.
+*Preserve presence across generations.*
 
-Heirloom is a private, local-first memory archive. A creator (Elena) records
-stories, photographs, voice memories, and sealed letters across her life.
-A nominee (Maya) receives the archive at the right moment - sometimes a date,
-sometimes a state of mind - and asks it grounded questions for the rest of
-hers. The model never speaks AS Elena; it cites what she actually said.
+</div>
 
-Everything runs on the creator's machine: Gemma 4 e4b via Ollama for
-synthesis and vision, EmbeddingGemma for retrieval, Whisper for audio,
-Postgres + pgvector for the index, face-api.js in the browser for face
-clustering. No telemetry. No cloud.
+---
 
-## What's in here
+Heirloom holds what someone wanted to leave behind. Voice, photographs,
+letters, the things a person actually said, kept in a private archive
+that the people they love can come back to in their own time.
 
-A laundry list, plainly stated. Every one of these works offline, on a
-laptop, with no external API.
+It is not a chatbot. It is not a resurrection. The system never speaks
+*as* anyone. It points back to what was actually said, in the voice
+that actually said it, and stays quiet when it has nothing real to
+point to. Everything runs on the creator's own machine. Nothing leaves
+it.
+
+## Contents
+
+- [What this is, and what it isn't](#what-this-is-and-what-it-isnt)
+- [A walk through the archive](#a-walk-through-the-archive)
+- [Features](#features)
+- [The grounding contract](#the-grounding-contract)
+- [Run it locally](#run-it-locally)
+- [Architecture](#architecture)
+- [Ethics + design](#ethics--design-choices)
+- [License](#license)
+
+---
+
+## What this is, and what it isn't
+
+Heirloom is a memory archive for people who want to leave something
+specific behind for someone specific. A grandparent recording stories
+for a grandchild they may not get to meet. A parent writing letters
+for moments that haven't arrived yet. A partner setting aside the
+quiet sentences they wish they'd said out loud more often.
+
+The creator makes the archive while they are alive and well. They
+decide what goes in and who it is for. The recipient - a *nominee*
+- receives access on the creator's terms, at the moment the creator
+chose, in the rooms of their own house, on hardware they own.
+
+### What this is not
+
+- **Not a chatbot pretending to be a person.** The synthesis model
+  is never given license to speak as the creator. Every answer is
+  grounded in something the creator actually wrote, said, or
+  photographed; uncited claims and first-person impersonation fail
+  closed to a verbatim *"I don't have that in the archive"* response.
+- **Not a digital resurrection.** Voice cloning is opt-in, recorded
+  by a living creator, and only ever speaks text the creator already
+  wrote. There is no free-form "speak this for me" affordance.
+- **Not a grief loop.** No streaks, no engagement notifications, no
+  *"Sam, you haven't visited in 14 days."* The archive is available;
+  it never asks. People should come back when they want to, not
+  because an app pulled them in.
+- **Not stored in a cloud.** No telemetry, no managed inference, no
+  third-party model providers. The canonical install is on the
+  creator's own laptop or a Mac mini the family owns. The optional
+  cloud deployment is a single VM the creator controls.
+
+The fuller treatment of these choices, and what we refused to build
+along the way, lives in [`docs/ETHICS-AND-DESIGN.md`](./docs/ETHICS-AND-DESIGN.md).
+
+---
+
+## A walk through the archive
+
+### Begin or come back
+
+<img src="docs/screenshots/01-portal.png" width="100%" alt="Portal page with three doors: Begin a new archive, I have a passphrase, Import an existing archive">
+
+Three doors. Begin a new archive mints a fresh creator and shows a
+four-word passphrase, written down once. *I have a passphrase*
+re-opens an archive on the same device after signing out. *Import an
+existing archive* takes a `.hloom` bundle handed off from someone
+else and unlocks it locally.
+
+### The creator's home
+
+<img src="docs/screenshots/02-creator-home.png" width="100%" alt="Creator home showing greeting, daily prompt, capture chips, and a recent feed of saved notes">
+
+A daily prompt generated against the creator's identity index, four
+capture surfaces (voice, note, photo, video), a single line to ask
+the archive a question, and a recent feed. No streaks. No counts that
+shame. No nudges.
 
 ### Capture
 
-- **Notes** with auto-generated titles. Gemma 4 reads the body once it
-  is saved and proposes a calm headline; the creator can override it.
-- **Voice notes** transcribed by `whisper-cpp small.en`, segment-aligned,
-  chunked, and embedded into pgvector for retrieval.
-- **Photos** captioned by Gemma 4 vision. Captions are written in the
-  archival third person and name the people in the frame (see *Identity
-  awareness* below).
-- **Pipeline-stage feedback.** Capture sheets stream
-  `embedding → tagging → titling → ready` events over SSE so the user
-  sees what the model is doing without waiting on a spinner.
-- **Tag clustering.** Each capture is tagged across four facets - emotion,
-  topic, person, place - which drives the "Themes" cards on the home.
-- **Drafts persist locally.** If the network drops or the page refreshes
-  mid-capture, IndexedDB holds the blob until the next save attempt.
+A note is a paragraph. A voice memo is a take, transcribed by
+Whisper, chunked and embedded for retrieval, original audio
+preserved for playback. A photo is captioned by Gemma 4 vision in
+the archival third person; if a face matches someone the creator
+has named, the caption uses that name.
+
+### Reflect
+
+<img src="docs/screenshots/03-reflect-citation.png" width="100%" alt="Reflect view: a synthesized answer above a citation chip; tapping the chip slides up a source drawer with the original capture text and a Hear in their voice button">
+
+A question is embedded, matched against the vault's vector index,
+and the language model is only allowed to speak when retrieval has
+found something to point at. Every answer carries citation chips
+that open the source verbatim - and, where the source was a voice
+recording, play it back in the creator's actual voice.
+
+### The nominee's home
+
+<img src="docs/screenshots/04-nominee-home.png" width="100%" alt="Nominee home showing a daily memory hero with photograph, mood chips, and a Reflect prompt">
+
+A different surface. No capture composer, no settings the creator
+chose to keep private. A daily memory hero pulled from what's been
+released, a row of mood chips that can quietly unlock sealed
+letters, and the same grounded Reflect.
+
+### Settings
+
+<img src="docs/screenshots/05-settings.png" width="100%" alt="Creator settings showing nominees list, voice profile, vault export, and session controls">
+
+Editable for the creator: name, anchor dates, nominees, voice
+profile, your own reference photo, the archive key, notifications,
+encrypted vault export and import. Nominees see a smaller version
+with notifications and sign-out only.
+
+### Transparency
+
+<img src="docs/screenshots/06-transparency.png" width="100%" alt="Transparency page showing the grounding contract and a log of past Reflection queries with their decisions">
+
+Every Reflection - answered or refused - is logged with its
+diagnostics: the chunks retrieved, the similarity scores, the
+reason the model spoke or didn't. The grounding gate is something
+you can verify, not just believe.
+
+---
+
+## Features
+
+Every one of these works offline, on a laptop, with no external API.
+
+### Capture
+
+- **Notes** with auto-generated titles. Gemma 4 reads the body once
+  saved and proposes a calm headline; the creator can override.
+- **Voice memos** transcribed by `whisper-cpp small.en`,
+  segment-aligned, chunked, embedded into pgvector for retrieval.
+- **Photos** captioned by Gemma 4 vision in the archival third
+  person. Identity-aware: a known face in the frame is named.
+- **Drafts persist locally.** If the network drops mid-capture,
+  IndexedDB holds the blob until the next save attempt.
 
 ### Identity awareness
 
-- **Face detection runs in the browser** via `face-api.js`. 128-d
-  descriptors never leave the device unencrypted.
-- **Self-person + nominee photos** can be set at onboarding or later
-  from Settings → Your photo / Settings → Nominees. Photo can come from
-  the camera or the photo library.
-- **Identity-aware captions.** When face recognition matches a known
-  person in a new photo, the vision prompt is rewritten so the caption
-  starts with their name ("Anisha holding a cup of coffee" instead of
-  "a young woman in a dark top").
+- **Face detection runs in the browser** via `face-api.js`. The
+  128-dimension descriptors never leave the device unencrypted.
+- **Self-person + nominee photos** can be set at onboarding or
+  later from Settings. Photo from the camera or the library.
 - **Strict match threshold.** Cosine similarity must clear `0.90`
-  before a face is linked to a known person. Look-alikes in the same
-  demographic typically land at 0.5–0.7 and stay unlabeled. If a
-  threshold change retroactively drops a link, the matching photo's
-  caption is re-rendered without the wrong name.
+  before a face is linked to a known person. Look-alikes typically
+  land at 0.5 to 0.7 and stay unlabeled.
+- **Self-healing captions.** When a threshold change retroactively
+  drops a face link, the photo's caption is re-rendered without
+  the wrong name.
 
 ### Voice
 
-- **Voice cloning, offline.** LuxTTS (a ZipVoice flow-matching model)
-  runs as a local FastAPI sidecar on `127.0.0.1:11435`. The creator
-  records ~15 seconds of natural speech once; text-only captures can
-  be played back in their cloned voice on demand.
-- **Original-recording playback.** For voice notes, the player streams
-  the creator's actual recording rather than synthesizing a clone of
-  their own audio. The cloned voice is reserved for notes, photo
-  captions, and other text-only sources where no original recording
-  exists.
-- **Verbatim contract.** When TTS does speak, it only speaks text that
-  exists in the archive: a capture body, a transcript line, the
-  verbatim snippet behind a Reflection citation. There is no free-text
-  "speak this" affordance.
+- **Voice cloning, offline.** LuxTTS (a ZipVoice flow-matching
+  model) runs as a local FastAPI sidecar on `127.0.0.1:11435`. The
+  creator records ~15 seconds of natural speech once.
+- **Original-recording playback.** For voice memos, the player
+  streams the creator's actual recording. The cloned voice is
+  reserved for text-only sources where no original exists.
+- **Verbatim contract.** TTS only speaks text that exists in the
+  archive: a capture body, a transcript line, the snippet behind a
+  Reflection citation. There is no free-text *speak this* surface.
 - **Stable timbre.** The flow-matching seed is fixed per voice, not
-  per utterance. Every sentence starts from the same noise vector so
-  the same voice sounds the same across notes, citations, and lines
-  of varying length. Synthesised lines are cached on disk keyed by
+  per utterance. Synthesised lines are cached on disk keyed by
   `(voice_id, text)`.
-- **Calm prosody.** A small punctuation sanitiser softens dramatic
-  emphasis (`!` to `.`, ellipses normalised, ALL-CAPS softened) before
-  the model sees the text.
-- **Adaptive prompt window.** Encoded prompts use up to 15 seconds of
-  the reference (LuxTTS's recommended ceiling); recordings shorter
-  than 10 seconds are rejected so users don't end up with a
-  degenerate clone.
 
 ### Grounded reflection
 
-- **Whole-capture indexing.** Every textual field on a capture (title,
-  body, photo caption, audio transcript) is concatenated, sentence
-  chunked, embedded, and written to the vector index. A note titled
-  "Wedding planning" is retrievable by its title even when the body
-  doesn't repeat the word.
-- **Self-healing index.** Reflect calls a one-shot backfill before
-  retrieval. If a capture is `ready` but its chunks are missing or
-  pre-date a field that should now be indexed, it re-embeds before
-  searching. Idempotent and a no-op on a healthy vault.
-- **Retrieval before model.** Every question is embedded
-  (`EmbeddingGemma`, 768-d) and matched against the archive's pgvector
-  HNSW index. If the top chunk falls below cosine `0.40`, the empty
-  state is served verbatim and the language model is never invoked.
-- **Citation validator.** Every claim in a streamed answer is checked
-  against the retrieved set. A claim citing a chunk outside that set
-  rejects the entire answer.
-- **First-person scrubber.** Any answer using "I" or "my" outside
-  quoted text rejects the entire answer.
-- **Photo answers.** When a citation points at a photo capture, the
-  reflect UI renders a thumbnail grid and shows the full image inside
-  the citation drawer instead of a text-only pill chip.
-- **Transparency log.** Every Reflection's diagnostics - retrieved
-  chunks, similarities, rejection reason - are persisted and viewable
-  at `/transparency`.
+- **Whole-capture indexing.** Title, body, photo caption, audio
+  transcript - every textual field is concatenated, sentence
+  chunked, embedded.
+- **Hybrid grounding gate.** A question grounds if its top retrieval
+  similarity clears the cosine floor *or* a substantive token of
+  the question appears in any retrieved chunk. Empty state
+  otherwise, model never invoked.
+- **Citation validator.** Every claim in a streamed answer is
+  checked against the retrieved set. A claim citing a chunk outside
+  that set rejects the entire answer.
+- **First-person scrubber.** Any answer using *"I"* or *"my"*
+  outside quoted text rejects the entire answer.
+- **Photo answers.** Citations on photo captures render the
+  thumbnail and open the full image in a source drawer.
+- **Transparency log.** Every Reflection's diagnostics -
+  retrieved chunks, similarities, rejection reason - are
+  persisted at `/transparency`.
 
-### Sealed letters and conditional unlock
+### Sealed letters with conditional unlock
 
-- **Letters that wait.** A creator can write a letter "for when Maya
-  feels lost" or "for the morning after her wedding". Each letter
-  embeds an intent vector + a structured condition.
-- **Five trigger kinds:** absolute date, life event (anniversary,
-  birthday, etc.), mood ("scared", "proud", typed into the home),
-  semantic match against a Reflection question, and first-visit.
-- **Daily cron.** A schedule worker fires on the host's cron at 09:00
-  local; date- and life-event triggered letters release that morning.
-- **Soft inserts.** Releases happen through `nominee_releases` rows so
-  the existing RLS policies surface the underlying capture naturally,
-  with no separate "is this letter unlocked" check downstream.
+A creator writes a letter "for when Sam feels lost" or "for the
+morning after Sam's wedding." The letter's intent prompt is embedded
+and the body waits for one of five triggers:
 
-### Daily prompts
+| Trigger | Mechanism |
+|---|---|
+| `date` | Daily cron checks `today >= conditions.date` |
+| `life_event` | Anniversary, birthday, milestone reached |
+| `state` | Nominee taps a mood chip on their home |
+| `semantic_match` | Nominee's Reflection question matches the letter intent |
+| `first_visit` | First nominee home load after the letter was sealed |
 
-- **Living prompts.** Each app open shows a fresh writing prompt
-  generated against the creator's identity index (their name, life
-  anchors, nominees). The prompts are calm and specific:
-  *"A moment when you felt small but watched, and chose to act anyway."*
-- **Identity index.** A hidden `is_profile=true` capture stores the
-  creator's structured biography (name, nominees, sealed letters in
-  flight) and is included in retrieval so prompts and answers always
-  have continuity.
-
-### Notifications
-
-- **Web Push.** VAPID-signed push subscriptions work on iOS Safari
-  PWAs (after Add-to-Home-Screen). Nominees can opt in from Settings,
-  test delivery in a click, and the server self-heals stale
-  subscriptions on the next test.
-- **Anniversary nudges.** The daily cron also queues push deliveries
-  when a date-triggered release fires, so a nominee learns "there is
-  a letter for today" the moment it unlocks.
-- **Manual trigger.** `POST /api/dev/send-memory` fires a release to
-  a given nominee on demand, useful for verifying notification setup.
-
-### Nominee surface
-
-- **A different home.** A nominee never sees the capture composer.
-  Their home is a daily memory hero, a recent timeline, themed
-  albums, and a Reflect search box.
-- **Daily memory hero.** When a release fires today, the full body
-  renders inline with the photo (if any) and a "Hear it in their
-  voice" button. Tapping the photo opens a fullscreen lightbox.
-- **Released-only retrieval.** All Reflection queries from the
-  nominee surface are RLS-gated to released captures; nothing the
-  creator drafted but never released is reachable, even by prompt
-  injection.
+Each trigger inserts a `nominee_releases` row, so the existing
+row-level security policies surface the capture naturally - no
+separate *is this letter unlocked* check downstream.
 
 ### Encrypted vault export
 
-- **One file, self-contained.** A creator can export the entire
-  archive - captures, transcripts, embeddings, people, face links,
-  voice profile (with reference audio), nominees, sealed letters,
-  release schedule, life events - as a single passphrase-encrypted
-  `.hloom` file. Embeddings round-trip through a backend-agnostic
-  `number[]` form so Postgres bundles import cleanly into SQLite and
-  vice versa.
-- **argon2id + ChaCha20-Poly1305.** Key derivation tuned to
-  m=64 MiB, t=3, p=4. The bundle is self-describing (magic header
-  `HLOOM`, version 2, KDF params, nonce, ciphertext, tag). v1
-  bundles still decrypt for forward compatibility.
-- **Import is symmetric.** The recipient runs Heirloom on their own
-  device. The entry portal exposes "Import an existing archive"
-  directly - choose the `.hloom`, enter its passphrase, and a fresh
-  creator is minted with a new local key. From that moment the archive
-  lives on their own hardware. No server ever sees the data decrypted.
+- **One file, self-contained.** A `.hloom` bundle carries captures,
+  transcripts, embeddings, people, face links, voice profile (with
+  reference audio), nominees, sealed letters, release schedule,
+  life events. Embeddings round-trip across Postgres + pgvector
+  and SQLite + sqlite-vec without re-encoding.
+- **argon2id + ChaCha20-Poly1305.** KDF tuned m=64 MiB, t=3, p=4.
+  Bundle is self-describing: magic header `HLOOM`, version, KDF
+  params, nonce, ciphertext, AEAD tag.
+- **Import is symmetric.** Hand the file to someone running their
+  own Heirloom; the portal's *Import* door mints a fresh creator
+  with a new local key and the bundle's content pre-loaded. No
+  server ever sees the data decrypted.
+
+### Notifications
+
+- **Web Push.** VAPID-signed subscriptions work on iOS Safari PWAs
+  after Add-to-Home-Screen.
+- **Anniversary nudges only.** Notifications fire when a release
+  unlocks, not on a schedule designed to pull the user back.
+  Payload carries only a title - never the content of a memory.
+- **Opt-in from Settings.** Default off. Server prunes stale
+  subscriptions automatically on the next send.
+
+### Nominee surface
+
+- **A different home.** No capture composer, no creator-only
+  settings. Daily memory hero, recent timeline, themed albums,
+  Reflect.
+- **Released-only retrieval.** Reflection queries are RLS-gated to
+  released captures; nothing the creator drafted but never released
+  is reachable, even by prompt injection.
 
 ### Privacy posture
 
-- **Local-first by default.** The canonical install is `./install.sh`
-  on the creator's own Mac.
-- **No telemetry.** The only outbound HTTPS the running app makes is
-  Caddy → Let's Encrypt for cert renewal (self-host only) and Ollama
-  → ollama.com on the first model pull. Everything else stays on the
-  box.
-- **No managed inference.** The product is Gemma 4 + LuxTTS + Whisper
-  running locally. There is no fallback to OpenAI, Together, Replicate,
-  or any third-party model host. Ever.
-- **Row-level security at the DB.** Every API request opens a Postgres
-  transaction with `app.user_id` and `app.role` set, and every table
-  has policies that scope reads/writes per role.
+- **Local-first by default.** Canonical install is `./install.sh`
+  on the creator's own Mac, or the signed `.app` bundle.
+- **No telemetry.** The only outbound HTTPS the running app makes
+  is Ollama → ollama.com on the first model pull, and Caddy → Let's
+  Encrypt for cert renewal if you self-host. Everything else stays
+  on the box.
+- **No managed inference.** The product is Gemma 4 + LuxTTS +
+  Whisper running locally. There is no fallback to OpenAI,
+  Together, Replicate, or any third-party model host. Ever.
+- **Row-level security at the DB.** Every API request opens a
+  Postgres transaction with `app.user_id` and `app.role` set, and
+  every table has policies that scope reads and writes per role.
 
-### Operations
+---
 
-- **PWA.** Installable from iOS Safari and Android Chrome; manifest +
-  apple-touch-icon + optional service worker in production.
-- **Standalone Next build.** `pnpm build` outputs `.next/standalone`,
-  pin `HEIRLOOM_BLOB_DIR` to keep uploaded media outside the build
-  output, run with `node .next/standalone/server.js`.
-- **Dev console.** `/dev` is a role-switcher console for testing the
-  nominee + executor surfaces side-by-side without re-onboarding.
-- **Vault reset.** `POST /api/dev/reset` wipes captures, embeddings,
-  releases, and people while preserving the creator's identity row.
+## The grounding contract
 
-## Try it locally
+This is the part the careful reader will read carefully.
 
-One-command install on macOS (Apple Silicon recommended, 48 GB unified
-memory ideal):
+1. **Retrieval before model.** Every question is embedded
+   (`embeddinggemma`, 768-dim) and matched against the archive's
+   vector index. The model is not invoked until retrieval has
+   produced chunks above the grounding floor.
+2. **Hybrid floor.** Grounded if `cosine ≥ 0.30` *or* any retrieved
+   chunk literally contains a substantive token of the question.
+   Both are necessary for recall; either alone misses too much.
+3. **Citation validator.** Every claim in a streamed answer is
+   checked against the retrieved set. A claim citing a chunk
+   outside that set fails the whole answer.
+4. **First-person scrubber.** Any answer using *I* or *my* outside
+   quoted material fails the whole answer.
+5. **Verbatim empty state.** Failures collapse to: *"I don't have
+   that in the archive. Try asking another way?"*
 
-```bash
-curl -fsSL https://heirloom.app/install.sh | bash
-```
+Every Reflection's diagnostics are persisted and visible at
+`/transparency`. Nothing about the contract is implicit.
 
-Or clone + run the bundled script:
+---
 
-```bash
-git clone https://github.com/yourname/heirloom
-cd heirloom
-./install.sh
-pnpm dev
-```
+## Run it locally
 
-That installs Homebrew (if needed), Ollama, whisper-cpp, ffmpeg,
-PostgreSQL 16 + pgvector, pnpm, applies migrations, writes `.env.local`,
-and pulls `gemma4:e4b` (9.6 GB) and `embeddinggemma` (621 MB). First-run
-total is ~15 minutes on a decent connection.
+Three supported paths, in order of how local-first each one is.
 
-Open `http://localhost:3000`. The first visit walks the creator through a
-four-step welcome (name + selfie → life anchors → nominees → seed letters);
-subsequent visits land on the creator home. `/dev` is the role-switcher
-console for testing the nominee + executor surfaces side-by-side.
+### macOS app (recommended for non-technical users)
 
-### Coming back to an archive
-
-"Begin a new archive" mints a fresh creator and shows a four-word
-passphrase once. Write it down. After signing out, the portal's
-"I have a passphrase" door re-opens that same archive on the same
-device, without an email or password. Each "Begin a new archive" call
-creates an independent vault, so a single host can carry several side
-by side. The same portal also exposes "Import an existing archive" -
-hand it a `.hloom` bundle + its passphrase and it mints a fresh
-creator that's pre-populated with the bundle's content, hands back a
-new local key, and signs you in.
-
-### Mac app (DMG)
-
-The `desktop/` workspace builds a Tauri `.app` that ships its own
-Node server, Ollama-pulled gemma4 weights, and a whisper.cpp binary
-with `ggml-base.en` baked in. Build it with:
+Build the signed `.app` from this repo:
 
 ```bash
 pnpm install
@@ -256,24 +308,45 @@ bash desktop/scripts/package.sh
 
 Output lands at
 `desktop/src-tauri/target/release/bundle/dmg/Heirloom.dmg` (~210 MB).
-The shell picks an ephemeral port at startup so it never collides
-with a developer's dev server on `:3000`. Voice-cloning is opt-in:
-run `Contents/Resources/tts/install-tts.sh` once to drop a Python
-venv with LuxTTS at `~/Library/Application Support/Heirloom/tts/`,
-which the shell auto-spawns on next launch.
+The shell ships its own Node server, the Ollama-pulled Gemma 4
+weights, and a code-signed whisper.cpp binary with the base English
+model baked in. Voice-cloning is opt-in: run
+`Contents/Resources/tts/install-tts.sh` once to drop a Python venv
+with LuxTTS at `~/Library/Application Support/Heirloom/tts/`.
 
-## Self-host on a cloud VM (optional)
+### macOS dev mode (recommended for contributors)
 
-Local is the recommended path. The cloud option exists for the specific
-case where a non-technical loved one needs to receive the archive and
-can't run Ollama themselves - they visit one URL on their phone or
-laptop and the archive is right there.
-
-Same code, same architecture, just on a VM you control. Nothing about
-the product changes; only where the binaries run.
+Apple Silicon recommended; 48 GB unified memory is comfortable.
 
 ```bash
-# Provision an Azure VM (no GPU required - single-VM, all-on-one)
+git clone https://github.com/gautamp8/heirloom
+cd heirloom
+./install.sh
+pnpm dev
+```
+
+`install.sh` installs Homebrew (if needed), Ollama, whisper-cpp,
+ffmpeg, PostgreSQL 16 + pgvector, and pnpm; applies migrations;
+writes `.env.local`; pulls `gemma4:e4b` (9.6 GB) and
+`embeddinggemma` (621 MB). First-run total is ~15 minutes on a
+decent connection.
+
+Open `http://localhost:3000`. The first visit walks a creator
+through a four-step welcome: name + selfie → life anchors →
+nominees → seed letters. Subsequent visits land on the home.
+
+### Self-hosted on a single VM (last resort)
+
+Local is the recommended path. The cloud option exists for the
+specific case where someone you love can't run Ollama themselves
+and you want them to receive the archive at a URL instead.
+
+Same code, same architecture, just on a single VM you control. The
+full runbook lives at
+[`docs/DEPLOY-AZURE-VM.md`](./docs/DEPLOY-AZURE-VM.md).
+
+```bash
+# Provision an Azure VM (no GPU required)
 RG=heirloom-rg LOCATION=eastus2 VM=heirloom-vm
 DNS_NAME=heirloom-$(openssl rand -hex 3)
 
@@ -281,59 +354,55 @@ az group create -n "$RG" -l "$LOCATION"
 az vm create -g "$RG" -n "$VM" \
     --image Ubuntu2204 --size Standard_D8as_v5 \
     --admin-username heirloom --ssh-key-values ~/.ssh/id_rsa.pub \
-    --public-ip-sku Standard --public-ip-address-allocation Static \
     --public-ip-address-dns-name "$DNS_NAME" \
     --os-disk-size-gb 64 --storage-sku Premium_LRS
-az vm open-port -g "$RG" -n "$VM" --port 80  --priority 900
 az vm open-port -g "$RG" -n "$VM" --port 443 --priority 901
 
-# Bootstrap the stack on the VM (installs Ollama, Postgres, Whisper,
-# Caddy w/ Let's Encrypt; pulls gemma4:e4b ~9.6 GB)
+# Bootstrap the stack (Ollama, Postgres, Whisper, Caddy + LE certs)
 scp infra/vm-setup.sh heirloom@<vm-ip>:/tmp/
 ssh heirloom@<vm-ip> \
     "sudo PUBLIC_HOST=$DNS_NAME.eastus2.cloudapp.azure.com bash /tmp/vm-setup.sh"
 
-# Ship the source and build
 rsync -az --exclude=node_modules/ --exclude=.next/ \
-    --exclude=storage/ --exclude=.tmp-screenshots/ \
-    ./ heirloom@<vm-ip>:/opt/heirloom/app/
+    --exclude=storage/ ./ heirloom@<vm-ip>:/opt/heirloom/app/
 scp infra/build-and-start.sh heirloom@<vm-ip>:/tmp/
 ssh heirloom@<vm-ip> 'sudo bash /tmp/build-and-start.sh'
 ```
 
-The full runbook - provider alternatives (Hetzner, Mac mini at home),
-operational commands, backup recipe, CPU-vs-GPU expectations - lives in
-[`docs/DEPLOY-AZURE-VM.md`](./docs/DEPLOY-AZURE-VM.md).
+Things to know if you go this route:
 
-**Things to know if you self-host:**
+- v1 is **single-creator per VM**. The first person through
+  onboarding becomes the creator; concurrent visitors see each
+  other's data. Share the URL only with the recipient you intend.
+- CPU inference is **slow**. A Reflection that streams in seconds
+  on a GPU laptop can take 30 to 90 seconds on a CPU-only VM.
+- **You are the admin.** SSH access equals full access to every
+  recording. Treat keys accordingly.
+- **The most private multi-device path is the `.hloom` export.**
+  `POST /api/vault/export` produces a single passphrase-encrypted
+  file that imports into the recipient's own local Heirloom. The
+  data never touches a third party decrypted.
 
-- v1 is **single-creator per VM**. The first person through onboarding
-  becomes the creator; concurrent visitors see each other's data. Share
-  the URL only with the recipient you intend until per-user signup
-  lands.
-- CPU inference is **slow**. A Reflection answer that streams in
-  seconds on a GPU laptop can take 30–90 s on a CPU-only VM.
-  Acceptable for a small audience; not acceptable for a public launch.
-- **Nothing phones home.** The only outbound HTTPS the running app
-  makes is Caddy → Let's Encrypt for certificate renewal, and Ollama →
-  ollama.com on the first model pull. Everything else stays on the box.
-- **You are the admin.** SSH access = full access to every recording
-  and transcript. Treat keys accordingly.
-- **For the most private multi-device path, use the `.hloom` export
-  instead.** `POST /api/vault/export` produces a single passphrase-
-  encrypted file (argon2id + ChaCha20-Poly1305) that imports into a
-  recipient's own local Heirloom. The data never touches a third party
-  decrypted.
+### Coming back to an archive
+
+The four-word passphrase shown at *Begin a new archive* is the
+local key. Write it down. The portal's *I have a passphrase* door
+re-opens the archive on the same device. Each archive is
+independent - one host can carry several side by side. The
+*Import* door takes a `.hloom` and unlocks it into a fresh local
+creator account.
+
+---
 
 ## Architecture
 
 ```
         ┌──────────────────────────┐
         │  Creator / nominee PWA   │
-        │  Next.js 16, RSC, Tailwind v4
+        │  Next.js 16, RSC,        │
         │  face-api.js (client)    │
         └────────────┬─────────────┘
-                     │ HTTPS
+                     │
         ┌────────────▼─────────────┐
         │ Next.js API routes       │
         │  - /api/capture          │
@@ -347,135 +416,55 @@ operational commands, backup recipe, CPU-vs-GPU expectations - lives in
    │ Ollama  │ │ whisper- │ │ Postgres   │
    │  :11434 │ │ cli      │ │  + pgvector│
    │         │ │          │ │            │
-   │ gemma4  │ │ small.en │ │ HNSW index │
+   │ gemma4  │ │ small.en │ │ HNSW       │
    │ embed-  │ │          │ │ RLS gates  │
    │ gemma   │ │          │ │            │
    └─────────┘ └──────────┘ └────────────┘
 ```
 
-The grounding contract is hard-coded:
+The full handoff package - schema, API contracts, prompt set,
+guardrails, screen flows - lives in
+[`design-system/handoff/`](./design-system/handoff/).
 
-1. **Retrieval before model.** Every question is embedded and matched
-   against the archive's pgvector index. If the top chunk falls below
-   cosine `0.40`, the empty state is served verbatim and the language
-   model is never invoked.
-2. **Citation validator.** Every claim in a streamed Reflection answer is
-   checked against the retrieved set. A claim citing a chunk outside that
-   set rejects the entire answer.
-3. **First-person scrubber.** Any answer using "I" or "my" outside quoted
-   text rejects the entire answer.
-4. **Verbatim empty state.** When any check fails the response collapses
-   to: *"I don't have that in the archive. Try asking another way?"*
+---
 
-Every Reflection query's diagnostics are persisted and visible at
-`/transparency` - you can see exactly how each decision was made,
-including the retrieved chunks and their similarity scores.
+## Ethics + design choices
 
-## Sealed letters with conditional unlock
+Why we refused to build a chatbot, what the consent ceremony for
+voice cloning looks like, why notifications never carry content,
+why we picked a wax-seal monogram instead of a sparkle icon, why
+the typography is Source Serif and not a system font - written up
+in [`docs/ETHICS-AND-DESIGN.md`](./docs/ETHICS-AND-DESIGN.md).
 
-A creator writes a letter "for when Maya feels lost" during onboarding.
-The letter's intent prompt is embedded (`EmbeddingGemma`, 768-dim). It
-stays sealed until one of these triggers fires:
+For interface tokens, motion principles, and the copy register,
+see [`design-system/DESIGN.md`](./design-system/DESIGN.md).
 
-| Condition | Mechanism |
-|---|---|
-| `date` | Daily cron checks `today >= conditions.date` |
-| `life_event` | Subject reaches the event (engagement, birthday, etc.) |
-| `state` | Nominee taps a mood chip on the home - embeds, semantic-matches the letter intent |
-| `semantic_match` | Nominee asks Reflection a question whose embedding sits within `0.55` of the letter's intent |
-| `first_visit` | First nominee home load after the letter was sealed |
-
-Each trigger inserts a `nominee_releases` row, so the existing
-row-level-security policies surface the underlying capture naturally -
-no separate "is this letter unlocked" check needed downstream.
-
-## Encrypted vault export
-
-A creator can export their entire vault - audio blobs, transcripts,
-embeddings, life events, sealed letters - as a single passphrase-encrypted
-`.hloom` file. The recipient runs Heirloom on their own machine, imports
-the bundle, and from that moment the archive lives on their own hardware.
-
-Encryption: **argon2id** key derivation (m=64 MiB, t=3, p=4) →
-**ChaCha20-Poly1305** AEAD over a gzipped JSON envelope. The bundle is
-self-describing - magic header `HLOOM`, version `1`, KDF params, nonce,
-ciphertext, tag.
-
-```bash
-# Export
-curl -X POST http://localhost:3000/api/vault/export \
-  -d '{"passphrase":"<the passphrase>"}' -o my-vault.hloom
-
-# Import (into a fresh Heirloom instance)
-curl -X POST http://localhost:3000/api/vault/import \
-  -F file=@my-vault.hloom \
-  -F passphrase="<the passphrase>"
-```
-
-## Multi-modal Gemma 4 via Ollama
-
-Heirloom uses Gemma 4 across three modalities:
-
-- **Text synthesis** for Reflection answers, letter prompts, note titles,
-  and capture tagging - `gemma4:e4b` via `/api/chat`.
-- **Vision captioning** for photo uploads - same model, same endpoint,
-  `images: [b64]` field. When the on-device face recognizer
-  (face-api.js, 128-d descriptors) clusters a face to a known person,
-  the system prompt names them so the caption reads "Elena holding
-  Maya at the kitchen window" rather than "a woman holding a child".
-- **Embeddings** - `embeddinggemma` (300M params, 768-dim, 621 MB) for
-  the shared text + caption vector space.
-
-The custom `heirloom/gemma4-grounded` Modelfile bakes the grounding
-contract into the system prompt; create it locally with
-`ollama create heirloom/gemma4-grounded -f Modelfile`.
-
-Audio understanding via Gemma 4 directly is upstream-blocked
-([ollama/ollama#11798](https://github.com/ollama/ollama/issues/11798) - the
-audio projector isn't published yet). Heirloom transcribes through
-`whisper-cpp small.en` until then. See
-[`docs/MULTIMODAL-ECOSYSTEM.md`](./docs/MULTIMODAL-ECOSYSTEM.md) for the
-full analysis and the proposed bridge.
-
-## Tech stack
-
-- **Frontend** - Next.js 16 (App Router, RSC, Turbopack), Tailwind v4
-  with custom `@theme static` tokens (warm-paper palette), Framer Motion,
-  Source Serif 4 + Geist + JetBrains Mono.
-- **Backend** - Next.js route handlers, postgres.js for SQL with
-  per-request `withRls()` wrapping every transaction, argon2 for
-  passphrases (executor + per-nominee), jose for JWT cookies.
-- **AI runtime** - Ollama for everything supported, whisper-cpp for
-  audio, face-api.js in the browser for face descriptors.
-- **Database** - PostgreSQL 16 + pgvector, HNSW indexes on every 128 / 768
-  dim vector column, RLS policies per-role (creator full read/write,
-  nominee restricted to released captures only).
-- **PWA** - manifest + apple-touch-icon, optional service worker in
-  production, installable from iOS Safari "Add to Home Screen".
-
-## Why local-first
-
-The product is about presence. The data is voice recordings of someone's
-mother, photographs of their childhood, things they would say to their
-children if they had the words. None of that should pass through a
-third-party server.
-
-Local-first also means the archive survives when the company doesn't. The
-`.hloom` bundle is yours, encrypted with a passphrase only you know. Even
-if Heirloom the project disappears tomorrow, the bundle and the open-source
-code remain.
+---
 
 ## Documentation
 
+- [`docs/ETHICS-AND-DESIGN.md`](./docs/ETHICS-AND-DESIGN.md) - long-form
+  ethics + design rationale
 - [`CLAUDE.md`](./CLAUDE.md) - product philosophy + engineering principles
-- [`design-system/`](./design-system/) - design tokens, prototypes, handoff
-  package (architecture, API contracts, schema, prompts, guardrails)
-- [`docs/MULTIMODAL-ECOSYSTEM.md`](./docs/MULTIMODAL-ECOSYSTEM.md) - Gemma 4
-  multimodal notes
-- [`docs/DEPLOY-AZURE-VM.md`](./docs/DEPLOY-AZURE-VM.md) - self-hosted VM runbook
+- [`design-system/DESIGN.md`](./design-system/DESIGN.md) - tokens,
+  type, motion, voice register
+- [`design-system/handoff/`](./design-system/handoff/) - architecture,
+  API contracts, schema, prompts, guardrails
+- [`docs/DEPLOY-AZURE-VM.md`](./docs/DEPLOY-AZURE-VM.md) -
+  self-hosted VM runbook
+- [`docs/MULTIMODAL-ECOSYSTEM.md`](./docs/MULTIMODAL-ECOSYSTEM.md) -
+  Gemma 4 multimodal notes
+
+---
 
 ## License
 
-Apache 2.0. Gemma 4 weights ship under their own Apache 2.0 license; the
-Heirloom code is under the same. See [`LICENSE`](./LICENSE) (TBD before
-public launch).
+Apache 2.0. The Gemma 4 weights ship under their own Apache 2.0
+license. EmbeddingGemma is licensed under the Gemma terms.
+LuxTTS / ZipVoice carries its upstream license; see
+`infra/tts-server/` for details.
+
+If Heirloom the project disappears tomorrow, the source code is
+yours under Apache 2.0 and any `.hloom` bundle you've exported is
+still readable with the open spec in `src/lib/vault-export.ts`.
+That property is the point.
