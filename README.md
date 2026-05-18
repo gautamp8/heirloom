@@ -20,7 +20,7 @@ runs on the creator's own device. Nothing leaves it.
 - [A walk through the archive](#a-walk-through-the-archive)
 - [Features](#features)
 - [The grounding contract](#the-grounding-contract)
-- [Run it locally](#run-it-locally)
+- [Try Heirloom](#try-heirloom)
 - [Architecture](#architecture)
 - [Documentation](#documentation)
 - [License](#license)
@@ -233,25 +233,93 @@ at `/transparency`.
 
 ---
 
-## Run it locally
+## Try Heirloom
 
-Three supported paths.
+Four paths in order of how committed you want to be.
 
-### macOS app (recommended)
+### Try without installing
+
+Visit [withheirloom.app](https://withheirloom.app) and tap
+*Try the Sagan archive*. You'll land in a pre-loaded archive of
+Carl Sagan's writing, three public-domain photographs, and one
+sealed letter, *for when you feel insignificant*. No signup, no
+account.
+
+The demo runs on a small Azure VM; latencies are higher than a
+local install, and anything you submit there lives on the VM,
+not your device.
+
+### Install as a PWA (iOS, Android, desktop browsers)
+
+Heirloom ships a Progressive Web App manifest, so any deployed
+instance is installable as a real app.
+
+- **iOS Safari**: tap *Share* → *Add to Home Screen*.
+- **Android Chrome**: open the page menu → *Install app*.
+- **Desktop Chrome / Edge**: click the install icon in the address bar.
+
+For a quick try, install it from the Sagan demo URL - the icon and
+launch behave like a native app, the page is fully offline-capable
+after the first load, and your data lives on the host you installed
+it from. To use your own archive instead of the demo, install the
+PWA from a Heirloom instance you control (the macOS app below, or a
+self-hosted VM).
+
+### Install on macOS
+
+1. Download `Heirloom.dmg` from the
+   [latest release](https://github.com/gautamp8/heirloom/releases/latest).
+2. **One-time prep.** Pull the two Gemma 4 models with Ollama
+   (~10 minutes on a decent connection):
+   ```bash
+   ollama pull gemma4:e4b
+   ollama pull embeddinggemma
+   ```
+   This release candidate doesn't auto-pull yet; the next RC will.
+   See [issue #1](https://github.com/gautamp8/heirloom/issues/1).
+3. Open the DMG, drag *Heirloom* into your Applications folder.
+4. **First open**: right-click *Heirloom* in Applications and choose
+   *Open*. Confirm the second prompt. Apple notarization is on the
+   way; until then this right-click step is the documented way past
+   Gatekeeper.
+
+Everything else is bundled: Ollama, Node, the Next.js server,
+`whisper.cpp` with `ggml-base.en` baked in, the SQLite database
+in `~/Library/Application Support/app.heirloom.desktop/`. Voice
+cloning is opt-in: run `Contents/Resources/tts/install-tts.sh`
+once after install to drop a Python venv with LuxTTS into
+`~/Library/Application Support/Heirloom/tts/` (~2 GB).
+
+### Self-host on a Mac or Ubuntu VM
+
+For someone who wants the archive at a URL they own.
+
+**On a Mac mini at home.** Clone the repo, run `./install.sh` to
+bring up the local stack, then `pnpm build && pnpm start` for the
+production server. Expose via Cloudflare Tunnel for HTTPS.
+
+**On an Ubuntu 22.04 VM** (Hetzner, DigitalOcean, AWS, Azure, etc.).
+Bootstrap is idempotent and takes about ten minutes.
 
 ```bash
-pnpm install
-bash desktop/scripts/package.sh
+scp infra/vm-setup.sh heirloom@<host>:/tmp/
+ssh heirloom@<host> "sudo PUBLIC_HOST=<your.fqdn> bash /tmp/vm-setup.sh"
+
+rsync -az --exclude=node_modules/ --exclude=.next/ --exclude=storage/ \
+    ./ heirloom@<host>:/opt/heirloom/app/
+scp infra/build-and-start.sh heirloom@<host>:/tmp/
+ssh heirloom@<host> 'sudo bash /tmp/build-and-start.sh'
 ```
 
-Output lands at `desktop/src-tauri/target/release/bundle/dmg/Heirloom.dmg`
-(~210 MB). The bundle ships its own Node server, the Gemma 4 weights,
-and a code-signed `whisper.cpp` binary with `ggml-base.en` baked in.
-Voice cloning is opt-in: run `Contents/Resources/tts/install-tts.sh`
-once to drop a Python venv with LuxTTS into
-`~/Library/Application Support/Heirloom/tts/`.
+The scripts install Node 22, pnpm, PostgreSQL 16 + pgvector, Ollama,
+whisper-cpp, ffmpeg, and Caddy with automatic Let's Encrypt
+certificates. Multiple archives can share one host; each *Begin a
+new archive* mints an independent creator with its own passphrase.
+CPU inference is slow (30 to 90 seconds to first token on a
+CPU-only VM, versus seconds on Apple Silicon). The full runbook
+lives in [`docs/DEPLOY-AZURE-VM.md`](./docs/DEPLOY-AZURE-VM.md).
 
-### macOS dev mode
+### Build from source (contributors)
 
 Apple Silicon recommended; 48 GB unified memory is comfortable.
 
@@ -263,40 +331,16 @@ pnpm dev
 ```
 
 `install.sh` installs Ollama, whisper-cpp, ffmpeg, PostgreSQL 16 +
-pgvector, and pnpm; applies migrations; writes `.env.local`; pulls
-`gemma4:e4b` (9.6 GB) and `embeddinggemma` (621 MB). First run is
-~15 minutes on a decent connection. The first visit walks a creator
-through name + selfie → life anchors → nominees → seed letters.
+pgvector, pnpm; applies migrations; writes `.env.local`; pulls the
+two Gemma 4 models. The first visit walks a creator through name +
+selfie → life anchors → nominees → seed letters.
 
-### Self-hosted Ubuntu VM
-
-For non-technical recipients: the same code runs on any Ubuntu 22.04
-VM you control. Any provider works (Hetzner, DigitalOcean, AWS, Azure,
-a Mac mini at home behind a Cloudflare Tunnel). The runbook in
-[`docs/DEPLOY-AZURE-VM.md`](./docs/DEPLOY-AZURE-VM.md) walks through
-one concrete example.
+To produce a fresh DMG from your local checkout:
 
 ```bash
-# Provision an Ubuntu 22.04 VM (~8 vCPU / 32 GB RAM / 64 GB disk),
-# open ports 22 and 443, point a DNS A record at the public IP.
-
-# Bootstrap (idempotent, ~10 min):
-scp infra/vm-setup.sh heirloom@<host>:/tmp/
-ssh heirloom@<host> "sudo PUBLIC_HOST=<your.fqdn> bash /tmp/vm-setup.sh"
-
-# Push code and start:
-rsync -az --exclude=node_modules/ --exclude=.next/ --exclude=storage/ \
-    ./ heirloom@<host>:/opt/heirloom/app/
-scp infra/build-and-start.sh heirloom@<host>:/tmp/
-ssh heirloom@<host> 'sudo bash /tmp/build-and-start.sh'
+bash desktop/scripts/package.sh
+# → desktop/src-tauri/target/release/bundle/dmg/Heirloom.dmg
 ```
-
-The scripts install Node 22, pnpm, PostgreSQL 16 + pgvector, Ollama
-(CPU mode), whisper-cpp, ffmpeg, and Caddy with Let's Encrypt
-certificates. Multiple archives are supported on one host; each *Begin
-a new archive* mints an independent creator with its own passphrase.
-CPU inference is slow (30 to 90 seconds to first token on a CPU-only
-VM, versus seconds on a GPU laptop).
 
 Native iOS and Android apps are on the roadmap. The model will ship
 alongside the app so the privacy story holds without a server.
