@@ -78,9 +78,7 @@ export function Nav() {
             <IconExternal size={14} />
           </a>
           <a
-            href={links.releases}
-            target="_blank"
-            rel="noopener noreferrer"
+            href={links.dmgDownload}
             className="btn btn-wax hidden sm:inline-flex"
             style={{ padding: "9px 16px", fontSize: 13.5 }}
           >

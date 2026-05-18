@@ -44,7 +44,7 @@ export function Footer() {
             <FooterLink href={tryAsNominee()} external>
               Try the Sagan archive
             </FooterLink>
-            <FooterLink href={links.releases} external>
+            <FooterLink href={links.dmgDownload}>
               Download for macOS
             </FooterLink>
             <FooterLink href="/design">Design and ethics</FooterLink>
