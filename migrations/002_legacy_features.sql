@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS life_events (
     subject_person_id UUID REFERENCES people(id) ON DELETE SET NULL,
     kind            TEXT NOT NULL,           -- 'birth' | 'anniversary' | 'wedding' |
                                               -- 'graduation' | 'loss' | 'milestone'
-    label           TEXT NOT NULL,           -- 'Elena's birthday', 'Maya turns 18'
+    label           TEXT NOT NULL,           -- 'Rita''s birthday', 'Sam turns 18'
     event_date      DATE,
     recurrence      TEXT,                    -- 'yearly' | 'once' | null
     description     TEXT,

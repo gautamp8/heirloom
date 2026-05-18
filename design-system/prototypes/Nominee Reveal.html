@@ -444,7 +444,7 @@
   <section class="scene active" data-scene="0" style="justify-content:space-between;padding-top:80px">
     <div class="stack" style="--gap:8px;text-align:center">
       <p class="meta">a sealed letter</p>
-      <h2 class="title" style="margin-top:8px"><em data-tweak="nominee">Maya</em> - there is something here for you.</h2>
+      <h2 class="title" style="margin-top:8px"><em data-tweak="nominee">Sam</em> - there is something here for you.</h2>
     </div>
 
     <div class="envelope-stage">
@@ -454,7 +454,7 @@
         <div class="env-body"></div>
         <div class="env-flap"></div>
         <div class="env-address">
-          <strong data-tweak="nominee">Maya</strong>
+          <strong data-tweak="nominee">Sam</strong>
           <span data-tweak="release-addr">for your eighteenth.</span>
         </div>
         <div class="env-seal"><img src="../assets/seal.png" alt=""></div>
@@ -481,7 +481,7 @@
           <div class="env-body"></div>
           <div class="env-flap"></div>
           <div class="env-address">
-            <strong>Maya</strong>
+            <strong>Sam</strong>
             for your eighteenth.
           </div>
           <div class="env-seal-half left"><img src="../assets/seal.png" alt=""></div>
@@ -501,13 +501,13 @@
     <div class="cinema" id="cinema">
       <div class="cinema-block" style="margin-top:24px">
         <p class="stat">·</p>
-        <h3>Elena Marin</h3>
+        <h3>Rita Marin</h3>
         <p class="stat">1988 - 2029</p>
       </div>
 
       <div class="cinema-block">
         <p style="max-width:260px">"I'm making this slowly, over months. Take your time too. There's no order. There's no test. I just want you to know me."</p>
-        <p class="stat">a note for <span data-tweak="nominee">Maya</span> · march 2026</p>
+        <p class="stat">a note for <span data-tweak="nominee">Sam</span> · march 2026</p>
       </div>
 
       <div class="cinema-block">
@@ -527,7 +527,7 @@
     <div class="home-chrome">
       <div style="display:flex;align-items:center;gap:8px">
         <div class="seal-sm"><img src="../assets/seal.png" alt=""></div>
-        <p class="meta"><span data-tweak="nominee">Maya</span>'s archive · view</p>
+        <p class="meta"><span data-tweak="nominee">Sam</span>'s archive · view</p>
       </div>
       <p class="meta">248</p>
     </div>
@@ -539,7 +539,7 @@
       </div>
 
       <div class="memory-card">
-        <p class="meta" style="margin-bottom:8px">march 2026 · audio · 02:14 · for Maya</p>
+        <p class="meta" style="margin-bottom:8px">march 2026 · audio · 02:14 · for Sam</p>
         <p class="card-title">A first hello.</p>
         <div class="memory-wave" id="home-wave"></div>
         <p class="card-sub">warmth · introduction · for you</p>
@@ -597,7 +597,7 @@
       <div class="meta-row">
         <p class="card-title" style="font-family:var(--serif);font-size:17px"><em>The fear of you leaving.</em></p>
       </div>
-      <p class="card-sub" style="font-family:var(--sans)">audio · for Maya · evening</p>
+      <p class="card-sub" style="font-family:var(--sans)">audio · for Sam · evening</p>
       <div class="wf" id="drawer-wave"></div>
       <div style="display:flex;align-items:center;gap:12px;margin:8px 0 16px">
         <button class="play-btn" aria-label="Play">
@@ -779,7 +779,7 @@
   <h4><span>Tweaks</span><button class="tw-close" id="twClose" aria-label="Close">✕</button></h4>
   <div class="tw-section">
     <label class="tw-label">Nominee name</label>
-    <input class="tw-text" id="tw-nominee" type="text" value="Maya" autocomplete="off">
+    <input class="tw-text" id="tw-nominee" type="text" value="Sam" autocomplete="off">
   </div>
   <div class="tw-section">
     <label class="tw-label">Relationship</label>
@@ -802,7 +802,7 @@
 <script>
 (function(){
   const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
-    "nominee": "Maya",
+    "nominee": "Sam",
     "relationship": "mother",
     "release": "milestone"
   }/*EDITMODE-END*/;
@@ -845,7 +845,7 @@
     try { window.parent.postMessage({type:'__edit_mode_dismissed'}, '*'); } catch(e){}
   });
   document.getElementById('tw-nominee').addEventListener('input', function(e){
-    setTweak('nominee', e.target.value.trim() || 'Maya');
+    setTweak('nominee', e.target.value.trim() || 'Sam');
   });
   document.getElementById('tw-relseg').addEventListener('click', function(e){
     var b = e.target.closest('button'); if(!b) return;

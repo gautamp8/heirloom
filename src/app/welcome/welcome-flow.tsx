@@ -32,10 +32,10 @@ export function WelcomeFlow() {
   } | null>(
     frozenStage
       ? {
-          from_name: "Elena",
-          to_name: "Maya",
+          from_name: "Rita",
+          to_name: "Sam",
           body:
-            "Maya - there is something here for you.\n\nTake your time with this. There is no rush, and nothing in here is going anywhere.\n\nI love you.\n\n- Elena",
+            "Sam - there is something here for you.\n\nTake your time with this. There is no rush, and nothing in here is going anywhere.\n\nI love you.\n\n- Rita",
         }
       : null,
   );

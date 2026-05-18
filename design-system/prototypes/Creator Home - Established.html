@@ -378,7 +378,7 @@
     <div class="scroll">
       <!-- Greeting -->
       <p class="meta">Tuesday · March 14</p>
-      <h1 class="greet">Good morning, <em>Elena</em>.</h1>
+      <h1 class="greet">Good morning, <em>Rita</em>.</h1>
 
       <!-- Prompt card -->
       <div class="prompt-card">
@@ -438,7 +438,7 @@
       <div class="thread-card">
         <div class="thread-stripe muted"></div>
         <div class="body">
-          <p class="title">When you were small, Maya</p>
+          <p class="title">When you were small, Sam</p>
           <p class="stats">12 captures · 1h 04m</p>
         </div>
         <span class="arrow">→</span>
@@ -536,7 +536,7 @@
       <div class="nominee-card">
         <div class="avatar">M</div>
         <div class="info">
-          <p class="name">Maya <em>daughter</em></p>
+          <p class="name">Sam <em>daughter</em></p>
           <p class="meta"><span class="dot" style="display:inline-block;vertical-align:middle;margin-right:6px"></span>32 captures sealed · releases on her 18th</p>
         </div>
         <span class="arrow" style="color:var(--ink-faint)">→</span>
@@ -563,7 +563,7 @@
       <!-- Footer -->
       <div class="vault-footer">
         <p class="stats">47 captures · 6 h 12 m · 8 threads</p>
-        <button class="preview-btn">Preview as Maya</button>
+        <button class="preview-btn">Preview as Sam</button>
       </div>
     </div>
 
@@ -710,7 +710,7 @@
   function render(){
     const greet = tweaks.tod === 'morning' ? 'Good morning' : 'Good evening';
     const meta = tweaks.tod === 'morning' ? 'Tuesday · March 14' : 'Tuesday evening · March 14';
-    document.querySelector('h1.greet').innerHTML = greet + ', <em>Elena</em>.';
+    document.querySelector('h1.greet').innerHTML = greet + ', <em>Rita</em>.';
     document.querySelector('.scroll > .meta').textContent = meta;
   }
 

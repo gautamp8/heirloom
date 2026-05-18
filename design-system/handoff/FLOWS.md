@@ -16,7 +16,7 @@ Convention:
 **Component:** `src/app/onboarding/onboarding-flow.tsx`
 **Steps:** Welcome (name + optional selfie) → Voice (read VOICE_SCRIPT) → Anchors (life events) → Nominees → Letters
 
-+ User picks "Begin a new archive" on the portal, types their name (e.g. "Elena"), optionally adds a selfie (face-api.js scans for a face client-side, posts the 128-d embedding to `/api/onboarding/self`), records ~30 s of the VOICE_SCRIPT, adds at least one nominee, picks 0-N Gemma-generated occasion prompts to write seed letters against, lands on the creator home.
++ User picks "Begin a new archive" on the portal, types their name (e.g. "Rita"), optionally adds a selfie (face-api.js scans for a face client-side, posts the 128-d embedding to `/api/onboarding/self`), records ~30 s of the VOICE_SCRIPT, adds at least one nominee, picks 0-N Gemma-generated occasion prompts to write seed letters against, lands on the creator home.
 
 ↪ User skips the voice step → onboarding continues; voice features stay hidden until the user records from Settings → Voice later.
 
@@ -97,7 +97,7 @@ Currently **disabled in the UI** (`<CapChip ... disabled />` on the home). The s
 + User opens the app authenticated, sees:
 - BrandMark (seal + "Heirloom" wordmark) top-left, "SETTINGS" link top-right
 - Long-date eyebrow ("FRIDAY, MAY 15")
-- Greeting block "Good morning, **Anisha**" (name in wax italic)
+- Greeting block "Good morning, **Rita**" (name in wax italic)
 - "A place to begin" card with Gemma-generated prompt-of-day, "Speak it" primary + "Or write" secondary, "Another" shuffle affordance
 - 2×2 capture chip grid (Voice / Note / Photo / Video disabled)
 - "Ask the archive a question" card linking to `/reflect`
@@ -117,7 +117,7 @@ X `/api/me/home` returns non-200 → page renders "Home failed to load: HTTP {st
 **Routes:** `/portal` → `/welcome` → `/`
 **Components:** `src/app/portal/`, `src/app/welcome/`
 
-+ Nominee taps "I have a sealed letter" on the portal, sees the closed envelope with the wax seal "H" monogram, types the passphrase the creator handed them in person, taps "Open". On argon2-match, the seal-break animation plays (CSS, ~1.2 s), the letter unfolds, displays the creator's framing letter ("Maya - there is something here for you."), taps "Enter the archive", lands on the nominee home.
++ Nominee taps "I have a sealed letter" on the portal, sees the closed envelope with the wax seal "H" monogram, types the passphrase the creator handed them in person, taps "Open". On argon2-match, the seal-break animation plays (CSS, ~1.2 s), the letter unfolds, displays the creator's framing letter ("Sam - there is something here for you."), taps "Enter the archive", lands on the nominee home.
 
 ↪ Subsequent visits skip the envelope entirely - the cookie-bound session routes straight to `/` and the nominee home renders.
 

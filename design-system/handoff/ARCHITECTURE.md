@@ -129,7 +129,7 @@ The TTS sidecar is **opt-in**: the .dmg ships only the source + `install-tts.sh`
 | Ollama | Hosts `gemma4:e4b` (text + vision) + `embeddinggemma` (768-dim) on the same `:11434` endpoint. Single binary; auto-detects CUDA when present. |
 | Custom `heirloom/gemma4-grounded` Modelfile | Bakes the grounding contract into the system prompt - belt-and-suspenders alongside the prompt template in code. Built locally with `ollama create`. |
 | Whisper-cpp small.en (subprocess) | Best open ASR that fits CPU. ~3 s for a 30 s clip on M-series, ~6 s on 8 vCPUs. Cold-load tax avoided via pre-warm at boot. |
-| Gemma 4 vision for photo captions | Same `gemma4:e4b` via `/api/chat` with `images: [b64]`. When face-api.js clusters a face to a known person, the system prompt names them so the caption reads "Elena holding Maya" rather than "a woman holding a child". |
+| Gemma 4 vision for photo captions | Same `gemma4:e4b` via `/api/chat` with `images: [b64]`. When face-api.js clusters a face to a known person, the system prompt names them so the caption reads "Rita holding Sam" rather than "a woman holding a child". |
 | LuxTTS/ZipVoice sidecar | Zero-shot voice cloning from a single 15-30 s reference. FastAPI wrapper at `127.0.0.1:11435` keeps it out-of-process so a heavy Python stack doesn't bloat the main app's memory footprint. |
 | face-api.js (client-side) | Faces never leave the device. 128-dim descriptors are posted from the browser alongside the photo capture multipart payload. |
 | JWT session cookie | 30-day HS256 token, `httpOnly`, `sameSite=lax`, `secure` in production. No magic-link, no email; sessions issue at portal-passphrase entry (nominee) or onboarding completion (creator). |

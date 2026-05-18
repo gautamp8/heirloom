@@ -348,7 +348,7 @@ function WelcomeStep(props: {
           type="text"
           value={props.name}
           onChange={(e) => props.setName(e.target.value)}
-          placeholder="Elena"
+          placeholder="Rita"
           maxLength={60}
           className="w-full max-w-[420px] font-serif text-[24px] font-light text-ink bg-transparent border-b border-rule-strong outline-none focus:border-ink py-2 placeholder:text-ink-muted placeholder:italic"
         />
@@ -824,7 +824,7 @@ function NomineesStep(props: {
                 type="text"
                 value={n.name}
                 onChange={(ev) => update(i, { name: ev.target.value })}
-                placeholder="Maya"
+                placeholder="Sam"
                 maxLength={60}
                 className="font-serif text-[16px] text-ink bg-transparent outline-none border-b border-rule placeholder:text-ink-muted placeholder:italic"
               />

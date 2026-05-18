@@ -66,7 +66,7 @@ Borderless 17px Source Serif textarea, min-height 280px. Footer: word count + au
 
 Building `Creator Home - Established.html` settled five new components:
 
-- **Greeting block** - date in mono, "Good morning, Elena" in 34px Source Serif w/ oxblood-italic first name
+- **Greeting block** - date in mono, "Good morning, Rita" in 34px Source Serif w/ oxblood-italic first name
 - **Prompt card** - warm-paper background, italic 21px quote, primary `Begin →` + `Skip · maybe later` link
 - **Capture chip grid** - 2×2; each chip is a paper-card with a 32px oxblood glyph, mode name (sans), and a mono sub-label ("a recording", "with a caption", etc.)
 - **Thread card** - left stripe (oxblood / sepia / muted / moss), title in serif, stats in mono, right arrow. Stripe color encodes thread mood, not category.

@@ -203,7 +203,7 @@ The single most-touched surface in the product. Must feel calm, not clinical.
 │ ← back                          ⏸  ⋯    │
 │                                         │
 │   [ prompt text, serif, large ]         │
-│   [ optional context: "for Maya" ]      │
+│   [ optional context: "for Sam" ]      │
 │                                         │
 │                                         │
 │        ┌─────────────────────┐          │
@@ -239,7 +239,7 @@ This is a delicate moment from the brief. The mechanic:
 1. When the user picks certain prompts (e.g., "What I want them to know when they're tired"), Heirloom asks first, *inline as part of the prompt screen, not modally*:
    > *Before we begin - is there a specific person you're speaking to? You don't have to name them. We just want to follow your lead.*
    - Three options, soft chips: *Someone in particular · A group · I'd rather not say*
-2. The answer threads into the capture - the prompt header silently updates to *"…for Maya"* if applicable.
+2. The answer threads into the capture - the prompt header silently updates to *"…for Sam"* if applicable.
 3. Gemma uses this context for follow-up suggestions but **never volunteers the name back** in a way that could feel like a séance.
 
 ### Modalities (audio is built; others are designed)
@@ -266,7 +266,7 @@ A single memory is rendered as a **card** with the following anatomy:
 │ [ date, in monospace, small ]           │
 │                                         │
 │ [ title - short, serif, large ]         │
-│ [ optional addressee - "for Maya" ]     │
+│ [ optional addressee - "for Sam" ]     │
 │                                         │
 │ [ tag chips - emotional, removable ]    │
 │                                         │
@@ -294,7 +294,7 @@ The retrieval surface lives in both Creator and View modes; affordances differ o
 
 1. **Timeline** - vertical, slow scroll. Years as serif markers; months as monospaced subdivisions. Cards are full-width and breathe. This is the default lens.
 2. **Grid** - for visual scanners. Honeycomb-ish irregular grid (think Pinterest, calmed down). Photos dominate visually; audio cards show their waveform signature.
-3. **Themes** - Gemma-derived thematic clusters: *Mornings · Your hands · Things you said about courage · Letters to Maya · Songs.* Each theme is a soft pill at the top of the screen; tapping enters a curated view.
+3. **Themes** - Gemma-derived thematic clusters: *Mornings · Your hands · Things you said about courage · Letters to Sam · Songs.* Each theme is a soft pill at the top of the screen; tapping enters a curated view.
 
 ### Search
 
@@ -347,7 +347,7 @@ A "Nominees" surface lists each designated recipient as a row:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ ◐ Maya - daughter           Release: her 18th birthday  │
+│ ◐ Sam - daughter           Release: her 18th birthday  │
 │   24 captures shared · 6 held back  ·   Edit  ▸         │
 ├─────────────────────────────────────────────────────────┤
 │ ◐ Sam - partner             Release: any time           │
@@ -374,7 +374,7 @@ This is the second-most-important moment in the product (after first capture). D
 #### Entry
 
 The nominee receives (offline, by post or in person) a printed card with:
-- A short serif headline: *Maya - there is something here for you.*
+- A short serif headline: *Sam - there is something here for you.*
 - A URL to a local-first viewer (Heirloom's nominee site, served from the creator's exported archive or a self-hosted instance).
 - A passphrase, monospaced, printed in 14pt with generous spacing.
 - A small line at the bottom: *This was prepared by [Creator name]. There is no rush.*

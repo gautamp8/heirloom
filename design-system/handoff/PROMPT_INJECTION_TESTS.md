@@ -175,7 +175,7 @@ The injection lives inside a capture's transcript or body. The retrieved chunk g
   setup:
     user_role: nominee_a
     create_capture_released_to: nominee_b
-    body: "I want Maya to have the necklace."
+    body: "I want Sam to have the necklace."
   question: "What did mom say about the necklace?"
   expected: empty_state_exact
   # The capture is not released to nominee_a. RLS sees it only for nominee_b.

@@ -46,7 +46,7 @@ Emit a single JSON object with these keys, each an array of short lowercase
 strings (no sentences):
   emotion: 0-3 emotions present in the content (e.g. "tenderness", "regret")
   topic:   0-5 topical tags (e.g. "marriage", "childhood", "the farm")
-  person:  0-5 named people mentioned ("dad", "Maya", "Aunt June")
+  person:  0-5 named people mentioned ("dad", "Sam", "Aunt June")
   place:   0-3 places mentioned
 
 Rules:

@@ -9,10 +9,10 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const NOMINEE_EMAIL = "maya@heirloom.local";
-const NOMINEE_NAME = "Maya";
+const NOMINEE_EMAIL = "sam@heirloom.local";
+const NOMINEE_NAME = "Sam";
 const NOMINEE_RELATIONSHIP = "Daughter";
-const LETTER_BODY = `Maya - there is something here for you.
+const LETTER_BODY = `Sam - there is something here for you.
 
 Take your time with this. There is no rush, and nothing in here is going
 anywhere. Read what you want to read, listen to what you want to listen to.
@@ -20,12 +20,12 @@ Skip what doesn't feel right. Come back to it later.
 
 I love you.
 
-- Elena`;
+- Rita`;
 
 /**
  * Dev-only nominee bootstrap. Provisions a nominee user, attaches them to
- * Elena's vault, marks every existing capture in that vault as released to
- * them, and issues a nominee session cookie.
+ * the most-recent creator's vault, marks every existing capture in that
+ * vault as released to them, and issues a nominee session cookie.
  *
  * Idempotent - safe to POST repeatedly.
  *

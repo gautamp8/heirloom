@@ -158,7 +158,7 @@ Emit a single JSON object with these keys, each an array of short lowercase
 strings (no sentences):
   emotion: 0-3 emotions present in the content (e.g. "tenderness", "regret")
   topic:   0-5 topical tags (e.g. "marriage", "childhood", "the farm")
-  person:  0-5 named people mentioned ("dad", "Maya", "Aunt June")
+  person:  0-5 named people mentioned ("dad", "Sam", "Aunt June")
   place:   0-3 places mentioned
 
 Rules:
@@ -274,7 +274,7 @@ Mention people by name when given; otherwise describe them factually.
 Note light, setting, mood, clothing, objects. Avoid speculation about feelings.
 Do not invent details that are not visible. Do not mention 'the image' or 'photograph'.
 {when faces recognized:}
-Known people in this photo (use their names, do not invent others): Elena at [x=0.3,y=0.4]; Maya at [x=0.6,y=0.5]
+Known people in this photo (use their names, do not invent others): Rita at [x=0.3,y=0.4]; Sam at [x=0.6,y=0.5]
 ```
 
 User message: `"Describe what is in this photo."` with the photo as a base64 `images: [b64]` field. `think: false`, `num_predict: 180`, `temperature: 0.4`.
