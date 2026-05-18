@@ -1,6 +1,12 @@
 import { ImageResponse } from "next/og";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
-export const runtime = "edge";
+// Runs as a Node lambda (not edge) so we can readFileSync the seal
+// PNG off disk at module-load time. The seal is the actual brand
+// mark, not a SVG/HTML stand-in, so the thumbnail matches the rest
+// of the marketing surfaces (nav, footer, hero).
+export const runtime = "nodejs";
 
 // Rendered at 3× the Kaggle card spec (560 × 280) so the PNG stays
 // crisp on retina displays, large monitors, and print at the spec
@@ -14,9 +20,18 @@ const HEIGHT = BASE_HEIGHT * SCALE;
 
 const s = (n: number) => Math.round(n * SCALE);
 
+// Inline the seal as a data URI once at module load. Avoids a fetch
+// on every render and works the same in dev and prod.
+const SEAL_DATA_URI = (() => {
+  const buf = readFileSync(
+    path.join(process.cwd(), "public", "seal-2x.png"),
+  );
+  return `data:image/png;base64,${buf.toString("base64")}`;
+})();
+
 /**
- * Heirloom writeup card thumbnail. Visit /thumbnail in a browser or
- * `curl http://localhost:3001/thumbnail -o thumbnail.png` to fetch.
+ * Heirloom writeup card thumbnail. `curl http://localhost:3001/thumbnail
+ * -o thumbnail.png` to fetch a fresh render.
  */
 export async function GET() {
   return new ImageResponse(
@@ -35,9 +50,15 @@ export async function GET() {
           color: "#1F1B14",
         }}
       >
-        {/* Top row: seal + wordmark + Beta pill */}
+        {/* Top row: real seal + wordmark + Beta pill */}
         <div style={{ display: "flex", alignItems: "center", gap: s(12) }}>
-          <Wax />
+          <img
+            src={SEAL_DATA_URI}
+            alt=""
+            width={s(48)}
+            height={s(48)}
+            style={{ display: "block" }}
+          />
           <span
             style={{
               fontSize: s(22),
@@ -126,29 +147,5 @@ export async function GET() {
       </div>
     ),
     { width: WIDTH, height: HEIGHT },
-  );
-}
-
-function Wax() {
-  return (
-    <div
-      style={{
-        width: s(40),
-        height: s(40),
-        borderRadius: 9999,
-        background:
-          "radial-gradient(circle at 40% 35%, #A23F2A 0%, #7D2A1A 55%, #5C1F12 100%)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: "Georgia, serif",
-        fontStyle: "italic",
-        fontSize: s(22),
-        color: "rgba(242, 236, 221, 0.85)",
-        lineHeight: 1,
-      }}
-    >
-      H
-    </div>
   );
 }
