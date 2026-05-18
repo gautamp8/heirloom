@@ -128,18 +128,41 @@ function DownloadModal({ onClose }: { onClose: () => void }) {
             paddingLeft: 18,
           }}
         >
+          <li>
+            One-time prep: pull the two models with Ollama. ~10 minutes on a
+            decent connection.
+            <pre
+              style={{
+                marginTop: 6,
+                padding: "8px 12px",
+                background: "var(--color-paper-3)",
+                border: "1px solid var(--color-rule)",
+                borderRadius: 8,
+                fontFamily: "var(--font-mono)",
+                fontSize: 12,
+                lineHeight: 1.5,
+                color: "var(--color-ink)",
+                whiteSpace: "pre",
+              }}
+            >
+{`ollama pull gemma4:e4b
+ollama pull embeddinggemma`}
+            </pre>
+          </li>
           <li>Download the disk image.</li>
           <li>Open it, drag Heirloom into Applications.</li>
           <li>
             In Applications, right-click <strong>Heirloom</strong> and choose{" "}
             <em className="italic">Open</em>. Confirm the second prompt.
           </li>
-          <li>
-            First launch pulls <code className="font-mono">gemma4:e4b</code>{" "}
-            (~9.6 GB) and <code className="font-mono">embeddinggemma</code>{" "}
-            (~621 MB) on its own. Allow ~10 minutes.
-          </li>
         </ol>
+        <p
+          className="p-meta mt-3"
+          style={{ color: "var(--color-ink-fade)", fontSize: 11.5 }}
+        >
+          This RC requires the manual pull step above. Auto-pull with a
+          progress UI lands in the next release candidate.
+        </p>
 
         <hr
           style={{
