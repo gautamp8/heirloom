@@ -95,38 +95,44 @@ async function main() {
   await sql`UPDATE vaults SET onboarded_at = COALESCE(onboarded_at, now()) WHERE id = ${vaultId}`;
 
   // Voice profile: register the reference wav with the TTS sidecar and
-  // upsert the row that downstream /api/voice/speak reads from.
+  // upsert the row that downstream /api/voice/speak reads from. If the
+  // sidecar isn't running (common on a fresh VM without LuxTTS), skip
+  // voice cleanly — text and photo features still work without it.
   const refPath = path.join(absSeed, manifest.voice_reference);
   if (fs.existsSync(refPath)) {
     const wav = fs.readFileSync(refPath);
     const blobUrl = await writeBlob(wav, "wav");
     const fd = new FormData();
     fd.append("audio", new Blob([new Uint8Array(wav)], { type: "audio/wav" }), "reference.wav");
-    const r = await fetch(`${TTS_BASE}/encode`, { method: "POST", body: fd });
-    if (!r.ok) {
-      console.warn(`  voice encode failed (${r.status}); skipping voice profile`);
-    } else {
-      const { voice_id, duration_seconds, sample_rate } = (await r.json()) as {
-        voice_id: string;
-        duration_seconds: number;
-        sample_rate: number;
-      };
-      await sql`
-        INSERT INTO voice_profiles
-          (vault_id, voice_id, blob_url, reference_text, duration_ms, sample_rate)
-        VALUES (${vaultId}, ${voice_id}, ${blobUrl}, ${manifest.voice_reference_text},
-                ${Math.round(duration_seconds * 1000)}, ${sample_rate})
-        ON CONFLICT (vault_id) DO UPDATE
-          SET voice_id = EXCLUDED.voice_id,
-              blob_url = EXCLUDED.blob_url,
-              reference_text = EXCLUDED.reference_text,
-              duration_ms = EXCLUDED.duration_ms,
-              sample_rate = EXCLUDED.sample_rate
-      `;
-      console.log(`  voice_id: ${voice_id} (${duration_seconds.toFixed(1)}s)`);
-      if (manifest.voice_reference_is_placeholder) {
-        console.log(`  (voice is a placeholder; replace ${refPath} with a real clip for authenticity)`);
+    try {
+      const r = await fetch(`${TTS_BASE}/encode`, { method: "POST", body: fd });
+      if (!r.ok) {
+        console.warn(`  voice encode failed (${r.status}); skipping voice profile`);
+      } else {
+        const { voice_id, duration_seconds, sample_rate } = (await r.json()) as {
+          voice_id: string;
+          duration_seconds: number;
+          sample_rate: number;
+        };
+        await sql`
+          INSERT INTO voice_profiles
+            (vault_id, voice_id, blob_url, reference_text, duration_ms, sample_rate)
+          VALUES (${vaultId}, ${voice_id}, ${blobUrl}, ${manifest.voice_reference_text},
+                  ${Math.round(duration_seconds * 1000)}, ${sample_rate})
+          ON CONFLICT (vault_id) DO UPDATE
+            SET voice_id = EXCLUDED.voice_id,
+                blob_url = EXCLUDED.blob_url,
+                reference_text = EXCLUDED.reference_text,
+                duration_ms = EXCLUDED.duration_ms,
+                sample_rate = EXCLUDED.sample_rate
+        `;
+        console.log(`  voice_id: ${voice_id} (${duration_seconds.toFixed(1)}s)`);
+        if (manifest.voice_reference_is_placeholder) {
+          console.log(`  (voice is a placeholder; replace ${refPath} with a real clip for authenticity)`);
+        }
       }
+    } catch (e) {
+      console.warn(`  TTS sidecar unreachable at ${TTS_BASE}; skipping voice profile`);
     }
   }
 

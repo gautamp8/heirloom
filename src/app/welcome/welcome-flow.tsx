@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Envelope } from "./envelope";
@@ -22,8 +22,19 @@ export function WelcomeFlow() {
   // Dev debug: ?stage=opening|emerging|unfolding|reading freezes the page
   // at that stage so each animation frame can be inspected/screenshotted.
   const frozenStage = searchParams.get("stage") as Stage | null;
+  // Demo entry: `?p=carl-sagan-archive-1990` pre-fills + auto-submits the
+  // passphrase. Dashes decode to spaces so a URL-safe slug round-trips.
+  const prefilledPassphrase = (() => {
+    const raw = searchParams.get("p");
+    if (!raw) return "";
+    try {
+      return decodeURIComponent(raw).replace(/-/g, " ").trim();
+    } catch {
+      return raw.replace(/-/g, " ").trim();
+    }
+  })();
   const [stage, setStage] = useState<Stage>(frozenStage ?? "envelope");
-  const [passphrase, setPassphrase] = useState("");
+  const [passphrase, setPassphrase] = useState(prefilledPassphrase);
   const [error, setError] = useState<string | null>(null);
   const [letter, setLetter] = useState<{
     from_name: string;
@@ -95,6 +106,17 @@ export function WelcomeFlow() {
     setStage("leaving");
     window.setTimeout(() => router.push("/"), 600);
   }
+
+  // Auto-submit if a passphrase was supplied via ?p=. Guarded with a ref so
+  // strict-mode double-mount doesn't fire two unlock calls.
+  const autoUnlocked = useRef(false);
+  useEffect(() => {
+    if (autoUnlocked.current) return;
+    if (!prefilledPassphrase || frozenStage) return;
+    autoUnlocked.current = true;
+    void unlock();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <main className="stage relative min-h-dvh overflow-hidden flex flex-col items-center justify-center px-6">

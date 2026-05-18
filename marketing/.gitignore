@@ -1,0 +1,23 @@
+# Next.js
+.next/
+out/
+build/
+next-env.d.ts
+*.tsbuildinfo
+
+# Node
+node_modules/
+
+# Logs
+*.log
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Local screenshots produced during dev
+.screenshots/
+
+# OS
+.DS_Store

@@ -2,6 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Source_Serif_4, Geist, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ServiceWorkerRegister } from "./_components/sw-register";
+import { DemoBanner } from "./_components/demo-banner";
+
+const DEMO_NOTICE = process.env.NEXT_PUBLIC_HEIRLOOM_DEMO_NOTICE === "1";
 
 const sourceSerif = Source_Serif_4({
   variable: "--font-source-serif",
@@ -65,6 +68,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-dvh bg-paper text-ink" suppressHydrationWarning>
+        <DemoBanner enabled={DEMO_NOTICE} />
         {children}
         <ServiceWorkerRegister />
       </body>

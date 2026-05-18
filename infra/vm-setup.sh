@@ -237,6 +237,16 @@ fi
 ok "VAPID keys present"
 
 # 8. Environment file ----------------------------------------------------
+# DEMO_NOTICE: set NEXT_PUBLIC_HEIRLOOM_DEMO_NOTICE=1 before running
+# setup (or in the existing env file) to show a public-demo banner above
+# the app. Off by default for normal self-hosters.
+DEMO_NOTICE="${NEXT_PUBLIC_HEIRLOOM_DEMO_NOTICE:-}"
+if [[ -z "$DEMO_NOTICE" && -f "$ENV_FILE" ]]; then
+  DEMO_NOTICE=$(grep -E '^NEXT_PUBLIC_HEIRLOOM_DEMO_NOTICE=' "$ENV_FILE" \
+      | cut -d= -f2- || true)
+fi
+DEMO_NOTICE="${DEMO_NOTICE:-0}"
+
 heading "Environment"
 umask 077
 cat > "$ENV_FILE" <<EOF
@@ -254,6 +264,7 @@ VAPID_PUBLIC_KEY=$VAPID_PUBLIC_KEY
 VAPID_PRIVATE_KEY=$VAPID_PRIVATE_KEY
 VAPID_SUBJECT=$VAPID_SUBJECT
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=$VAPID_PUBLIC_KEY
+NEXT_PUBLIC_HEIRLOOM_DEMO_NOTICE=$DEMO_NOTICE
 EOF
 chown heirloom:heirloom "$ENV_FILE"
 chmod 600 "$ENV_FILE"
