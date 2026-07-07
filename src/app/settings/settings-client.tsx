@@ -1487,6 +1487,7 @@ type VoiceState =
   | { kind: "idle" }
   | { kind: "checking" }
   | { kind: "unavailable"; reason: string }
+  | { kind: "hosted" }
   | { kind: "no-profile" }
   | { kind: "have-profile"; duration_ms: number | null; created_at: string }
   | { kind: "recording"; durationMs: number }
@@ -1510,7 +1511,12 @@ function VoiceSection() {
           created_at: string;
         } | null;
         tts_available: boolean;
+        hosted?: boolean;
       };
+      if (data.hosted) {
+        setState({ kind: "hosted" });
+        return;
+      }
       if (!data.tts_available) {
         setState({
           kind: "unavailable",
@@ -1645,6 +1651,21 @@ function VoiceSection() {
 
       {state.kind === "checking" && (
         <p className="p-meta">Checking the voice engine…</p>
+      )}
+
+      {state.kind === "hosted" && (
+        <div className="rounded-[12px] border border-rule-soft p-4 max-w-[560px] bg-paper">
+          <p className="p-meta mb-2">
+            Voice stays on your own device.
+          </p>
+          <p className="p-meta max-w-[480px]">
+            Recording, transcription, and voice cloning all run locally so
+            your voice never travels to a server. This hosted demo runs in the
+            cloud, so it leaves voice out on purpose. Install the free macOS
+            app to record in your own voice - the rest of the archive works
+            exactly the same.
+          </p>
+        </div>
       )}
 
       {state.kind === "unavailable" && (

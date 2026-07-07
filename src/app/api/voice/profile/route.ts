@@ -1,13 +1,21 @@
 import { errorResponse, requireSession } from "@/lib/auth";
 import { withRls, sqlAdmin } from "@/lib/db";
 import { ttsHealth } from "@/lib/tts";
+import { describeProvider } from "@/lib/provider";
 
 export const dynamic = "force-dynamic";
 
-/** GET /api/voice/profile → { profile, tts_available } */
+/** GET /api/voice/profile → { profile, tts_available, hosted } */
 export async function GET() {
   try {
     const session = await requireSession();
+
+    // Voice capture + cloning is an on-device feature: recording, whisper
+    // transcription, and TTS all run locally so audio never leaves the
+    // machine. The hosted demo runs in the cloud with no voice engine, so
+    // it declares itself hosted and the client shows a "voice stays on your
+    // own device" note instead of a control that can't work.
+    const hosted = (await describeProvider()).profile === "hosted-demo";
 
     type Row = {
       id: string;
@@ -38,8 +46,9 @@ export async function GET() {
     const health = await ttsHealth();
     return Response.json({
       profile,
-      tts_available: health.ok,
+      tts_available: health.ok && !hosted,
       tts_device: health.device,
+      hosted,
     });
   } catch (err) {
     return errorResponse(err);

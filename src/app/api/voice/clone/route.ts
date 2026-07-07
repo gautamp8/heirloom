@@ -2,6 +2,7 @@ import { errorResponse, HttpError, requireSession } from "@/lib/auth";
 import { withRls } from "@/lib/db";
 import { writeBlob } from "@/lib/storage";
 import { encodeReference } from "@/lib/tts";
+import { describeProvider } from "@/lib/provider";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,13 @@ export async function POST(req: Request) {
   try {
     const session = await requireSession();
     if (session.role !== "creator") throw new HttpError(403, "creator_only");
+
+    // Privacy guard: the hosted demo must never receive reference audio. Voice
+    // capture is on-device only, so refuse the upload before it is read rather
+    // than relaying a recording to a cloud server.
+    if ((await describeProvider()).profile === "hosted-demo") {
+      throw new HttpError(403, "voice_capture_is_on_device_only");
+    }
 
     const form = await req.formData();
     const file = form.get("audio");
