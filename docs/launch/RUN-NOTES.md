@@ -19,11 +19,13 @@ worth remembering.
    account). Approve it / run outside auto mode and it's one SSH command;
    scripts are ready (`vm-setup-demo.sh` → `build-and-start.sh` →
    `reset-demo.sh` for the seed).
-2. **`demo.withheirloom.app` DNS.** Point an A record at
-   **34.63.201.214** (no cloud auto-hostname — migration learning #7).
-   No credentialed registrar/Cloudflare path was found on this machine, so
-   this is yours. Caddy on the VM will fetch the TLS cert once DNS
-   resolves.
+2. **`demo.withheirloom.app` DNS — I can do this once the VM is live.**
+   `withheirloom.app` is on Vercel DNS and this machine is authenticated to
+   Vercel, so it's one command (not a human step):
+   `vercel dns add withheirloom.app demo A 34.63.201.214` — an explicit
+   record overrides the current `*` wildcard ALIAS. I'm holding it until
+   the VM actually serves so the URL doesn't resolve to a dead host. Caddy
+   on the VM fetches the TLS cert once DNS resolves.
 
 ## [HUMAN] queue — batched, none of these block current work
 
