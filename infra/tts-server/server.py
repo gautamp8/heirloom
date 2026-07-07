@@ -39,6 +39,18 @@ log = logging.getLogger("heirloom-tts")
 
 VOICE_DIR = Path(os.environ.get("HEIRLOOM_VOICE_DIR", "voice"))
 VOICE_DIR.mkdir(parents=True, exist_ok=True)
+
+# Synthesis quality/speed knobs, env-configurable so the quality sweep
+# (the [HUMAN] listening test in WS3) needs no code edits. Diffusion steps
+# trade latency for detail: 8 is fast, 16-24 is the usual quality sweet
+# spot, 32 has diminishing returns. TTS only runs on the desktop / a
+# self-host box (the public demo skips voice), and those can afford more
+# steps than the default — raise HEIRLOOM_TTS_STEPS once the listening
+# comparison picks a winner. guidance_scale ~3 keeps it faithful to the
+# reference; return_smooth applies a light post-filter some voices prefer.
+TTS_STEPS = int(os.environ.get("HEIRLOOM_TTS_STEPS", "8"))
+TTS_GUIDANCE = float(os.environ.get("HEIRLOOM_TTS_GUIDANCE", "3.0"))
+TTS_SMOOTH = os.environ.get("HEIRLOOM_TTS_SMOOTH", "0") in ("1", "true", "True")
 CACHE_DIR = VOICE_DIR / "cache"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -142,11 +154,11 @@ class TTSEngine:
         wav = self._model.generate_speech(
             text=clean,
             encode_dict=self._prompt_cache[voice_id],
-            num_steps=8,
-            guidance_scale=3.0,
+            num_steps=TTS_STEPS,
+            guidance_scale=TTS_GUIDANCE,
             t_shift=0.5,
             speed=1.0,
-            return_smooth=False,
+            return_smooth=TTS_SMOOTH,
         )
         if isinstance(wav, torch.Tensor):
             wav = wav.cpu().numpy()
