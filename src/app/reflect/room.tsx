@@ -19,6 +19,7 @@ type StreamState = {
   topSimilarity: number | null;
   answer: string;
   claims: { text: string; citations: Citation[] }[];
+  errorMessage: string | null;
 };
 
 const EMPTY_STATE: StreamState = {
@@ -27,6 +28,7 @@ const EMPTY_STATE: StreamState = {
   topSimilarity: null,
   answer: "",
   claims: [],
+  errorMessage: null,
 };
 
 export function ReflectionRoom({
@@ -130,6 +132,8 @@ export function ReflectionRoom({
         }
         case "error": {
           next.status = "error";
+          next.errorMessage =
+            (ev.data as { message?: string }).message ?? null;
           break;
         }
       }
@@ -195,6 +199,15 @@ export function ReflectionRoom({
           <div className="max-w-[520px] mx-auto pt-8">
             <p className="font-serif text-[19px] leading-[1.55] text-ink-soft text-wrap-pretty italic">
               I don&rsquo;t have that in the archive. Try asking another way?
+            </p>
+          </div>
+        )}
+
+        {s.status === "error" && (
+          <div className="max-w-[520px] mx-auto pt-8">
+            <p className="font-serif text-[19px] leading-[1.55] text-ink-soft text-wrap-pretty italic">
+              {s.errorMessage ??
+                "Something interrupted that reflection. Try again in a moment."}
             </p>
           </div>
         )}
