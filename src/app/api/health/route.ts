@@ -44,6 +44,23 @@ export async function GET() {
           }
         : { status: "down" },
     },
-    { status: ok ? 200 : 503 },
+    {
+      status: ok ? 200 : 503,
+      // The Tauri splash (`tauri://localhost`) probes this route to
+      // discover the bundled Node port before pivoting to the live app.
+      // Local-only server, so wildcard is fine.
+      headers: { "Access-Control-Allow-Origin": "*" },
+    },
   );
+}
+
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
+    },
+  });
 }

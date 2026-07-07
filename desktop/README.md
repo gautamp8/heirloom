@@ -34,10 +34,16 @@ On launch the shell:
    spawns the LuxTTS voice-cloning sidecar on `127.0.0.1:11435`.
    Otherwise voice features stay disabled - text, photo, retrieval
    all work unchanged.
-4. Spawns the bundled Node + Next.js server on `127.0.0.1:3000` with
-   `HEIRLOOM_BACKEND=sqlite`.
-5. Opens a WKWebView at the placeholder page, which polls
-   `/api/health` and pivots to the portal once it answers.
+4. Spawns the bundled Node + Next.js server with
+   `HEIRLOOM_BACKEND=sqlite` on the first free port from a fixed
+   candidate set (`47384-47387`) that the splash page also knows.
+5. Opens a WKWebView at the bundled splash page. On first run the
+   splash walks the user through the one-time model download - it
+   drives Ollama's `/api/pull` directly and renders per-model
+   progress (size, rate, ETA), then builds the grounded model
+   variant. Once the models are present it probes the candidate
+   ports for `/api/health` and pivots to the live app. No terminal
+   involved at any point.
 6. On exit, SIGTERMs all children so they don't outlive the window.
 
 ## Optional: voice cloning
@@ -77,10 +83,11 @@ desktop/src-tauri/target/release/bundle/dmg/Heirloom.dmg     (~92 MB)
 desktop/src-tauri/target/release/bundle/macos/Heirloom.app   (~214 MB)
 ```
 
-The first-run user still needs to pull the models - the shell points
-`OLLAMA_MODELS` at the app-data dir, so a one-shot
-`ollama pull gemma4:e4b` from inside the app's terminal (or a future
-in-app pull screen) populates the cache.
+First-run model downloads happen inside the app: the splash screen
+pulls `gemma4:e4b` and `embeddinggemma` through Ollama's REST API
+with visible progress, into the app-data `OLLAMA_MODELS` dir. The
+pull is resumable - quitting mid-download and reopening picks up
+where it left off.
 
 ## Iterating on the shell
 

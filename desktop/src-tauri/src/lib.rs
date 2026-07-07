@@ -2,7 +2,6 @@ use std::net::TcpListener;
 use std::os::unix::process::CommandExt;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
-use std::time::Duration;
 use tauri::{Manager, RunEvent, State};
 
 /// Detach a sidecar from the GUI app's session so macOS doesn't show
@@ -12,14 +11,24 @@ fn detach_from_app_session(cmd: &mut Command) {
     cmd.stdin(Stdio::null());
 }
 
-/// Ask the OS for a free port. The listener is dropped immediately so
-/// the spawned server can claim it.
-fn pick_free_port() -> u16 {
+/// Pick the highest-priority port from a small candidate list that
+/// the splash also knows about. Using a known set lets the splash
+/// discover the live server without an IPC round-trip, which is
+/// fragile from plain HTML in Tauri 2 release builds.
+fn pick_known_port() -> u16 {
+    const CANDIDATES: &[u16] = &[47384, 47385, 47386, 47387];
+    for p in CANDIDATES {
+        if TcpListener::bind(("127.0.0.1", *p)).is_ok() {
+            return *p;
+        }
+    }
+    // Last-resort: ask the OS. Splash will probe and miss; user sees
+    // the bundled-server error screen with a retry.
     TcpListener::bind("127.0.0.1:0")
         .ok()
         .and_then(|l| l.local_addr().ok())
         .map(|a| a.port())
-        .unwrap_or(3000)
+        .unwrap_or(47384)
 }
 
 #[derive(Default)]
@@ -44,9 +53,25 @@ impl AppChildren {
     }
 }
 
+#[derive(Default)]
+struct ServerUrl(Mutex<String>);
+
 #[tauri::command]
 fn shutdown_children(state: State<'_, AppChildren>) {
     state.shutdown();
+}
+
+#[tauri::command]
+fn get_server_url(state: State<'_, ServerUrl>) -> String {
+    state.0.lock().map(|v| v.clone()).unwrap_or_default()
+}
+
+#[tauri::command]
+fn quit_app(app: tauri::AppHandle) {
+    if let Some(children) = app.try_state::<AppChildren>() {
+        children.shutdown();
+    }
+    app.exit(0);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -54,6 +79,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(AppChildren::default())
+        .manage(ServerUrl::default())
         .setup(|app| {
             let app_data = app
                 .path()
@@ -138,7 +164,7 @@ pub fn run() {
                 .map(|p| p.join("Resources/server"))
                 .unwrap_or_default();
             let node_bin = bin_dir.join("node");
-            let port = pick_free_port();
+            let port = pick_known_port();
             let server_url = format!("http://127.0.0.1:{}", port);
             let whisper_bin = bin_dir.join("whisper-cli");
             let whisper_model = bin_dir
@@ -172,37 +198,20 @@ pub fn run() {
                 }
             }
 
-            // Poll until the bundled server answers, then pivot the
-            // WebView from the static splash to the live Next.js app.
-            let main_window = app.get_webview_window("main");
-            let health_url = format!("{}/api/health", server_url);
-            let nav_url = server_url.clone();
-            std::thread::spawn(move || {
-                for _ in 0..240 {
-                    if ureq::get(&health_url)
-                        .timeout(Duration::from_millis(500))
-                        .call()
-                        .is_ok()
-                    {
-                        if let (Some(w), Ok(u)) =
-                            (&main_window, url::Url::parse(&nav_url))
-                        {
-                            if w.navigate(u).is_err() {
-                                let _ = w.eval(&format!(
-                                    "location.replace('{}')",
-                                    nav_url
-                                ));
-                            }
-                        }
-                        return;
-                    }
-                    std::thread::sleep(Duration::from_millis(500));
-                }
-            });
+            // Publish the server URL so the splash SPA can read it
+            // via the `get_server_url` command, run model setup, and
+            // navigate to the live app when ready.
+            if let Ok(mut url) = app.state::<ServerUrl>().0.lock() {
+                *url = server_url;
+            }
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![shutdown_children])
+        .invoke_handler(tauri::generate_handler![
+            shutdown_children,
+            get_server_url,
+            quit_app,
+        ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
