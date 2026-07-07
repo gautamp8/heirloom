@@ -58,10 +58,11 @@ async function testByok(settings: ByokSettings): Promise<void> {
     apiKey: settings.api_key,
   });
   try {
+    // No token cap: some endpoints want max_tokens, newer OpenAI models
+    // want max_completion_tokens; the prompt is tiny either way.
     await generateText({
       model: provider(settings.synthesis_model),
       prompt: "Reply with the single word: ok",
-      maxOutputTokens: 8,
       abortSignal: AbortSignal.timeout(20_000),
     });
   } catch (e) {

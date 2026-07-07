@@ -960,7 +960,7 @@ function ProviderSection() {
           <p className="font-serif text-[16px] text-ink leading-snug">
             {info.byok.synthesis_model}
           </p>
-          <p className="p-meta">
+          <p className="text-[13px] leading-[1.6] text-ink-soft">
             via {(() => { try { return new URL(info.byok.base_url).hostname; } catch { return info.byok.base_url; } })()} ·
             embeddings {info.byok.embeddings.mode === "cloud"
               ? `in the cloud (${info.byok.embeddings.model})`
@@ -1018,7 +1018,7 @@ function ProviderSection() {
               onChange={(e) => setCloudEmbeds(e.target.checked)}
               className="mt-1"
             />
-            <span className="p-meta">
+            <span className="text-[13px] leading-[1.6] text-ink-soft">
               Also run embeddings in the cloud. Off by default — the local
               embedding model is a small, fast download, and keeping it local
               means your whole archive text is never uploaded for indexing.
@@ -1034,7 +1034,7 @@ function ProviderSection() {
                 placeholder="text-embedding-3-small"
                 className="font-mono text-[13px] text-ink bg-transparent outline-none border-b border-rule focus:border-ink py-1"
               />
-              <p className="p-meta text-wax">
+              <p className="text-[12.5px] leading-[1.6] text-wax">
                 Changing the embedding model requires re-indexing the archive
                 (scripts/reindex-embeddings.ts) before search works again.
               </p>
@@ -1048,18 +1048,21 @@ function ProviderSection() {
               background: "rgba(125,42,26,0.05)",
             }}
           >
-            <p className="p-meta" style={{ color: "var(--color-ink-soft)" }}>
+            <p className="text-[13px] leading-[1.65] text-ink-soft">
               With a key saved, this leaves your device and is sent to{" "}
-              <strong>{host}</strong>: your questions and the archive passages
-              they match, whenever you ask the archive something; each photo,
-              at the moment it is captioned; and note text, when it is tagged.
+              <strong className="text-ink">{host}</strong>: your questions and
+              the archive passages they match, whenever you ask the archive
+              something; each photo, at the moment it is captioned; and note
+              text, when it is tagged.
               {cloudEmbeds
                 ? " With cloud embeddings on, the full text of every memory is also sent once for indexing."
                 : " Recordings, transcription, your voice, and the archive index never leave this device."}
             </p>
           </div>
 
-          {error && <p className="p-meta text-wax">{error}</p>}
+          {error && (
+            <p className="text-[13px] leading-[1.6] text-wax">{error}</p>
+          )}
 
           <div className="flex gap-2">
             <button
