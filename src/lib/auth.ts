@@ -17,9 +17,17 @@ const jwtSecretEnv = process.env.JWT_SECRET;
 // module with NODE_ENV=production but has no reason to hold the real
 // secret (it isn't serving requests). NEXT_PHASE marks the build.
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+// The desktop bundle runs NODE_ENV=production but is a single-user,
+// on-device build (sqlite backend, one vault, the OS user is the trust
+// boundary). Forging your own session on your own machine isn't the
+// cross-vault threat this guard exists for — that only applies to a
+// multi-vault server. So exempt the local build, matching the same
+// isLocal check the cookie's `secure` flag uses below.
+const isLocalBackend = process.env.HEIRLOOM_BACKEND === "sqlite";
 if (
   process.env.NODE_ENV === "production" &&
   !isBuildPhase &&
+  !isLocalBackend &&
   (!jwtSecretEnv || jwtSecretEnv === DEV_FALLBACK_SECRET)
 ) {
   throw new Error(
