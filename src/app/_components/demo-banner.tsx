@@ -72,10 +72,10 @@ export function DemoBanner({ enabled }: { enabled: boolean }) {
           Public demo
         </span>
         <span style={{ flex: 1 }}>
-          This is the Sagan demo, hosted on a small Azure VM. Answers can be
-          slow, and anything you submit here is stored on the VM — not on
-          your own device. For real use, install Heirloom on your own
-          device.
+          This is the Sagan demo — a small cloud server running Azure OpenAI,
+          the opposite of the real product, so you can try it without
+          installing anything. Anything you submit is stored on the server and
+          wiped nightly. The app you download runs entirely on your own device.
         </span>
         <button
           type="button"

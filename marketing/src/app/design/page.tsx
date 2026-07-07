@@ -272,7 +272,7 @@ function RefusalGrid() {
     },
     {
       h: "A managed cloud product.",
-      b: "Heirloom installs on the creator's own laptop. All inference is local — the language model, the audio transcription, the voice cloning, the face matching. No fallback to a hosted provider, ever.",
+      b: "Heirloom installs on the creator's own laptop and runs local by default — the language model, the transcription, the voice cloning, the face matching, all on the device. If you'd rather use a cloud model, you can bring your own API key; the settings screen states in plain words exactly what leaves the device and when. The download never falls back to our servers on its own.",
     },
   ];
   return (
