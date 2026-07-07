@@ -5,6 +5,26 @@ Working notes for the launch-readiness run (started 2026-07-07, branch
 this file holds the queue of things only Gautam can do, plus decisions
 worth remembering.
 
+## Needs your approval / credentials (blocking those items only)
+
+1. **Finish the demo VM deploy (WS6).** The instance is live —
+   `heirloom-demo` (e2-small) on `cmhq-vpc`, static IP **34.63.201.214**,
+   tags `web`+`ssh`, IAP SSH working, 3 GB swap added, source staged at
+   `/opt/heirloom/app`. The Azure OpenAI deployments (`heirloom-chat` =
+   gpt-5.4-mini, `heirloom-embed` = text-embedding-3-small) are live on
+   `cmhq-foundry-eastus2` with a \$30/mo budget alert. The only remaining
+   step — running `infra/vm-setup-demo.sh` (stands up the public service +
+   writes the Azure key into `/opt/heirloom/.env`) — was **blocked by the
+   auto-mode classifier** (public deploy + credential handling on a shared
+   account). Approve it / run outside auto mode and it's one SSH command;
+   scripts are ready (`vm-setup-demo.sh` → `build-and-start.sh` →
+   `reset-demo.sh` for the seed).
+2. **`demo.withheirloom.app` DNS.** Point an A record at
+   **34.63.201.214** (no cloud auto-hostname — migration learning #7).
+   No credentialed registrar/Cloudflare path was found on this machine, so
+   this is yours. Caddy on the VM will fetch the TLS cert once DNS
+   resolves.
+
 ## [HUMAN] queue — batched, none of these block current work
 
 1. **Notarization (WS4):** needs your Apple Developer credentials. By the
