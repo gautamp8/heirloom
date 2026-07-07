@@ -19,6 +19,15 @@ export {
   type ByokSettings,
 } from "./config";
 
+/** @ai-sdk/azure auto-appends /v1 + api-version only for *.openai.azure.com
+ *  hosts. Foundry/AIServices endpoints (*.cognitiveservices.azure.com) speak
+ *  the same v1 surface but need the path spelled out. */
+function azureBaseURL(endpoint: string): string {
+  return new URL(endpoint).hostname.endsWith(".openai.azure.com")
+    ? `${endpoint}/openai`
+    : `${endpoint}/openai/v1`;
+}
+
 function languageModelFor(target: ModelTarget): LanguageModel {
   switch (target.kind) {
     case "ollama":
@@ -31,7 +40,7 @@ function languageModelFor(target: ModelTarget): LanguageModel {
       })(target.model);
     case "azure":
       return createAzure({
-        baseURL: `${target.endpoint}/openai`,
+        baseURL: azureBaseURL(target.endpoint),
         apiKey: target.apiKey,
       })(target.deployment);
   }
@@ -65,7 +74,7 @@ function embeddingModelFor(p: ResolvedProvider): EmbeddingHandle {
     case "azure":
       return {
         model: createAzure({
-          baseURL: `${target.endpoint}/openai`,
+          baseURL: azureBaseURL(target.endpoint),
           apiKey: target.apiKey,
         }).textEmbeddingModel(target.deployment),
         providerOptions: { openai: { dimensions: p.embeddingDims } },

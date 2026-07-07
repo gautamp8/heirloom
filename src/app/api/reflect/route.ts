@@ -1,4 +1,4 @@
-import { streamObject } from "ai";
+import { generateObject, streamObject } from "ai";
 import { withRls, vec } from "@/lib/db";
 import { embedOne } from "@/lib/embed";
 import { fetchTopK, canonicalSourceText } from "@/lib/retrieval";
@@ -223,11 +223,60 @@ export async function POST(req: Request) {
             });
           }
 
-          const final: ReflectionAnswer = await object;
-          const cite = validateCitations(final, chunks);
-          const noClaims = final.claims.length === 0;
-          const firstPerson = hasFirstPersonOutsideQuotes(final.answer);
-          if (!cite.ok || firstPerson || noClaims) {
+          // Synthesis failure is a grounding failure. Cloud models can
+          // corrupt the stream mid-object (e.g. a content-policy refusal
+          // spliced into the JSON while quoting a famous passage). One
+          // silent non-streaming retry absorbs the flaky case; if that
+          // fails too, the contract collapses to the verbatim empty state
+          // rather than surfacing half-validated prose.
+          let final: ReflectionAnswer | null = null;
+          try {
+            final = await object;
+          } catch (synthErr) {
+            console.warn("[/api/reflect] synthesis failed, retrying once", synthErr);
+            try {
+              const retry = await generateObject({
+                model: await synthesisModel(),
+                schema: ReflectionSchema,
+                prompt,
+                temperature: 0.3,
+              });
+              final = retry.object;
+              // The stream's partials are stale now; hand the client the
+              // retried claims so citation chips still appear.
+              final.claims.forEach((c, i) => {
+                const validCitations = c.citations.filter((id) =>
+                  chunks.some((ch) => ch.capture_id === id),
+                );
+                if (validCitations.length === 0) return;
+                send("claim", {
+                  index: 1000 + i,
+                  text: c.text,
+                  citations: validCitations.map((cid) => {
+                    const ch = chunks.find((x) => x.capture_id === cid)!;
+                    const source = canonicalSourceText(ch);
+                    return {
+                      capture_id: cid,
+                      snippet: trimToSentence(source || ch.text, 800),
+                      source_text: source,
+                      kind: ch.kind,
+                      blob_url: ch.blob_url,
+                    };
+                  }),
+                });
+              });
+            } catch (retryErr) {
+              console.warn("[/api/reflect] retry failed", retryErr);
+            }
+          }
+          const cite = final
+            ? validateCitations(final, chunks)
+            : ({ ok: false, reason: "synthesis_failed" } as const);
+          const noClaims = !final || final.claims.length === 0;
+          const firstPerson = final
+            ? hasFirstPersonOutsideQuotes(final.answer)
+            : false;
+          if (!final || !cite.ok || firstPerson || noClaims) {
             send("grounded", { grounded: false });
             send("answer", { text: EMPTY_STATE_ANSWER });
             const reflection_id = await saveReflection(
@@ -241,11 +290,13 @@ export async function POST(req: Request) {
                   retrieved_count: chunks.length,
                   top_similarity: topSim,
                   threshold: floor,
-                  rejected_for: firstPerson
-                    ? "first_person"
-                    : !cite.ok
-                      ? "invalid_citation"
-                      : "no_claims",
+                  rejected_for: !final
+                    ? "synthesis_failed"
+                    : firstPerson
+                      ? "first_person"
+                      : !cite.ok
+                        ? "invalid_citation"
+                        : "no_claims",
                   grounded: false,
                   retrieved_chunks: chunks.slice(0, 8).map((c) => ({
                     capture_id: c.capture_id,
