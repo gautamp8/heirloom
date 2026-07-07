@@ -1690,6 +1690,11 @@ function VoiceSection() {
         state.kind === "uploading" ||
         state.kind === "error") && (
         <div className="flex flex-col gap-4 max-w-[560px]">
+          <p className="p-meta">
+            Somewhere quiet, at your natural pace &mdash; about twenty seconds.
+            Let your voice do what it normally does; that&rsquo;s what makes it
+            sound like you.
+          </p>
           <blockquote className="font-serif italic text-[17px] leading-[1.5] text-ink-soft border-l-2 border-rule pl-4 text-wrap-pretty">
             “{VOICE_SCRIPT}”
           </blockquote>

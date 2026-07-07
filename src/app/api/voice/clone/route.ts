@@ -6,7 +6,9 @@ import { encodeReference } from "@/lib/tts";
 export const dynamic = "force-dynamic";
 
 const MAX_REFERENCE_BYTES = 12 * 1024 * 1024; // 12 MB ≈ 4 min of 16-bit mono 24 kHz
-// LuxTTS clones from up to 15s of prompt audio; require at least 8s
+// The TTS model encodes at most 15s of prompt audio; the on-screen
+// script (~20s) ensures the recording comfortably exceeds that. Require
+// at least 8s
 // so timbre is captured cleanly.
 const MIN_REFERENCE_SECONDS = 8;
 

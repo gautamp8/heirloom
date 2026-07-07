@@ -535,7 +535,10 @@ function VoiceStep(props: { onBack: () => void; onContinue: () => void }) {
         only the words you actually said or wrote.
       </p>
       <p className="p-meta max-w-[520px] mb-4">
-        Optional. You can do this later from Settings.
+        Somewhere quiet, at your natural pace &mdash; about twenty seconds. Let
+        your voice do what it normally does: the warmth, the pauses. That&rsquo;s
+        what makes it sound like you. Optional, and you can do it later from
+        Settings.
       </p>
 
       <blockquote className="font-serif italic text-[17px] leading-[1.5] text-ink-soft border-l-2 border-rule pl-4 mb-5 text-wrap-pretty max-w-[560px]">
