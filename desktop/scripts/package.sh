@@ -105,9 +105,14 @@ cp -R migrations/sqlite/. "$SERVER_OUT/migrations/sqlite/"
 ok "server staged at $SERVER_OUT"
 du -sh "$SERVER_OUT" 2>&1 | sed 's/^/  /'
 
-# 4. Build the Tauri .app + .dmg ----------------------------------------
-heading "Tauri bundle"
-HEIRLOOM_BACKEND=sqlite pnpm exec tauri build --config desktop/src-tauri/tauri.conf.json
+# 4. Build the Tauri .app ------------------------------------------------
+# Only the .app target: tauri's built-in DMG step shells out to
+# create-dmg's AppleScript (Finder icon layout), which fails in any
+# non-GUI / automated run. We assemble the DMG ourselves in stage 6 with
+# hdiutil, which needs no Finder.
+heading "Tauri bundle (.app only)"
+HEIRLOOM_BACKEND=sqlite pnpm exec tauri build --bundles app \
+  --config desktop/src-tauri/tauri.conf.json
 ok "tauri build done"
 
 # 5. Inject the standalone server tree into the .app ----------------------
@@ -171,23 +176,28 @@ cp desktop/scripts/install-tts.sh    "$TARGET_TTS/"
 chmod +x "$TARGET_TTS/install-tts.sh"
 ok "tts sidecar source + installer staged (run with 'open $TARGET_TTS/install-tts.sh' or via Settings)"
 
-# 6. Re-pack the dmg with the drag-to-Applications layout ----------------
-heading "Repack .dmg"
+# 6. Assemble the .dmg with hdiutil (no Finder / AppleScript) ------------
+# A staging folder holds the injected .app plus an /Applications symlink
+# so the DMG is drag-to-install. hdiutil compresses it (UDZO). This is
+# less visually styled than create-dmg's laid-out window, but it builds
+# anywhere, including headless.
+heading "Assemble .dmg"
 DMG_DIR="desktop/src-tauri/target/release/bundle/dmg"
+mkdir -p "$DMG_DIR"
 rm -f "$DMG_DIR"/*.dmg
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
-cp -R "$APP_DIR" "$STAGE/"
-( cd "$DMG_DIR" && ./bundle_dmg.sh \
-    --volname "Heirloom" \
-    --volicon icon.icns \
-    --window-size 660 400 \
-    --icon-size 128 \
-    --icon "Heirloom.app" 180 170 \
-    --app-drop-link 480 170 \
-    --hdiutil-quiet \
-    "Heirloom.dmg" "$STAGE/" > /dev/null )
-ok "dmg repacked with drag-to-Applications layout"
+cp -R "$APP_DIR" "$STAGE/Heirloom.app"
+ln -s /Applications "$STAGE/Applications"
+APP_VERSION="$(python3 -c "import json;print(json.load(open('desktop/src-tauri/tauri.conf.json'))['version'])")"
+DMG_OUT="$DMG_DIR/Heirloom_${APP_VERSION}_aarch64.dmg"
+hdiutil create -volname "Heirloom" \
+  -srcfolder "$STAGE" \
+  -fs HFS+ -format UDZO -ov \
+  "$DMG_OUT" > /dev/null
+# Also expose a stable, version-less name for the marketing download link.
+cp -f "$DMG_OUT" "$DMG_DIR/Heirloom.dmg"
+ok "dmg assembled ($(du -h "$DMG_OUT" | cut -f1))"
 
 note "Bundle output:"
 ls -lh "$DMG_DIR"/*.dmg 2>/dev/null || true

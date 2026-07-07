@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Hardened-runtime entitlements for notarizing Heirloom.
+
+  Heirloom bundles and spawns sidecars (the Node server, Ollama,
+  whisper-cli) and loads whisper-cpp dylibs that are only ad-hoc signed.
+  Under the hardened runtime that Apple notarization requires, those need
+  explicit exceptions:
+    - JIT + unsigned executable memory: Node/V8 compile bytecode at runtime.
+    - disable-library-validation: lets the app load the whisper dylibs and
+      spawn the sidecar binaries, which aren't signed by the same Team ID.
+  No other exceptions are granted. There are no camera/mic/location
+  entitlements here — the WebView requests those through the OS prompt at
+  use time, not as app entitlements.
+-->
+<plist version="1.0">
+<dict>
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+  <key>com.apple.security.cs.disable-library-validation</key>
+  <true/>
+  <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+  <true/>
+</dict>
+</plist>

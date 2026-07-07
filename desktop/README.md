@@ -79,9 +79,65 @@ Requires:
 Output:
 
 ```
-desktop/src-tauri/target/release/bundle/dmg/Heirloom.dmg     (~92 MB)
-desktop/src-tauri/target/release/bundle/macos/Heirloom.app   (~214 MB)
+desktop/src-tauri/target/release/bundle/dmg/Heirloom_0.2.0_aarch64.dmg
+desktop/src-tauri/target/release/bundle/dmg/Heirloom.dmg     (same file, stable name)
+desktop/src-tauri/target/release/bundle/macos/Heirloom.app
 ```
+
+The script builds only the `.app` via Tauri, then assembles the DMG
+with `hdiutil` (no Finder/AppleScript, so it works headless — Tauri's
+built-in create-dmg step does not). The DMG is a plain drag-to-
+`/Applications` layout.
+
+## Signing + notarization (the 10-minute credential step)
+
+The unsigned DMG runs after the right-click → Open Gatekeeper dance. To
+ship a DMG that opens with a double-click, code-sign with a Developer ID
+and notarize. Everything is prepared; this needs only an Apple Developer
+account and an app-specific password.
+
+Prerequisites (one time): an Apple Developer ID Application certificate
+in the login keychain, and an app-specific password stored as a notary
+profile:
+
+```bash
+xcrun notarytool store-credentials heirloom-notary \
+  --apple-id "you@example.com" \
+  --team-id "YOURTEAMID" \
+  --password "app-specific-password"
+```
+
+Then, after `package.sh` produces the `.app`:
+
+```bash
+APP="desktop/src-tauri/target/release/bundle/macos/Heirloom.app"
+IDENTITY="Developer ID Application: Your Name (YOURTEAMID)"
+
+# 1. Sign inside-out (sidecars + dylibs first, then the app) with the
+#    hardened runtime and Heirloom's entitlements. --deep is deprecated;
+#    sign the nested Mach-O explicitly.
+for bin in "$APP"/Contents/MacOS/* "$APP"/Contents/Resources/server/node_modules/**/*.node; do
+  [ -f "$bin" ] && codesign --force --timestamp --options runtime \
+    --entitlements desktop/src-tauri/entitlements.plist \
+    --sign "$IDENTITY" "$bin" 2>/dev/null || true
+done
+codesign --force --timestamp --options runtime \
+  --entitlements desktop/src-tauri/entitlements.plist \
+  --sign "$IDENTITY" "$APP"
+
+# 2. Re-run stage 6 of package.sh (or just re-hdiutil) to wrap the SIGNED
+#    .app into the DMG, then notarize + staple the DMG.
+xcrun notarytool submit \
+  "desktop/src-tauri/target/release/bundle/dmg/Heirloom.dmg" \
+  --keychain-profile heirloom-notary --wait
+xcrun stapler staple \
+  "desktop/src-tauri/target/release/bundle/dmg/Heirloom.dmg"
+```
+
+`entitlements.plist` grants exactly the hardened-runtime exceptions the
+bundled sidecars need (JIT for Node, library-validation off so the
+ad-hoc-signed whisper dylibs and the spawned Ollama/whisper binaries
+load) and nothing more — see the comments in that file.
 
 First-run model downloads happen inside the app: the splash screen
 pulls `gemma4:e4b` and `embeddinggemma` through Ollama's REST API
