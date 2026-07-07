@@ -623,10 +623,3 @@ function formatLongDate(d: Date): string {
   });
 }
 
-function formatDuration(ms: number): string {
-  if (!ms) return "0:00";
-  const s = Math.floor(ms / 1000);
-  const m = Math.floor(s / 60);
-  const r = s - m * 60;
-  return `${m}:${r.toString().padStart(2, "0")}`;
-}

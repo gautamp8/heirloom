@@ -6,7 +6,7 @@
     "dev": "next dev -H 0.0.0.0",
     "build": "next build",
     "start": "next start -H 0.0.0.0",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "tauri": "tauri --config desktop/src-tauri/tauri.conf.json",
     "tauri:dev": "HEIRLOOM_BACKEND=sqlite tauri dev --config desktop/src-tauri/tauri.conf.json",
@@ -38,6 +38,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.10",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5"

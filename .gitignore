@@ -63,3 +63,6 @@ desktop/dist/
 desktop/server/
 desktop/bin/*
 !desktop/bin/.gitkeep
+
+# Internal run/goal notes
+GOAL.md

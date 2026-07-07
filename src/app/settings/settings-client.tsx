@@ -3,11 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { VOICE_SCRIPT, webmBlobToWav } from "@/lib/voice-record";
-import {
-  NotificationsSection,
-  SignOutSection,
-  isDesktopWebView,
-} from "./sections";
+import { NotificationsSection, SignOutSection } from "./sections";
 
 type LifeEvent = {
   id: string;
@@ -1069,15 +1065,12 @@ type SelfieState =
   | { kind: "error"; message: string; preview?: string };
 
 function SelfieSection() {
+  // Initial state is already "checking", so the mount effect only has to
+  // resolve it — no synchronous setState needed.
   const [state, setState] = useState<SelfieState>({ kind: "checking" });
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    refresh();
-  }, []);
-
-  async function refresh() {
-    setState({ kind: "checking" });
+  const refresh = async () => {
     try {
       const r = await fetch("/api/onboarding/self", { cache: "no-store" });
       const d = (await r.json()) as { has_embedding?: boolean };
@@ -1085,7 +1078,12 @@ function SelfieSection() {
     } catch {
       setState({ kind: "no-photo" });
     }
-  }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh() is async; state settles after the fetch, not synchronously
+    void refresh();
+  }, []);
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -1220,16 +1218,7 @@ function VoiceSection() {
   const chunksRef = useRef<Blob[]>([]);
   const startedAtRef = useRef<number>(0);
 
-  useEffect(() => {
-    refresh();
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function refresh() {
-    setState({ kind: "checking" });
+  const refresh = async () => {
     try {
       const r = await fetch("/api/voice/profile", { cache: "no-store" });
       const data = (await r.json()) as {
@@ -1262,7 +1251,16 @@ function VoiceSection() {
         reason: "Couldn't reach the voice engine.",
       });
     }
-  }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh() is async; state settles after the fetch, not synchronously
+    void refresh();
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function startRecording() {
     try {
@@ -1319,7 +1317,8 @@ function VoiceSection() {
       });
       return;
     }
-    refresh();
+    setState({ kind: "checking" });
+    void refresh();
   }
 
   async function playSample() {
@@ -1429,7 +1428,6 @@ function VoiceSection() {
             )}
 
             {previewUrl && state.kind !== "recording" && (
-              // eslint-disable-next-line jsx-a11y/media-has-caption
               <audio src={previewUrl} controls className="h-8" />
             )}
           </div>

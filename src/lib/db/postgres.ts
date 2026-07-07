@@ -4,9 +4,7 @@ const url = process.env.DATABASE_URL;
 if (!url) throw new Error("DATABASE_URL is not set. Copy .env.example to .env.local.");
 
 declare global {
-  // eslint-disable-next-line no-var
   var __heirloomSql: ReturnType<typeof postgres> | undefined;
-  // eslint-disable-next-line no-var
   var __heirloomSqlAdmin: ReturnType<typeof postgres> | undefined;
 }
 

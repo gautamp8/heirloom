@@ -574,7 +574,6 @@ function VoiceStep(props: { onBack: () => void; onContinue: () => void }) {
         )}
         {state.kind === "preview" && (
           <>
-            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
             <audio src={state.url} controls className="h-9" />
             <button type="button" className="btn" onClick={save}>
               Save my voice

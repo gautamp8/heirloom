@@ -24,14 +24,15 @@ export function Home(props: {
   } | null>(null);
   const [recent, setRecent] = useState(props.recent);
   const [prompt, setPrompt] = useState<string | null>(props.prompt.text);
-  const [shuffling, setShuffling] = useState(false);
+  // The shuffle spinner starts on when the server sent no prompt — the
+  // mount effect below immediately fetches one in that case.
+  const [shuffling, setShuffling] = useState(props.prompt.text === null);
   const [draftCount, setDraftCount] = useState(0);
 
   // Fetch the prompt of day async so the home paints before Gemma replies.
   useEffect(() => {
     if (prompt !== null) return;
     let cancelled = false;
-    setShuffling(true);
     (async () => {
       try {
         const r = await fetch("/api/prompt/shuffle");

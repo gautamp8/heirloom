@@ -250,6 +250,7 @@ function VoiceCapture({
       };
       rec.onstop = () => commit();
       rec.start(250);
+      // eslint-disable-next-line react-hooks/purity -- runs in a click handler, never during render
       startedAtRef.current = Date.now();
       setState("recording");
       tick();
@@ -279,6 +280,7 @@ function VoiceCapture({
       out.push(Math.min(1, Math.max(0.08, max * 1.4)));
     }
     setBars(out);
+    // eslint-disable-next-line react-hooks/purity -- runs in a rAF loop, never during render
     setElapsedMs(Date.now() - startedAtRef.current);
     rafRef.current = requestAnimationFrame(tick);
   }
@@ -793,6 +795,7 @@ function PhotoCapture({
       {preview && state !== "picking" && (
         <div className="relative w-full rounded-[14px] overflow-hidden border border-rule bg-paper-2 max-h-[58vh] flex items-center justify-center">
           <div className="relative inline-block max-w-full max-h-[58vh]">
+            {/* eslint-disable-next-line @next/next/no-img-element -- local object-URL preview; next/image can't optimize blob: sources */}
             <img
               src={preview}
               alt="Selected photograph"

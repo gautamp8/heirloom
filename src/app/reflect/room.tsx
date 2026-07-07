@@ -42,6 +42,7 @@ export function ReflectionRoom({
   const [drawer, setDrawer] = useState<Citation | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- close whichever stream is live at unmount, not the one from mount
     return () => esRef.current?.close();
   }, []);
 
