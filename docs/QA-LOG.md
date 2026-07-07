@@ -157,3 +157,23 @@ the auth unit tests. Core reflect/capture/letters/executor/vault/welcome
 flows all pass. The reflect-heavy tests are inherently slow under local
 inference and are backstopped by the injection harness (22/22) and
 grounding eval (40/40), which exercise the same paths deterministically.
+
+**Packaged desktop app: two real bugs caught by building and running the
+DMG.** (1) The macOS DMG never actually built — Tauri's bundler shells
+out to create-dmg's AppleScript (Finder icon layout), which fails in any
+non-GUI run. package.sh now builds only the `.app` and assembles the DMG
+with `hdiutil` + an /Applications symlink, no Finder. (2) Then, running
+the bundled standalone server exactly as the Tauri shell does (bundled
+node + server.js, sqlite backend, app-data dirs) surfaced that the new
+JWT_SECRET production hard-fail was aborting every auth route in the
+packaged app — the desktop build runs NODE_ENV=production with no
+server-set secret. The desktop is single-user on-device (sqlite, one
+vault, OS user is the boundary), so it's exempt now; the guard still
+fires for the postgres server build. Verified: /portal 200, sqlite
+health ok, and the JWT throw is gone. Version bumped to 0.2.0;
+notarization prepped (entitlements.plist + documented notarytool flow) so
+it's a ~10-minute credential step for Gautam. DMG is 516 MB — larger than
+the old ~92 MB because small.en (465 MB) is bundled instead of base.en;
+kept small.en for its accuracy on short emotional voice notes (the GOAL's
+stated preference), accepting the download-size cost since most people
+try the web demo first.
