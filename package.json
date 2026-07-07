@@ -10,7 +10,11 @@
     "typecheck": "tsc --noEmit",
     "tauri": "tauri --config desktop/src-tauri/tauri.conf.json",
     "tauri:dev": "HEIRLOOM_BACKEND=sqlite tauri dev --config desktop/src-tauri/tauri.conf.json",
-    "tauri:build": "HEIRLOOM_BACKEND=sqlite tauri build --config desktop/src-tauri/tauri.conf.json"
+    "tauri:build": "HEIRLOOM_BACKEND=sqlite tauri build --config desktop/src-tauri/tauri.conf.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:injection": "vitest run --config vitest.injection.config.ts",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@ai-sdk/azure": "^3.0.85",
@@ -32,6 +36,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/cli": "^2.11.1",
@@ -44,6 +49,8 @@
     "eslint-config-next": "^16.2.10",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10",
+    "yaml": "^2.9.0"
   }
 }
