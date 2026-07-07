@@ -52,5 +52,11 @@
     "typescript": "^5",
     "vitest": "^4.1.10",
     "yaml": "^2.9.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "node-fetch@2": ">=2.6.7",
+      "postcss": "^8.5.6"
+    }
   }
 }
