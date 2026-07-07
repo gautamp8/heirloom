@@ -33,9 +33,14 @@ worth remembering.
    time you pick this up, hardened runtime + entitlements + the exact
    `notarytool` invocation will be documented in `desktop/README.md` — your
    part should be ~10 minutes.
-2. **Voice-clone listening test (WS3):** A/B sample packs (current settings
-   vs tuned) will land in `storage/voice-tuning/` with a short listening
-   sheet. Quality is a taste call — pick the winner.
+2. **Voice-clone listening test (WS3):** now turnkey. Install the TTS venv
+   (`Contents/Resources/tts/install-tts.sh`), then from `infra/tts-server`
+   run `python sweep.py <a-few-reference-wavs>` — it writes labeled A/B
+   samples (8/16/24/32 steps + a guidance spread) to `sweep-out/` with a
+   latency table. Listen, pick the winner, set `HEIRLOOM_TTS_STEPS` /
+   `HEIRLOOM_TTS_GUIDANCE` / `HEIRLOOM_TTS_SMOOTH`. The reference-capture
+   read (the bigger, zero-cost lever) is already improved: a ~20s
+   expressive script + on-screen coaching in onboarding and Settings.
 3. **Physical-device passes (WS5):** PWA install + push end-to-end needs
    real taps on an iPhone (iOS Safari) and an Android phone. Checklist will
    be in the QA log when the demo host is live.
