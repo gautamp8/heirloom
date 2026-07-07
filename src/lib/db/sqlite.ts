@@ -85,16 +85,12 @@ async function getDb(): Promise<DatabaseT> {
   // Postgres builtins our SQL relies on.
   d.function("now", () => new Date().toISOString());
   d.function("gen_uuid", { deterministic: false }, () => randomUUID());
-  const schemaPath = path.resolve(
-    process.cwd(),
-    "migrations/sqlite/001_schema.sql",
-  );
-  if (fs.existsSync(schemaPath)) {
-    d.exec(fs.readFileSync(schemaPath, "utf8"));
-  }
-
-  // Idempotent column adds for older databases. SQLite has no
-  // `ADD COLUMN IF NOT EXISTS`.
+  // Idempotent column adds for older databases, run BEFORE the schema
+  // file: 001_schema.sql builds a partial index over captures.is_profile,
+  // which fails on a pre-is_profile database (CREATE TABLE IF NOT EXISTS
+  // skips the table, so the column never appears). SQLite has no
+  // `ADD COLUMN IF NOT EXISTS`; on a fresh database the tables don't
+  // exist yet either, so "no such table" is equally benign here.
   for (const stmt of [
     "ALTER TABLE captures ADD COLUMN is_profile INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE users ADD COLUMN passphrase_hash TEXT",
@@ -103,8 +99,22 @@ async function getDb(): Promise<DatabaseT> {
     try {
       d.exec(stmt);
     } catch (e) {
-      if (!String(e).includes("duplicate column name")) throw e;
+      const msg = String(e);
+      if (
+        !msg.includes("duplicate column name") &&
+        !msg.includes("no such table")
+      ) {
+        throw e;
+      }
     }
+  }
+
+  const schemaPath = path.resolve(
+    process.cwd(),
+    "migrations/sqlite/001_schema.sql",
+  );
+  if (fs.existsSync(schemaPath)) {
+    d.exec(fs.readFileSync(schemaPath, "utf8"));
   }
 
   _db = d;
