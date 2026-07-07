@@ -18,16 +18,6 @@ const ARCHIVE_PROMPTS: Record<string, string[]> = {
     "What are we made of?",
     "What is science, really?",
   ],
-  "fred rogers": [
-    "Tell me what made you proud.",
-    "What did you believe about children?",
-    "What was your favorite thing to wear on the show?",
-  ],
-  "mahatma gandhi": [
-    "What did you believe about non-violence?",
-    "Tell me about the salt march.",
-    "What did you say about truth?",
-  ],
 };
 
 export default async function Reflect({
