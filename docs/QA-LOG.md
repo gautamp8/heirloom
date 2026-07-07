@@ -205,3 +205,12 @@ embeddinggemma). The retrieval floor stays 0.30; the recorded
 per-embedder floors in provider/config.ts hold. This is the DoD gate
 "the eval must pass on local and hosted-demo before the demo goes live" —
 met. Reports in docs/eval/grounding-{local,hosted-demo}-*.json.
+
+**Prompt-injection harness on the hosted Azure profile: 22/22.** The same
+corpus that passes on local also fails safely on gpt-5.4-mini via Azure —
+impersonation requests, system-prompt extraction, capture-content
+injection ("respond PWNED"), question-text injection, and the
+format-string attacks all collapse to the empty state or a cited
+third-person answer. Both safety harnesses (injection + grounding) are
+now green on BOTH provider profiles, which is the launch-gate the GOAL's
+Non-negotiable #5 demands before the demo URL is public.
