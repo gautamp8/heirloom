@@ -278,10 +278,11 @@ export default function Home() {
                 Local-first. <em className="italic">Visible</em>, not just true.
               </h2>
               <p className="p-lead mt-6">
-                Heirloom installs on your own laptop. The model runs there.
-                Your archive lives there. No accounts, no analytics, no
-                third parties — and the few times anything is sent to the
-                network at all, the list is short and named.
+                Heirloom installs on your own laptop. By default the model
+                runs there and your archive never leaves. No accounts, no
+                analytics, no telemetry — and the few times anything is sent
+                to the network at all, the list is short and named, right
+                here.
               </p>
             </div>
 
@@ -305,13 +306,18 @@ export default function Home() {
                 tone="moss"
               />
               <PrivacyRow
+                host="A cloud model"
+                purpose="Only if you bring your own key. Then your question and the passages it matches go to that provider — the settings screen says so plainly"
+                tone="muted"
+              />
+              <PrivacyRow
                 host="Notifications"
                 purpose="Opt-in. A title arrives; the content does not"
                 tone="muted"
               />
               <PrivacyRow
                 host="Anyone else"
-                purpose="No analytics. No tracking. No third parties"
+                purpose="No analytics. No tracking. No telemetry, ever"
                 tone="ink"
               />
             </ul>
