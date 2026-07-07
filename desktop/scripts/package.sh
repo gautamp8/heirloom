@@ -56,13 +56,16 @@ if [[ ! -f "$WHISPER_LIB_DIR/libwhisper.1.dylib" || ! -f "$GGML_LIB_DIR/libggml.
 fi
 ok "whisper dylibs located"
 
-# Whisper speech model. ~150 MB for base.en, sufficient quality for
-# short voice notes. Downloaded on first package run, cached locally.
-WHISPER_MODEL="storage/whisper-models/ggml-base.en.bin"
+# Whisper speech model. small.en (~466 MB) — the code (src/lib/whisper.ts)
+# and the self-host installs default to it for its better accuracy on the
+# short, often-emotional voice notes people leave here. Bundling base.en
+# here would leave the packaged app resolving a small.en path with no
+# small.en present. Downloaded on first package run, cached locally.
+WHISPER_MODEL="storage/whisper-models/ggml-small.en.bin"
 if [[ ! -f "$WHISPER_MODEL" ]]; then
   mkdir -p "$(dirname "$WHISPER_MODEL")"
   curl -fsSL -o "$WHISPER_MODEL" \
-    "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin" \
+    "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin" \
     || { echo "couldn't fetch whisper model" >&2; exit 1; }
 fi
 ok "whisper model present ($(du -h "$WHISPER_MODEL" | cut -f1))"
