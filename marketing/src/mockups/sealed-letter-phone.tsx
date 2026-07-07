@@ -32,24 +32,20 @@ export function MockupSealedLetterPhone() {
           boxShadow: "var(--shadow-paper-1)",
         }}
       >
-        <span
+        {/* eslint-disable-next-line @next/next/no-img-element -- static asset in a self-contained mockup */}
+        <img
+          src="/seal-2x.png"
+          alt=""
           aria-hidden
+          width={34}
+          height={34}
           style={{
-            width: 30,
-            height: 30,
-            borderRadius: 8,
-            background: "var(--color-wax)",
-            display: "grid",
-            placeItems: "center",
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: 16,
-            color: "rgba(250,247,240,0.95)",
-            fontWeight: 400,
+            width: 34,
+            height: 34,
+            objectFit: "contain",
+            filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.22))",
           }}
-        >
-          H
-        </span>
+        />
         <div style={{ minWidth: 0 }}>
           <p
             className="p-meta"

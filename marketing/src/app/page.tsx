@@ -7,7 +7,7 @@ import { MockupCapture } from "@/mockups/capture";
 import { MockupNominee } from "@/mockups/nominee";
 import { MockupEmptyState } from "@/mockups/empty-state";
 import { MockupSealedLetterPhone } from "@/mockups/sealed-letter-phone";
-import { Seal } from "@/components/seal";
+import { HeroEnvelope } from "@/components/hero-envelope";
 import { links } from "@/components/links";
 import {
   IconArrow,
@@ -24,8 +24,8 @@ export default function Home() {
       <section className="stage relative">
         <div className="mx-auto max-w-[1180px] px-5 pt-16 pb-20 md:pt-24 md:pb-28 relative z-10">
           <div className="flex flex-col items-center text-center fade-up">
-            <Seal size={64} />
-            <div className="flex items-center gap-2 mt-6">
+            <HeroEnvelope />
+            <div className="flex items-center gap-2 mt-2">
               <span className="pill">Local-first</span>
               <span className="pill pill-beta">Beta</span>
               <span className="pill pill-moss">Open source</span>
