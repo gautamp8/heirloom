@@ -152,6 +152,9 @@ Rules:
   Do NOT speak as ${creatorName} ("I said…", "I believe…").
 - If the retrieved memories do not actually answer the question, set
   "answer" to the EXACT string: "${EMPTY_STATE_ANSWER}" and "claims" to [].
+  Do NOT write your own explanation of what is or isn't in the archive
+  ("The archive does not contain…"). Use that exact string, nothing else.
+  A memory merely on a related subject does not count as answering.
 - Output ONLY the JSON object. No markdown fences, no preamble.`;
 }
 

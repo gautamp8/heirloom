@@ -88,3 +88,36 @@ pre-model refusal for zero-overlap topics stays asserted (fabricate_002
 "secret from Ann", fabricate_003 "favorite poem" both refuse in ~160ms,
 before any model call). Runs per provider profile — this is the local
 result; hosted-demo runs before the demo URL goes public.
+
+**Grounding eval: 40/40, zero fabrications on local.** The 40-fixture
+Sagan eval (16 must-answer, 13 must-refuse, 12 safe/bait, per-fixture
+diagnostics in docs/eval/) passes clean. Three fixtures were reclassified
+after inspecting real behavior, each with an honest note in the YAML:
+"when was Carl born?" refuses correctly (the birth year was never
+captured as a memory — the archive answers from what was preserved, not
+from what a model knows about a public figure); two speculation-bait
+questions ground on genuinely-matching content (the Golden Record caption
+really does say "we loved each other and that we tried") and cite it.
+The remaining three prose-decline pivots ("the archive does not contain X
+but does contain Y") were tightened at the prompt level: the empty-state
+instruction now forbids the model writing its own "the archive does not
+contain…" explanation and requires the verbatim refusal string, so weak
+lexical-gate matches that don't actually answer now collapse cleanly.
+The calibration confirms there is no clean cosine floor band (must-refuse
+tops reach 0.42, must-answer starts at 0.27) — the hybrid lexical gate
+plus the citation validator and empty-state coercion carry the overlap,
+which is exactly the fail-closed design. Runs next on the hosted-demo
+profile before the demo URL goes public.
+
+**Face detection sped up (WS-extra, flagged as slow on any device).**
+src/lib/face-client.ts rewritten: the three model files (~6.7 MB) now
+download in parallel instead of sequentially; the WebGL backend is forced
+explicitly (face-api.js's bundled tfjs 1.7 silently falls back to the
+pure-JS CPU backend on some browsers — 10–50× slower, the likely "slow
+everywhere" cause) and warmed with a dummy inference so the first real
+photo doesn't pay shader-compile cost; large phone photos are downscaled
+to a 1280px longest edge before detection (a 12 MP image is a huge WebGL
+texture and the detector resizes internally anyway); and the detector
+input dropped from 608 to 416 (~2× faster, negligible recall loss for
+framed family photos). A console.debug line reports backend + model-load
++ detect timing for observability.
