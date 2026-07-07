@@ -177,3 +177,16 @@ the old ~92 MB because small.en (465 MB) is bundled instead of base.en;
 kept small.en for its accuracy on short emotional voice notes (the GOAL's
 stated preference), accepting the download-size cost since most people
 try the web demo first.
+
+**PWA verified offline + Lighthouse pass.** Served the packaged
+production server and audited /portal: Best Practices 100, SEO 100,
+Accessibility 93→100 after dropping `maximum-scale=1` from the viewport
+(it trapped pinch-zoom; iOS focus-zoom is instead prevented by the 22px
+inputs). Confirmed the service worker registers and controls the page in
+production, and that it precaches not just the shell list but the
+fingerprinted `_next/static` JS/CSS/font chunks via the cache-first
+runtime strategy. Then emulated Offline and reloaded: the portal rendered
+completely — seal, fonts, all three buttons, footer — proving the shipped
+sw.js serves the app with no network. Install prompts on real iOS
+Safari / Android Chrome and push on a physical device remain the [HUMAN]
+device-tap items; the mechanism and precache are sound.
