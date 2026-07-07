@@ -52,7 +52,10 @@ export const viewport: Viewport = {
   themeColor: "#faf7f0",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  // No maximumScale: pinch-zoom must stay available for low-vision users
+  // (Lighthouse a11y flags maximum-scale=1). iOS auto-zoom on input focus
+  // is prevented the accessible way instead — inputs are ≥16px (globals.css
+  // `.input`), which stops the zoom without trapping the whole viewport.
   viewportFit: "cover",
 };
 
