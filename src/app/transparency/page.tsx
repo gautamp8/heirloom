@@ -92,9 +92,9 @@ export default async function TransparencyPage() {
               floor is calibrated per embedding model.
             </li>
             <li>
-              <strong className="font-medium text-ink">3. Citation validator.</strong> Every
-              streamed claim&rsquo;s citations are checked against the retrieved
-              set. Anything outside it is rejected.
+              <strong className="font-medium text-ink">3. Citation validator.</strong>{" "}
+              Every streamed claim&rsquo;s citations are checked against the
+              retrieved set. Anything outside it is rejected.
             </li>
             <li>
               <strong className="font-medium text-ink">4. First-person scrubber.</strong>{" "}
