@@ -124,7 +124,6 @@ test.describe("guided capture (creator)", () => {
   test("typed note runs the pipeline and lands in Recent", async ({ page }) => {
     test.setTimeout(300_000);
     await signInAsOnboardedCreator(page);
-    await expect(page.getByText("Begin when you're ready.")).toBeVisible();
 
     await page.getByRole("button", { name: "Note Typed lines" }).click();
     const sheet = page.getByRole("dialog");

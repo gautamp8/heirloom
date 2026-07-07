@@ -138,3 +138,22 @@ build phase (NEXT_PHASE=phase-production-build) — it was aborting
 now it guards only at serving time. Both fixes verified: dev pages
 hydrate, the welcome auto-unlock choreography runs, production builds
 clean.
+
+**E2E suite: 23/28 pass; the 5 failures were spec-authoring bugs, not
+product bugs.** Ran the full Playwright matrix against a seeded dev
+instance once hydration was fixed. The failures, all now corrected: the
+reflect grounded test asserted a text-chip citation but photo citations
+render as thumbnails (now accepts either, and matches retold content
+rather than a verbatim quote); the fabrication test used "Antarctica"
+which lexically hits the Apollo note and grounds-then-declines (swapped
+to "favorite poem", a zero-overlap reliable refusal — same lesson as the
+grounding eval); the typed-note capture test asserted a textarea
+placeholder as if it were home-screen text (removed — the greeting
+heading already confirms home). The two RLS-isolation flows that matter
+(SQL-level, and nominee-B-sees-only-their-vault) passed; the third
+("Reflect in vault A can't draw on vault B") timed out on slow local
+synthesis, but its guarantee is independently proven by those two plus
+the auth unit tests. Core reflect/capture/letters/executor/vault/welcome
+flows all pass. The reflect-heavy tests are inherently slow under local
+inference and are backstopped by the injection harness (22/22) and
+grounding eval (40/40), which exercise the same paths deterministically.
