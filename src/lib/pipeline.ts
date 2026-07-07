@@ -4,6 +4,7 @@ import { transcribeAudio } from "./whisper";
 import { captionPhoto } from "./vision";
 import { chunkText } from "./chunking";
 import { embedAll } from "./embed";
+import { ensureVaultEmbedder } from "./embedding-guard";
 import { FACE_MATCH_THRESHOLD } from "./faces";
 import { tagCapture, type CaptureTags } from "./tagging";
 import { generateNoteTitle } from "./prompts";
@@ -118,6 +119,7 @@ async function runCapturePipelineEmbedOnly(
  *  admin because transcript_chunks INSERT is creator-only under RLS. */
 export async function backfillMissingChunks(session: Session): Promise<number> {
   if (!sqlAdmin) return 0;
+  await ensureVaultEmbedder(session.vault_id);
 
   const candidates = await sqlAdmin<{
     id: string;
@@ -241,6 +243,8 @@ export async function runCapturePipeline(
       return c;
     });
     if (!cap) return;
+
+    await ensureVaultEmbedder(cap.vault_id);
 
     let text = cap.body ?? "";
     if (cap.kind === "audio" && cap.blob_url) {

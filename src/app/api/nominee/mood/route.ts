@@ -1,5 +1,6 @@
 import { withRls, vec } from "@/lib/db";
 import { embedOne } from "@/lib/embed";
+import { ensureVaultEmbedder } from "@/lib/embedding-guard";
 import { fireLetterConditions } from "@/lib/letter-conditions";
 import { errorResponse, HttpError, requireSession } from "@/lib/auth";
 
@@ -24,6 +25,7 @@ export async function POST(req: Request) {
     const state = (body.state ?? "").trim();
     if (!state) throw new HttpError(400, "missing_state");
 
+    await ensureVaultEmbedder(session.vault_id);
     const embedding = await embedOne(state);
 
     // Audit log - nominee_states is RLS-gated by nominee_states_self

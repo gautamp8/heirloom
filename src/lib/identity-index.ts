@@ -1,6 +1,7 @@
 import type { Sql } from "postgres";
 import { withRls, vec } from "./db";
 import { embedAll } from "./embed";
+import { ensureVaultEmbedder } from "./embedding-guard";
 import { chunkText } from "./chunking";
 import type { Session } from "./auth";
 
@@ -178,6 +179,7 @@ export async function syncIdentityIndexAdmin(
   sql: Sql,
   vault_id: string,
 ): Promise<{ chunks: number }> {
+  await ensureVaultEmbedder(vault_id);
   const facts = await readFacts(sql, vault_id);
   const text = renderIdentityProse(facts).trim();
 

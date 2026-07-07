@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { readSession } from "@/lib/auth";
 import { withRls } from "@/lib/db";
 import { REFLECTION_SIMILARITY_THRESHOLD } from "@/lib/reflection";
+import { describeProvider, retrievalFloor } from "@/lib/provider";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,11 @@ type Row = {
 export default async function TransparencyPage() {
   const session = await readSession();
   if (!session) redirect("/portal");
+
+  const provider = await describeProvider().catch(() => null);
+  const activeFloor = await retrievalFloor().catch(
+    () => REFLECTION_SIMILARITY_THRESHOLD,
+  );
 
   const rows = await withRls(session.user_id, session.role, async (tx) => {
     return tx<Row[]>`
@@ -71,17 +77,19 @@ export default async function TransparencyPage() {
           <ul className="flex flex-col gap-2 font-serif text-[15px] leading-[1.5] text-ink-soft">
             <li>
               <strong className="font-medium text-ink">1. Retrieval first.</strong> Every
-              question is embedded with EmbeddingGemma and matched against the
-              archive&rsquo;s 768-dim vector index before the language model is
-              touched.
+              question is embedded with{" "}
+              <code className="font-mono text-[13px]">
+                {provider?.embedding ?? "the local embedding model"}
+              </code>{" "}
+              and matched against the archive&rsquo;s 768-dim vector index
+              before the language model is touched.
             </li>
             <li>
               <strong className="font-medium text-ink">2. Similarity threshold.</strong>{" "}
               If the top chunk falls below cosine{" "}
-              <code className="font-mono text-[13px]">
-                {REFLECTION_SIMILARITY_THRESHOLD}
-              </code>
-              , the empty state is served verbatim. The model is never called.
+              <code className="font-mono text-[13px]">{activeFloor}</code>, the
+              empty state is served verbatim. The model is never called. The
+              floor is calibrated per embedding model.
             </li>
             <li>
               <strong className="font-medium text-ink">3. Citation validator.</strong> Every
@@ -153,11 +161,7 @@ function ReflectionAudit({ row }: { row: Row }) {
 
       {/* Decision pipeline */}
       <ol className="flex flex-col gap-2.5 mb-4">
-        <Step
-          label="Embedded"
-          ok
-          detail="Query → EmbeddingGemma 768-dim vector"
-        />
+        <Step label="Embedded" ok detail="Query → 768-dim vector" />
         <Step
           label={`Retrieved ${d.retrieved_count ?? 0} chunks`}
           ok={(d.retrieved_count ?? 0) > 0}

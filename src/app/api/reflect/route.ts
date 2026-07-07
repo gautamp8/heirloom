@@ -3,11 +3,11 @@ import { withRls, vec } from "@/lib/db";
 import { embedOne } from "@/lib/embed";
 import { fetchTopK, canonicalSourceText } from "@/lib/retrieval";
 import { backfillMissingChunks, cleanupMislabeledFaces } from "@/lib/pipeline";
-import { ollama, SYNTHESIS_MODEL } from "@/lib/ollama";
+import { retrievalFloor, synthesisModel } from "@/lib/provider";
+import { EMBEDDING_MISMATCH, ensureVaultEmbedder } from "@/lib/embedding-guard";
 import { fireLetterConditions } from "@/lib/letter-conditions";
 import {
   EMPTY_STATE_ANSWER,
-  REFLECTION_SIMILARITY_THRESHOLD,
   ReflectionSchema,
   buildReflectionPrompt,
   hasFirstPersonOutsideQuotes,
@@ -81,6 +81,11 @@ export async function POST(req: Request) {
             console.warn("[/api/reflect] face cleanup failed", e);
           }
 
+          // Refuse to search an index built by a different embedding
+          // model — cosine scores across models are meaningless.
+          await ensureVaultEmbedder(session.vault_id);
+
+          const floor = await retrievalFloor();
           const qEmb = await embedOne(question);
 
           // Fire matching sealed letters BEFORE the grounding gate so they
@@ -118,7 +123,7 @@ export async function POST(req: Request) {
           const lexicalHit = hasLexicalOverlap(question, chunks);
           const grounded =
             chunks.length > 0 &&
-            (topSim >= REFLECTION_SIMILARITY_THRESHOLD || lexicalHit);
+            (topSim >= floor || lexicalHit);
 
           if (!grounded) {
             send("grounded", { grounded: false });
@@ -133,7 +138,7 @@ export async function POST(req: Request) {
                 diagnostics: {
                   retrieved_count: chunks.length,
                   top_similarity: topSim,
-                  threshold: REFLECTION_SIMILARITY_THRESHOLD,
+                  threshold: floor,
                   rejected_for: chunks.length === 0
                     ? "no_chunks"
                     : "similarity_below_threshold",
@@ -161,7 +166,7 @@ export async function POST(req: Request) {
           );
 
           const { partialObjectStream, object } = streamObject({
-            model: ollama(SYNTHESIS_MODEL),
+            model: await synthesisModel(),
             schema: ReflectionSchema,
             prompt,
             temperature: 0.3,
@@ -235,7 +240,7 @@ export async function POST(req: Request) {
                 diagnostics: {
                   retrieved_count: chunks.length,
                   top_similarity: topSim,
-                  threshold: REFLECTION_SIMILARITY_THRESHOLD,
+                  threshold: floor,
                   rejected_for: firstPerson
                     ? "first_person"
                     : !cite.ok
@@ -266,7 +271,7 @@ export async function POST(req: Request) {
               diagnostics: {
                 retrieved_count: chunks.length,
                 top_similarity: topSim,
-                threshold: REFLECTION_SIMILARITY_THRESHOLD,
+                threshold: floor,
                 rejected_for: null,
                 grounded: true,
                 retrieved_chunks: chunks.slice(0, 8).map((c) => ({
@@ -282,7 +287,11 @@ export async function POST(req: Request) {
           controller.close();
         } catch (err) {
           console.error("[/api/reflect]", err);
-          send("error", { message: "Reflection failed. Try again in a moment." });
+          const message =
+            err instanceof Error && err.message.startsWith(EMBEDDING_MISMATCH)
+              ? "This archive needs reindexing — the embedding model changed. See Settings."
+              : "Reflection failed. Try again in a moment.";
+          send("error", { message });
           controller.close();
         }
       },

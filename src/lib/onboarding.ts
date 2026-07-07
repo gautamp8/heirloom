@@ -1,6 +1,7 @@
 import argon2 from "argon2";
 import { asISO, withRls, vec } from "./db";
 import { embedOne } from "./embed";
+import { ensureVaultEmbedder } from "./embedding-guard";
 import { syncIdentityIndexForSession } from "./identity-index";
 import { generatePassphrase, normalisePassphrase } from "./passphrase";
 import type { Session } from "./auth";
@@ -123,6 +124,7 @@ export async function saveLifeEvents(
   }[],
 ): Promise<number> {
   if (events.length === 0) return 0;
+  await ensureVaultEmbedder(session.vault_id);
 
   const enriched = await Promise.all(
     events.map(async (e) => {
@@ -189,6 +191,7 @@ export async function saveNominees(
   }[],
 ): Promise<{ inserted: number; nominees: SavedNominee[] }> {
   if (nominees.length === 0) return { inserted: 0, nominees: [] };
+  await ensureVaultEmbedder(session.vault_id);
 
   let inserted = 0;
   const out: SavedNominee[] = [];
@@ -336,6 +339,7 @@ export async function saveSealedLetters(
   }[],
 ): Promise<{ inserted: number }> {
   if (drafts.length === 0) return { inserted: 0 };
+  await ensureVaultEmbedder(session.vault_id);
 
   let inserted = 0;
   for (const d of drafts) {

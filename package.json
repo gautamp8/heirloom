@@ -13,6 +13,8 @@
     "tauri:build": "HEIRLOOM_BACKEND=sqlite tauri build --config desktop/src-tauri/tauri.conf.json"
   },
   "dependencies": {
+    "@ai-sdk/azure": "^3.0.85",
+    "@ai-sdk/openai-compatible": "^2.0.57",
     "ai": "^6.0.177",
     "argon2": "^0.44.0",
     "better-sqlite3": "^12.10.0",

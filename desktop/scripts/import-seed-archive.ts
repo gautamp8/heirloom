@@ -39,7 +39,6 @@ type Manifest = {
 };
 
 const TTS_BASE = process.env.HEIRLOOM_TTS_URL ?? "http://127.0.0.1:11435";
-const OLLAMA_BASE = process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434";
 const STORAGE_ROOT = path.resolve(
   process.env.HEIRLOOM_BLOB_DIR ??
     path.join(process.cwd(), "storage", "blobs"),
@@ -93,6 +92,11 @@ async function main() {
   console.log(`  vault: ${vaultId}`);
 
   await sql`UPDATE vaults SET onboarded_at = COALESCE(onboarded_at, now()) WHERE id = ${vaultId}`;
+
+  // Stamp the vault with the active embedder before any vectors land, so
+  // the app refuses to query this index under a different embedding model.
+  const { ensureVaultEmbedder } = await import("../../src/lib/embedding-guard");
+  await ensureVaultEmbedder(vaultId);
 
   // Voice profile: register the reference wav with the TTS sidecar and
   // upsert the row that downstream /api/voice/speak reads from. If the
@@ -240,14 +244,10 @@ async function main() {
 }
 
 async function embed(text: string): Promise<number[]> {
-  const r = await fetch(`${OLLAMA_BASE}/api/embed`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ model: "embeddinggemma", input: text }),
-  });
-  if (!r.ok) throw new Error(`embed: ${r.status}`);
-  const { embeddings } = (await r.json()) as { embeddings: number[][] };
-  return embeddings[0];
+  // Provider-routed so a hosted-demo import (Azure embeddings) writes
+  // vectors that match what the running app will query with.
+  const { embedOne } = await import("../../src/lib/embed");
+  return embedOne(text);
 }
 
 async function writeBlob(data: Buffer, ext: string): Promise<string> {

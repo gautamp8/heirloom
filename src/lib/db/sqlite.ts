@@ -95,6 +95,7 @@ async function getDb(): Promise<DatabaseT> {
     "ALTER TABLE captures ADD COLUMN is_profile INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE users ADD COLUMN passphrase_hash TEXT",
     "ALTER TABLE users ADD COLUMN passphrase_set_at TEXT",
+    "ALTER TABLE vaults ADD COLUMN embedding_meta TEXT",
   ]) {
     try {
       d.exec(stmt);

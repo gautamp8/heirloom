@@ -28,7 +28,16 @@ CREATE TABLE IF NOT EXISTS vaults (
     creator_id      TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     name            TEXT NOT NULL DEFAULT 'My Archive',
     onboarded_at    TEXT,
+    embedding_meta  TEXT,                    -- JSON: which embedder built this vault's index
     created_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Instance-level key/value settings (BYOK provider config etc.).
+-- Single-user desktop build: no privilege separation needed here.
+CREATE TABLE IF NOT EXISTS app_settings (
+    key         TEXT PRIMARY KEY,
+    value       TEXT NOT NULL,               -- JSON
+    updated_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS captures (

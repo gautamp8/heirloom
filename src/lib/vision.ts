@@ -1,25 +1,13 @@
 import { promises as fs } from "node:fs";
-import { SYNTHESIS_MODEL } from "./ollama";
-
-const OLLAMA_BASE = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
+import path from "node:path";
+import { generateText } from "ai";
+import { resolveProvider, visionModel } from "./provider";
 
 export type RecognizedPerson = { display_name: string };
 
-/** Describe a photo via Gemma 4 vision. When `people` is provided,
- *  the system prompt names them so the caption reads "Rita holding
- *  a cup" instead of "a woman holding a cup". Returns a single short
- *  paragraph in archival, third-person voice. */
-export async function captionPhoto(
-  absPath: string,
-  opts: { people?: RecognizedPerson[] } = {},
-): Promise<string> {
-  const buf = await fs.readFile(absPath);
-  const b64 = buf.toString("base64");
-
-  const people = opts.people ?? [];
+function buildSystemPrompt(people: RecognizedPerson[]): string {
   const namesList = people.map((p) => p.display_name).join(", ");
-
-  const system = [
+  return [
     "You describe family photographs for an archival memory system.",
     "Voice: third person, calm, observational. One paragraph, 1–3 sentences.",
     people.length > 0
@@ -32,31 +20,78 @@ export async function captionPhoto(
   ]
     .filter(Boolean)
     .join("\n");
+}
 
-  const body = {
-    model: SYNTHESIS_MODEL,
+const MEDIA_TYPES: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".heic": "image/heic",
+};
+
+/** Describe a photo in archival third-person voice. When `people` is
+ *  provided, the system prompt names them so the caption reads "Rita
+ *  holding a cup" instead of "a woman holding a cup".
+ *
+ *  Routed through the provider layer: the local profile talks to Ollama's
+ *  native chat API (its multimodal request shape is the proven path for
+ *  gemma4:e4b); cloud profiles go through the AI SDK with an image part. */
+export async function captionPhoto(
+  absPath: string,
+  opts: { people?: RecognizedPerson[] } = {},
+): Promise<string> {
+  const buf = await fs.readFile(absPath);
+  const people = opts.people ?? [];
+  const system = buildSystemPrompt(people);
+  const provider = await resolveProvider();
+
+  if (provider.vision.kind === "ollama") {
+    const body = {
+      model: provider.vision.model,
+      messages: [
+        { role: "system", content: system },
+        {
+          role: "user",
+          content: "Describe what is in this photo.",
+          images: [buf.toString("base64")],
+        },
+      ],
+      stream: false,
+      think: false,
+      options: { num_predict: 180, temperature: 0.4, top_p: 0.9 },
+    };
+    const res = await fetch(`${provider.vision.baseURL}/api/chat`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (!res.ok) {
+      throw new Error(`vision: ${res.status} ${await res.text()}`);
+    }
+    const data = (await res.json()) as { message?: { content?: string } };
+    return (data.message?.content ?? "").trim();
+  }
+
+  const mediaType =
+    MEDIA_TYPES[path.extname(absPath).toLowerCase()] ?? "image/jpeg";
+  const { text } = await generateText({
+    model: await visionModel(),
+    system,
     messages: [
-      { role: "system", content: system },
       {
         role: "user",
-        content: "Describe what is in this photo.",
-        images: [b64],
+        content: [
+          { type: "text", text: "Describe what is in this photo." },
+          { type: "image", image: buf, mediaType },
+        ],
       },
     ],
-    stream: false,
-    think: false,
-    options: { num_predict: 180, temperature: 0.4, top_p: 0.9 },
-  };
-
-  const res = await fetch(`${OLLAMA_BASE}/api/chat`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(45_000),
+    temperature: 0.4,
+    maxOutputTokens: 260,
+    abortSignal: AbortSignal.timeout(45_000),
   });
-  if (!res.ok) {
-    throw new Error(`vision: ${res.status} ${await res.text()}`);
-  }
-  const data = (await res.json()) as { message?: { content?: string } };
-  return (data.message?.content ?? "").trim();
+  return text.trim();
 }

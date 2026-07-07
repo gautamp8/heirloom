@@ -11,7 +11,13 @@ import { z } from "zod";
  *  model run low for short keyword queries against richer chunks (0.24
  *  to 0.34 for clearly-relevant matches; 0.14 to 0.23 for unrelated
  *  topics) so the vector floor sits below the half-way point. Lexical
- *  overlap fills in the remaining recall gap via `hasLexicalOverlap`. */
+ *  overlap fills in the remaining recall gap via `hasLexicalOverlap`.
+ *
+ *  The LIVE floor is provider-scoped — different embedding models have
+ *  different cosine geometry — and comes from `retrievalFloor()` in
+ *  src/lib/provider (see RETRIEVAL_FLOORS there). This constant remains
+ *  as the embeddinggemma value and the display fallback for reflection
+ *  rows recorded before thresholds were stored per-row. */
 export const REFLECTION_SIMILARITY_THRESHOLD = 0.30;
 
 /** Short, generic words ignored when checking for keyword overlap

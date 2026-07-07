@@ -27,3 +27,19 @@ Heirloom health payload, and pivoted to the live portal. All four splash
 states (welcome, one-time setup, download progress, error) render correctly
 with the bundled fonts and seal. True first-run (no models present) still to
 be tested in the packaged .app.
+
+**Provider layer verified on the local profile.** After introducing the
+provider abstraction (local / BYOK / hosted-demo), the full nominee flow was
+re-run against the pg backend: seed import (now embedding through the
+provider layer), envelope auto-open via `?p=`, a grounded reflection with a
+citation chip (top similarity 0.55 vs floor 0.30, floor now provider-scoped
+and recorded per-row in diagnostics), and a fabrication-bait question
+("What did you think about bitcoin?") that collapsed to the verbatim empty
+state. Zero behavior change on the local path, as required.
+
+**Open QA item: reflection answers can end mid-sentence.** The saved answer
+for the pale-blue-dot question stopped at "…reveals that on it exists" —
+structurally valid JSON, passed all gates, but the prose is truncated.
+Predates the provider change (same model/prompt/params). To quantify in the
+WS2 eval suite; suspect gemma4:e4b stopping early on long structured
+outputs.

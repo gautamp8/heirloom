@@ -1,5 +1,5 @@
 import { generateText } from "ai";
-import { ollama, SYNTHESIS_MODEL } from "./ollama";
+import { synthesisModel } from "./provider";
 
 const SAFETY_PREAMBLE = `You are running inside Heirloom, a private memory archive. Speak in the
 warm, plain, dignified voice of the Heirloom system. Never use exclamation
@@ -45,7 +45,7 @@ no markdown.`;
 
   try {
     const { text } = await generateText({
-      model: ollama(SYNTHESIS_MODEL),
+      model: await synthesisModel(),
       prompt,
       temperature: 0.85,
       maxOutputTokens: 60,
@@ -81,7 +81,7 @@ proper nouns (do not normalise "dad" -> "father").`;
 
   try {
     const { text } = await generateText({
-      model: ollama(SYNTHESIS_MODEL),
+      model: await synthesisModel(),
       prompt,
       temperature: 0.5,
       maxOutputTokens: 40,
@@ -175,7 +175,7 @@ the anniversary of loss", "When they miss you"). No prose around the JSON.`;
 
   try {
     const { text } = await generateText({
-      model: ollama(SYNTHESIS_MODEL),
+      model: await synthesisModel(),
       prompt,
       temperature: 0.7,
       maxOutputTokens: 600,

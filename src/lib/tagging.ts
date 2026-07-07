@@ -1,6 +1,6 @@
 import { generateObject } from "ai";
 import { z } from "zod";
-import { ollama, SYNTHESIS_MODEL } from "./ollama";
+import { synthesisModel } from "./provider";
 
 /** `capture_tagging_v1`. See design-system/handoff/PROMPTS.md §2. */
 const TagSchema = z.object({
@@ -55,7 +55,7 @@ Rules:
 - Output ONLY the JSON, no preamble, no markdown fences.`;
 
   const { object } = await generateObject({
-    model: ollama(SYNTHESIS_MODEL),
+    model: await synthesisModel(),
     schema: TagSchema,
     prompt,
     temperature: 0.2,

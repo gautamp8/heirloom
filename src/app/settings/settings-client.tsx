@@ -104,6 +104,8 @@ export function SettingsClient({ initial }: { initial: Initial }) {
 
       <NotificationsSection />
 
+      <ProviderSection />
+
       <VaultSection />
 
       <SignOutSection />
@@ -808,6 +810,283 @@ function ArchiveKeySection() {
   );
 }
 
+
+
+type ProviderInfo = {
+  active: {
+    profile: string;
+    synthesis: string;
+    vision: string;
+    embedding: string;
+  } | null;
+  byok: {
+    enabled: boolean;
+    base_url: string;
+    api_key_masked: string;
+    synthesis_model: string;
+    vision_model: string | null;
+    embeddings: { mode: "local" } | { mode: "cloud"; model: string };
+  } | null;
+};
+
+/** Settings → the model that reads and writes with you. Local by
+ *  default; a creator can bring their own OpenAI-compatible key. The
+ *  privacy statement spells out exactly what leaves the device when a
+ *  key is active — that copy is a product commitment, not decoration. */
+function ProviderSection() {
+  const [info, setInfo] = useState<ProviderInfo | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Form fields
+  const [baseUrl, setBaseUrl] = useState("https://openrouter.ai/api/v1");
+  const [apiKey, setApiKey] = useState("");
+  const [model, setModel] = useState("");
+  const [cloudEmbeds, setCloudEmbeds] = useState(false);
+  const [embedModel, setEmbedModel] = useState("text-embedding-3-small");
+
+  const refresh = async () => {
+    try {
+      const r = await fetch("/api/settings/provider", { cache: "no-store" });
+      if (!r.ok) return;
+      const d = (await r.json()) as ProviderInfo;
+      setInfo(d);
+      if (d.byok) {
+        setBaseUrl(d.byok.base_url);
+        setModel(d.byok.synthesis_model);
+        setCloudEmbeds(d.byok.embeddings.mode === "cloud");
+        if (d.byok.embeddings.mode === "cloud")
+          setEmbedModel(d.byok.embeddings.model);
+      }
+    } catch {
+      /* section stays in its quiet default */
+    }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh() is async; state settles after the fetch, not synchronously
+    void refresh();
+  }, []);
+
+  const byokActive = info?.byok?.enabled ?? false;
+  const host = (() => {
+    try {
+      return new URL(baseUrl).hostname;
+    } catch {
+      return "the provider";
+    }
+  })();
+
+  async function save(enabled: boolean) {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await fetch("/api/settings/provider", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          enabled,
+          base_url: baseUrl.trim(),
+          api_key: apiKey.trim() === "" ? "__keep__" : apiKey.trim(),
+          synthesis_model: model.trim(),
+          embeddings: cloudEmbeds
+            ? { mode: "cloud", model: embedModel.trim() }
+            : { mode: "local" },
+        }),
+      });
+      if (!r.ok) {
+        const d = (await r.json().catch(() => null)) as {
+          error?: { message?: string };
+        } | null;
+        setError(
+          d?.error?.message ??
+            "The key check failed. Verify the endpoint, key and model name.",
+        );
+        return;
+      }
+      setEditing(false);
+      setApiKey("");
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function forget() {
+    setBusy(true);
+    setError(null);
+    try {
+      await fetch("/api/settings/provider", { method: "DELETE" });
+      setEditing(false);
+      setApiKey("");
+      setBaseUrl("https://openrouter.ai/api/v1");
+      setModel("");
+      setCloudEmbeds(false);
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="eyebrow">Language model</h2>
+
+      {!byokActive && !editing && (
+        <>
+          <p className="p-body max-w-[520px]">
+            Heirloom runs on this device. Questions, answers, tags and photo
+            captions are handled by Gemma&nbsp;4 through Ollama — nothing is
+            sent anywhere.
+          </p>
+          <div>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => setEditing(true)}
+            >
+              Use a cloud model instead…
+            </button>
+          </div>
+        </>
+      )}
+
+      {byokActive && !editing && info?.byok && (
+        <div className="rounded-[12px] border border-rule p-4 bg-bg-raised flex flex-col gap-2 max-w-[520px]">
+          <p className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted">
+            Your key · {info.byok.api_key_masked}
+          </p>
+          <p className="font-serif text-[16px] text-ink leading-snug">
+            {info.byok.synthesis_model}
+          </p>
+          <p className="p-meta">
+            via {(() => { try { return new URL(info.byok.base_url).hostname; } catch { return info.byok.base_url; } })()} ·
+            embeddings {info.byok.embeddings.mode === "cloud"
+              ? `in the cloud (${info.byok.embeddings.model})`
+              : "stay on this device"}
+          </p>
+          <div className="flex gap-2 mt-1">
+            <button type="button" className="btn-ghost" onClick={() => setEditing(true)}>
+              Change
+            </button>
+            <button type="button" className="btn-ghost" onClick={forget} disabled={busy}>
+              Forget key &amp; go local
+            </button>
+          </div>
+        </div>
+      )}
+
+      {editing && (
+        <div className="rounded-[12px] border border-rule p-4 bg-bg-raised flex flex-col gap-3 max-w-[520px]">
+          <div className="flex flex-col gap-1">
+            <label className="eyebrow text-[9px]">Endpoint</label>
+            <input
+              type="url"
+              value={baseUrl}
+              onChange={(e) => setBaseUrl(e.target.value)}
+              placeholder="https://openrouter.ai/api/v1"
+              className="font-mono text-[13px] text-ink bg-transparent outline-none border-b border-rule focus:border-ink py-1"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="eyebrow text-[9px]">API key</label>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder={info?.byok ? `saved · ${info.byok.api_key_masked}` : "sk-…"}
+              autoComplete="off"
+              className="font-mono text-[13px] text-ink bg-transparent outline-none border-b border-rule focus:border-ink py-1"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="eyebrow text-[9px]">Model</label>
+            <input
+              type="text"
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              placeholder="google/gemma-3-27b-it"
+              className="font-mono text-[13px] text-ink bg-transparent outline-none border-b border-rule focus:border-ink py-1"
+            />
+          </div>
+
+          <label className="flex items-start gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={cloudEmbeds}
+              onChange={(e) => setCloudEmbeds(e.target.checked)}
+              className="mt-1"
+            />
+            <span className="p-meta">
+              Also run embeddings in the cloud. Off by default — the local
+              embedding model is a small, fast download, and keeping it local
+              means your whole archive text is never uploaded for indexing.
+            </span>
+          </label>
+          {cloudEmbeds && (
+            <div className="flex flex-col gap-1 pl-6">
+              <label className="eyebrow text-[9px]">Embedding model</label>
+              <input
+                type="text"
+                value={embedModel}
+                onChange={(e) => setEmbedModel(e.target.value)}
+                placeholder="text-embedding-3-small"
+                className="font-mono text-[13px] text-ink bg-transparent outline-none border-b border-rule focus:border-ink py-1"
+              />
+              <p className="p-meta text-wax">
+                Changing the embedding model requires re-indexing the archive
+                (scripts/reindex-embeddings.ts) before search works again.
+              </p>
+            </div>
+          )}
+
+          <div
+            className="rounded-[10px] border p-3"
+            style={{
+              borderColor: "rgba(125,42,26,0.25)",
+              background: "rgba(125,42,26,0.05)",
+            }}
+          >
+            <p className="p-meta" style={{ color: "var(--color-ink-soft)" }}>
+              With a key saved, this leaves your device and is sent to{" "}
+              <strong>{host}</strong>: your questions and the archive passages
+              they match, whenever you ask the archive something; each photo,
+              at the moment it is captioned; and note text, when it is tagged.
+              {cloudEmbeds
+                ? " With cloud embeddings on, the full text of every memory is also sent once for indexing."
+                : " Recordings, transcription, your voice, and the archive index never leave this device."}
+            </p>
+          </div>
+
+          {error && <p className="p-meta text-wax">{error}</p>}
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="btn"
+              disabled={busy || !model.trim() || (!apiKey.trim() && !info?.byok)}
+              onClick={() => save(true)}
+            >
+              {busy ? "Checking the key…" : "Check & use this model"}
+            </button>
+            <button
+              type="button"
+              className="btn-ghost"
+              disabled={busy}
+              onClick={() => {
+                setEditing(false);
+                setError(null);
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
 
 function VaultSection() {
   return (
