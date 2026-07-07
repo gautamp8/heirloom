@@ -190,3 +190,18 @@ completely — seal, fonts, all three buttons, footer — proving the shipped
 sw.js serves the app with no network. Install prompts on real iOS
 Safari / Android Chrome and push on a physical device remain the [HUMAN]
 device-tap items; the mechanism and precache are sound.
+
+**Grounding contract verified on the hosted Azure profile too: 40/40,
+zero fabrications.** The non-negotiable was that the five fail-closed
+checks hold identically on every provider — so the same 40-fixture Sagan
+eval was run against the hosted-demo profile (gpt-5.4-mini +
+text-embedding-3-small on Azure OpenAI, querying the Azure-embedded copy
+of the archive). Result matches local exactly: 15/15 must-answer, 13/13
+must-refuse, 12/12 safe, zero fabrications. The cosine geometry shifts as
+expected (must-answer tops now reach 0.69, must-refuse up to 0.43 — still
+no clean separating band, so the hybrid lexical gate + citation validator
++ empty-state coercion carry the overlap on Azure just as on
+embeddinggemma). The retrieval floor stays 0.30; the recorded
+per-embedder floors in provider/config.ts hold. This is the DoD gate
+"the eval must pass on local and hosted-demo before the demo goes live" —
+met. Reports in docs/eval/grounding-{local,hosted-demo}-*.json.
