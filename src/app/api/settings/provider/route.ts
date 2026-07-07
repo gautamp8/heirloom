@@ -127,7 +127,32 @@ export async function POST(req: Request) {
     }
     const settings = parsed.data;
 
-    if (settings.enabled) await testByok(settings);
+    // BYOK is an instance-global setting (one app_settings row), so a
+    // creator enabling it would redirect EVERY creator's inference on the
+    // same host. Refuse to enable it on anything that isn't a
+    // single-creator install: a host with a forced env profile (the demo)
+    // or with more than one vault (a shared/family host). Single-creator
+    // devices — the overwhelming case — are unaffected.
+    if (settings.enabled) {
+      if (process.env.HEIRLOOM_PROVIDER_PROFILE) {
+        throw new HttpError(
+          409,
+          "byok_disabled_on_managed_host: this instance's model is fixed by " +
+            "its server configuration and cannot be overridden.",
+        );
+      }
+      const [{ n }] = await sqlAdmin<{ n: number }[]>`
+        SELECT COUNT(*)::int AS n FROM vaults`;
+      if (Number(n) > 1) {
+        throw new HttpError(
+          409,
+          "byok_disabled_on_shared_host: bring-your-own-key changes the " +
+            "model for everyone on this host, so it's only available on a " +
+            "single-creator install.",
+        );
+      }
+      await testByok(settings);
+    }
 
     await sqlAdmin`
       INSERT INTO app_settings (key, value, updated_at)

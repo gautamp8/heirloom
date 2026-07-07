@@ -77,7 +77,7 @@ async function recaptionPhoto(captureId: string, session: Session): Promise<void
     blob_url: string | null;
   }[]>`
     SELECT id, vault_id, kind, blob_url
-      FROM captures WHERE id = ${captureId}
+      FROM captures WHERE id = ${captureId} AND vault_id = ${session.vault_id}
   `;
   if (!cap || cap.kind !== "photo" || !cap.blob_url) return;
 

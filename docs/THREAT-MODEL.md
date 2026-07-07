@@ -79,14 +79,30 @@ nightly reset, and its rate limits are abuse control, not security.
 
 ## Known soft spots we track openly
 
-- `JWT_SECRET` has a development fallback; production deploys must set
-  it (the self-host bootstrap generates one). An unset secret on an
-  internet-facing instance would allow session forgery.
+- `JWT_SECRET` has a development fallback, but a production build now
+  **refuses to start** if it's unset or left at the public placeholder
+  (`src/lib/auth.ts`) — the same fail-closed posture as a missing
+  `DATABASE_URL`. The self-host and demo bootstraps generate a random
+  secret.
 - The `.hloom` import path derives KDF cost from the file. Caps exist so
-  a malicious bundle can't demand gigabytes of KDF memory.
+  a malicious bundle can't demand gigabytes of KDF memory, and the whole
+  import is one transaction so a tampered bundle can't leave a
+  half-wiped vault.
+- **Bring-your-own-key is an instance-global setting**, so it's only
+  offered on a single-creator install: the settings route refuses to
+  enable BYOK when a server profile is env-forced (the demo) or when more
+  than one vault exists on the host. On a genuinely shared multi-creator
+  host, nobody can redirect anyone else's inference.
 - SQLite (desktop) has no RLS; the desktop build is single-user by
   design and the OS user is the boundary.
 - Login verifies a submitted passphrase against candidate hashes
   sequentially; with very many nominees on one self-hosted instance
   this is a mild timing/DoS surface. Acceptable at family scale;
   revisit before anything multi-tenant (which we don't run).
+- The executor-unlock rate limit is per-IP (spoofable via
+  `X-Forwarded-For`) with a process-wide hourly failure ceiling as the
+  backstop; the passphrase's argon2id cost is the real guard against
+  online guessing.
+- `HEIRLOOM_ALLOW_DEV_FIXTURES` must never be set on a real host — it
+  makes the destructive `/api/dev/*` routes live and unauthenticated. A
+  production process logs a loud warning if it's enabled.

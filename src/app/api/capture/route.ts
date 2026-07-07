@@ -26,6 +26,13 @@ const MAX_AUDIO_BYTES = 50 * 1024 * 1024; // 50 MB hard cap
 export async function POST(req: Request) {
   try {
     const session = await requireSession();
+    // Only creators add to an archive. RLS already blocks a nominee INSERT,
+    // but check up front so a nominee gets a clean 403 instead of a 500 —
+    // and, on the media path, so we never write a blob to disk for a write
+    // the database is going to reject.
+    if (session.role !== "creator") {
+      throw new HttpError(403, "creator_only");
+    }
     const ct = req.headers.get("content-type") ?? "";
 
     const capture_id = ct.startsWith("multipart/form-data")
