@@ -152,7 +152,7 @@ test.describe("guided capture (creator)", () => {
       .locator("li", { hasText: "lighthouse summer of 1974" })
       .first();
     await expect(row).toBeVisible();
-    await expect(row.getByText("The lighthouse summer")).toBeVisible();
+    await expect(row.getByText("The lighthouse summer", { exact: true })).toBeVisible();
     await expect(row.getByText(/failed|processing/)).toHaveCount(0);
   });
 

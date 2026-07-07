@@ -24,7 +24,9 @@ const SECRET_BODY = "Vault B secret: the map is in the attic.";
 // separators, so hashing the normalised form matches both entry paths.
 const NOMINEE_B_URL_PASSPHRASE = "vault-b-lantern-orchard-42";
 
-const EMPTY_STATE = "I don't have that in the archive. Try asking another way?";
+// The UI renders this with a typographic apostrophe (&rsquo;), so match
+// on the distinctive apostrophe-free middle rather than the exact string.
+const EMPTY_STATE = /have that in the archive\. Try asking another way/i;
 
 let db: ReturnType<typeof postgres>;
 let vaultBCaptureId = "";

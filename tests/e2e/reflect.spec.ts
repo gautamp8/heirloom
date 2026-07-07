@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { signInAsNominee } from "./helpers";
 
-const EMPTY_STATE = "I don't have that in the archive. Try asking another way?";
+// The UI renders this with a typographic apostrophe (&rsquo;), so match
+// on the distinctive apostrophe-free middle rather than the exact string.
+const EMPTY_STATE = /have that in the archive\. Try asking another way/i;
 
 test.describe("reflection", () => {
   test("grounded question answers and cites the source", async ({ page }) => {
