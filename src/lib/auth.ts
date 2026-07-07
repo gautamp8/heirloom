@@ -13,8 +13,13 @@ const DEV_FALLBACK_SECRET =
 // can't silently ship the placeholder. (Mirrors postgres.ts throwing on
 // a missing DATABASE_URL.)
 const jwtSecretEnv = process.env.JWT_SECRET;
+// Guard at runtime, not during `next build` — the build evaluates this
+// module with NODE_ENV=production but has no reason to hold the real
+// secret (it isn't serving requests). NEXT_PHASE marks the build.
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 if (
   process.env.NODE_ENV === "production" &&
+  !isBuildPhase &&
   (!jwtSecretEnv || jwtSecretEnv === DEV_FALLBACK_SECRET)
 ) {
   throw new Error(

@@ -121,3 +121,20 @@ texture and the detector resizes internally anyway); and the detector
 input dropped from 608 to 416 (~2× faster, negligible recall loss for
 framed family photos). A console.debug line reports backend + model-load
 + detect timing for observability.
+
+**Dev pages were inert: 127.0.0.1 not in allowedDevOrigins (real config
+bug).** Caught running the E2E suite — the welcome ?p= auto-unlock never
+fired, forms didn't respond, and `fill()` didn't enable buttons. Root
+cause: Next 16 treats any dev origin other than "localhost" — including
+127.0.0.1 — as cross-origin and blocks the HMR websocket AND the
+hydration payload, so React never attaches (verified: buttons had no
+React fiber). The production build hydrated fine, which localized it to
+`next dev`. `next.config.ts` allowedDevOrigins listed a LAN IP and ngrok
+domains but not 127.0.0.1; the E2E config, most tooling, and half my
+manual testing address the server by 127.0.0.1. Added it to the list.
+Also confirmed the JWT_SECRET production hard-fail must skip the
+build phase (NEXT_PHASE=phase-production-build) — it was aborting
+`next build` since the build has no reason to hold the runtime secret;
+now it guards only at serving time. Both fixes verified: dev pages
+hydrate, the welcome auto-unlock choreography runs, production builds
+clean.

@@ -107,18 +107,20 @@ export function WelcomeFlow() {
     window.setTimeout(() => router.push("/"), 600);
   }
 
-  // Auto-submit if a passphrase was supplied via ?p=. Deferred one tick so
-  // the sealed envelope paints before the opening choreography starts; the
-  // ref guard keeps strict-mode's double mount from firing two unlocks.
+  // Auto-submit if a passphrase was supplied via ?p= (the Sagan demo
+  // deep-link). The ref guard keeps strict-mode's double mount from firing
+  // two unlocks. The kickoff is deliberate: unlock() drives the whole
+  // opening choreography, so this effect is exactly the "synchronize with
+  // an external action on mount" case the set-state rule doesn't mean to
+  // forbid.
   const autoUnlocked = useRef(false);
   useEffect(() => {
+    if (autoUnlocked.current) return;
     if (!prefilledPassphrase || frozenStage) return;
-    const t = window.setTimeout(() => {
-      if (autoUnlocked.current) return;
-      autoUnlocked.current = true;
-      void unlock();
-    }, 0);
-    return () => window.clearTimeout(t);
+    autoUnlocked.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void unlock();
+    // Run once on mount; the ref guard dedupes strict-mode's double call.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -2,9 +2,13 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Allow HMR + RSC payloads from non-localhost dev origins (tunnels,
-  // LAN IPs). Without this, Next.js blocks hydration cross-origin and
-  // pages appear inert when opened from a phone.
+  // LAN IPs, and the loopback IP). Next 16 treats anything other than
+  // "localhost" — including 127.0.0.1 — as a cross-origin dev resource
+  // and blocks the HMR websocket + hydration payload, leaving pages
+  // inert. The E2E suite and most tooling address the server by
+  // 127.0.0.1, so it must be allowed explicitly.
   allowedDevOrigins: [
+    "127.0.0.1",
     "*.ngrok-free.app",
     "*.ngrok.io",
     "*.ngrok.app",
