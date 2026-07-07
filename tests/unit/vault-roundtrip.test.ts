@@ -329,4 +329,47 @@ describe("tamper and misuse failures", () => {
       exportVault({ ...sessionA, role: "nominee" }, PASSPHRASE),
     ).rejects.toThrow("creator_only");
   });
+
+  // --- hostile-input hardening (WS2.5) ------------------------------------
+  it("rejects an out-of-range argon2 memory cost before allocating", async () => {
+    const evil = withEnvelope(exported.bytes, (env) => {
+      // 4 GiB of KDF memory would OOM the importer; the clamp rejects it
+      // before argon2 is ever called (so this returns fast, not after a
+      // huge allocation).
+      (env.kdf as { memory_kib: number }).memory_kib = 4 * 1024 * 1024;
+    });
+    await expect(importVault(evil, PASSPHRASE, sessionB)).rejects.toThrow(
+      "bundle_kdf_params_out_of_range",
+    );
+  });
+
+  it("rejects a malformed nonce length", async () => {
+    const evil = withEnvelope(exported.bytes, (env) => {
+      (env.cipher as { nonce: string }).nonce = Buffer.from([1, 2, 3]).toString(
+        "base64",
+      );
+    });
+    await expect(importVault(evil, PASSPHRASE, sessionB)).rejects.toThrow(
+      "bundle_crypto_fields_malformed",
+    );
+  });
+
+  it("leaves the target vault intact when import fails", async () => {
+    // sessionB's vault was populated by the successful import in beforeAll.
+    // A tampered bundle must not wipe it (atomic import).
+    const before = await sql<{ n: number }[]>`
+      SELECT COUNT(*) AS n FROM captures WHERE vault_id = ${sessionB.vault_id}`;
+    expect(Number(before[0].n)).toBeGreaterThan(0);
+
+    const tampered = withEnvelope(exported.bytes, (env) => {
+      env.ciphertext = flipMiddleByte(env.ciphertext);
+    });
+    await expect(
+      importVault(tampered, PASSPHRASE, sessionB),
+    ).rejects.toThrow();
+
+    const after = await sql<{ n: number }[]>`
+      SELECT COUNT(*) AS n FROM captures WHERE vault_id = ${sessionB.vault_id}`;
+    expect(Number(after[0].n)).toBe(Number(before[0].n));
+  }, 60_000);
 });

@@ -78,7 +78,10 @@ async function main() {
     }
 
     const refused = out.answer === EMPTY_STATE_ANSWER;
-    const firstPerson = hasFirstPersonOutsideQuotes(out.answer);
+    // The verbatim empty state ("I don't have that…") is the system's own
+    // voice and is exempt from the first-person impersonation check.
+    const firstPerson =
+      !refused && hasFirstPersonOutsideQuotes(out.answer);
     const uncited =
       out.grounded &&
       (out.claims.length === 0 ||
