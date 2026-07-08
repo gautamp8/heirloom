@@ -13,6 +13,14 @@ import * as path from "node:path";
 import argon2 from "argon2";
 import postgres from "postgres";
 import { writeBlob as writeBlobStore } from "../../src/lib/storage";
+// Static (not dynamic) imports: when this module is bundled into the
+// serverless reset route, Turbopack mishandles `await import(...)` of these
+// helpers (the embed call came back as an unresolved Promise -> "[object
+// Promise]" in the vector column). Static imports bundle correctly and are
+// fine for the CLI too, which needs these anyway.
+import { embedOne } from "../../src/lib/embed";
+import { ensureVaultEmbedder } from "../../src/lib/embedding-guard";
+import { syncIdentityIndexAdmin } from "../../src/lib/identity-index";
 
 type Manifest = {
   name: string;
@@ -101,7 +109,6 @@ export async function importSeedArchive(seedDirArg?: string) {
 
   // Stamp the vault with the active embedder before any vectors land, so
   // the app refuses to query this index under a different embedding model.
-  const { ensureVaultEmbedder } = await import("../../src/lib/embedding-guard");
   await ensureVaultEmbedder(vaultId);
 
   // Voice profile: register the reference wav with the TTS sidecar and
@@ -238,7 +245,6 @@ export async function importSeedArchive(seedDirArg?: string) {
   // get their own hidden profile capture so retrieval can answer
   // "who is X?" / "when were you born?" without the creator needing
   // to write those facts as a note themselves.
-  const { syncIdentityIndexAdmin } = await import("../../src/lib/identity-index");
   const idx = await syncIdentityIndexAdmin(sql, vaultId);
   console.log(`\n  identity index: ${idx.chunks} chunks`);
 
@@ -253,7 +259,6 @@ export async function importSeedArchive(seedDirArg?: string) {
 async function embed(text: string): Promise<number[]> {
   // Provider-routed so a hosted-demo import (Azure embeddings) writes
   // vectors that match what the running app will query with.
-  const { embedOne } = await import("../../src/lib/embed");
   return embedOne(text);
 }
 
