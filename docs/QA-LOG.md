@@ -214,3 +214,25 @@ format-string attacks all collapse to the empty state or a cited
 third-person answer. Both safety harnesses (injection + grounding) are
 now green on BOTH provider profiles, which is the launch-gate the GOAL's
 Non-negotiable #5 demands before the demo URL is public.
+
+**Hosted-demo (Vercel/Neon) stack validated end-to-end locally before
+deploy.** Built a Neon-equivalent Postgres locally and ran the exact
+production config — `HEIRLOOM_PROVIDER_PROFILE=hosted-demo`,
+`HEIRLOOM_BLOB_BACKEND=postgres`, Azure OpenAI, DATABASE_URL as the
+non-owner `heirloom_app` role (RLS enforced), DATABASE_ADMIN_URL as the
+owner. Verified: (1) `infra/neon-setup.sh` creates the role + schema +
+all migrations incl. 009 with the `vector`/`uuid-ossp` extensions; (2)
+seeding writes 4 media blobs to `blob_objects` bytea and stamps the vault
+`azure/text-embedding-3-small@768`; (3) the nominee home renders and all
+three Sagan photo `/api/blob/*` reads return 200 from bytea through the
+RLS-gated route — the Pale Blue Dot photograph displays; (4) reflect
+grounds through Azure with citations and the empty-state contract intact;
+(5) voice is scoped out (`hosted:true`), demo banner shows the offline
+disclaimer. Two bugs were found and fixed doing this — the seed importer's
+dynamic imports and identity-index's cross-instance `vec()` fragment both
+serialized to `[object Promise]` only when bundled into the serverless
+reset route (the tsx CLI shared one module instance and hid it). After the
+fixes, `/api/cron/reset-demo` returns 200, re-seeds cleanly, and reflect
+grounds with no 409. The Vercel production build is green on preview
+deploys. Only the DB provisioning (Neon terms) + secret writes remain,
+both user-gated.
