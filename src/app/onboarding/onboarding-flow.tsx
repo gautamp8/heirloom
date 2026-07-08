@@ -459,6 +459,23 @@ function VoiceStep(props: { onBack: () => void; onContinue: () => void }) {
     | { kind: "done" }
     | { kind: "error"; message: string };
   const [state, setState] = useState<S>({ kind: "ready" });
+  // On the hosted demo there is no voice engine and audio must never leave
+  // the device, so cloning is refused server-side. Detect it and show a
+  // "voice stays on your device" note in place of the recorder rather than
+  // inviting a recording that can't be used.
+  const [hosted, setHosted] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/voice/profile", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled && d?.hosted) setHosted(true);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const recRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const startedAtRef = useRef<number>(0);
@@ -523,6 +540,29 @@ function VoiceStep(props: { onBack: () => void; onContinue: () => void }) {
     }
     setState({ kind: "done" });
     props.onContinue();
+  }
+
+  if (hosted) {
+    return (
+      <>
+        <p className="eyebrow mb-2">Step two</p>
+        <h1 className="h-title mb-2">Voice stays on your device.</h1>
+        <p className="p-body max-w-[520px] mb-1">
+          Recording, transcription, and voice cloning all run locally so your
+          voice never travels to a server. This hosted demo runs in the cloud,
+          so it leaves voice out on purpose &mdash; the free app records in your
+          own voice, and the rest of the archive works exactly the same.
+        </p>
+        <div className="flex items-center gap-4 mt-6">
+          <button type="button" className="btn" onClick={props.onContinue}>
+            Continue
+          </button>
+          <button type="button" className="btn-ghost" onClick={props.onBack}>
+            ← Back
+          </button>
+        </div>
+      </>
+    );
   }
 
   return (
