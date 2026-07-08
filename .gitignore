@@ -72,3 +72,5 @@ GOAL.md
 playwright-report/
 test-results/
 docs/eval/
+.vercel
+.env*

@@ -45,27 +45,32 @@ const STORAGE_ROOT = path.resolve(
     path.join(process.cwd(), "storage", "blobs"),
 );
 
-async function main() {
-  const seedDir = process.argv[2];
+export async function importSeedArchive(seedDirArg?: string) {
+  const seedDir = seedDirArg ?? process.argv[2];
   if (!seedDir) {
-    console.error("usage: import-seed-archive.ts <path-to-archive-dir>");
-    process.exit(1);
+    throw new Error("usage: import-seed-archive.ts <path-to-archive-dir>");
   }
   const absSeed = path.resolve(seedDir);
   const manifestPath = path.join(absSeed, "manifest.json");
   if (!fs.existsSync(manifestPath)) {
-    console.error(`no manifest.json at ${manifestPath}`);
-    process.exit(1);
+    throw new Error(`no manifest.json at ${manifestPath}`);
   }
   const manifest: Manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 
   // Use the admin connection so we bypass per-vault RLS while seeding.
   const url = process.env.DATABASE_ADMIN_URL ?? process.env.DATABASE_URL;
   if (!url) {
-    console.error("DATABASE_ADMIN_URL (or DATABASE_URL) not set");
-    process.exit(1);
+    throw new Error("DATABASE_ADMIN_URL (or DATABASE_URL) not set");
   }
-  const sql = postgres(url, { max: 4, transform: { undefined: null } });
+  // prepare:false when talking to a transaction-mode pooler (Neon's
+  // -pooler host), which the nightly reset does from a serverless function.
+  const usePooler =
+    process.env.HEIRLOOM_DB_PREPARE === "false" || /-pooler\./.test(url);
+  const sql = postgres(url, {
+    max: 4,
+    transform: { undefined: null },
+    prepare: !usePooler,
+  });
   fs.mkdirSync(STORAGE_ROOT, { recursive: true });
 
   console.log(`importing "${manifest.name}" from ${absSeed}`);
@@ -242,6 +247,7 @@ async function main() {
   console.log(`  open /portal, click "I have a sealed letter", enter that phrase.`);
 
   await sql.end();
+  return { passphrase };
 }
 
 async function embed(text: string): Promise<number[]> {
@@ -264,7 +270,12 @@ function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// CLI entry — only when run directly (pnpm tsx …), not when the reset
+// route imports importSeedArchive().
+const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";
+if (invokedPath.includes("import-seed-archive")) {
+  importSeedArchive().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
