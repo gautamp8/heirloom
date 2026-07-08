@@ -194,7 +194,7 @@ export function PortalActions() {
       <button className="btn-ghost" onClick={() => setMode("import")}>
         Import an existing archive
       </button>
-      <p className="p-meta mt-3">Local-first · Nothing leaves this device</p>
+      <p className="p-meta mt-3">Local-first · Nothing leaves without you</p>
     </div>
   );
 }

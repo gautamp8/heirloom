@@ -49,7 +49,7 @@ export default function Home() {
             </div>
 
             <p className="p-meta mt-7 fade-up-d3">
-              No telemetry · No account · Nothing leaves your device
+              No telemetry · No account · Nothing leaves without you
             </p>
           </div>
         </div>
@@ -279,10 +279,11 @@ export default function Home() {
               </h2>
               <p className="p-lead mt-6">
                 Heirloom installs on your own laptop. By default the model
-                runs there and your archive never leaves. No accounts, no
-                analytics, no telemetry — and the few times anything is sent
-                to the network at all, the list is short and named, right
-                here.
+                runs there and your archive stays put — until you deliberately
+                hand it on, as one encrypted file only your passphrase opens.
+                No accounts, no analytics, no telemetry — and the few times
+                anything is sent to the network at all, the list is short and
+                named, right here.
               </p>
             </div>
 

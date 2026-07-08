@@ -358,8 +358,9 @@ function WelcomeStep(props: {
         <div>
           <p className="eyebrow mb-1">A photo of you, if you&rsquo;d like</p>
           <p className="font-serif italic text-[14px] text-ink-muted max-w-[480px]">
-            Used only on this device, to recognise you in future photos. Your
-            face never leaves your phone.
+            Only a private face-print is kept &mdash; to recognise you in
+            future photos. Never the photo itself, and never shared outside
+            your archive.
           </p>
         </div>
 

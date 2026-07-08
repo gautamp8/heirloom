@@ -249,7 +249,7 @@ export function WelcomeFlow() {
 
       {/* Soft ambient hint that this is local */}
       <p className="p-meta absolute bottom-6 left-0 right-0 text-center z-0">
-        Local-first · Nothing leaves this device
+        Local-first · Nothing leaves without you
       </p>
     </main>
   );

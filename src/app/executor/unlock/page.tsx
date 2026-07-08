@@ -25,7 +25,9 @@ export default function ExecutorUnlock() {
 
         <UnlockForm />
 
-        <p className="p-meta mt-12">Local-first · Nothing leaves this device</p>
+        <p className="p-meta mt-12">
+          The passphrase is checked here and never stored
+        </p>
       </div>
     </main>
   );
