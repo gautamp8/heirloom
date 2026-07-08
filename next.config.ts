@@ -21,12 +21,6 @@ const nextConfig: NextConfig = {
   // bundler leaves their .node binaries for the runtime to load, and NFT
   // traces the correct platform prebuild on Vercel.
   serverExternalPackages: ["better-sqlite3", "sqlite-vec", "argon2"],
-  // The nightly demo reset re-imports the Sagan seed in-process, so its
-  // manifest + media must be traced into that function's bundle (they live
-  // outside the app dir and aren't picked up automatically).
-  outputFileTracingIncludes: {
-    "/api/cron/reset-demo": ["./desktop/seed-archives/sagan/**/*"],
-  },
   // Standalone output bundles only the deps Heirloom actually needs
   // into .next/standalone/, so the Tauri .dmg can ship the server
   // without dragging a full node_modules tree.

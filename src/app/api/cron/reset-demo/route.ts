@@ -1,23 +1,28 @@
-import path from "node:path";
 import { sqlAdmin } from "@/lib/db";
 import { describeProvider } from "@/lib/provider";
 
 export const dynamic = "force-dynamic";
-// Re-seeding computes ~50 Azure embeddings + a few vision captions
-// sequentially, so give the nightly job generous room.
-export const maxDuration = 300;
+export const maxDuration = 60;
+
+// The seeded demo creator. Everything owned by this account is the pristine
+// Sagan archive and is kept; everything else is a public submission and is
+// wiped. Derived from the seed manifest name ("Carl Sagan" -> slug), with an
+// env override in case the seed identity ever changes.
+const SEED_EMAIL =
+  process.env.HEIRLOOM_DEMO_SEED_EMAIL ?? "carl-sagan@heirloom.local";
 
 /**
  * POST/GET /api/cron/reset-demo
  *
- * Restores the pristine Sagan archive on the public hosted demo: wipes
- * every vault/user/submission and re-imports the seed under the running
- * (hosted-demo/Azure) provider so embeddings match query time. The
- * server-side equivalent of infra/reset-demo.sh, driven by Vercel Cron.
+ * Restores the pristine public demo by removing everything visitors created
+ * since the last reset — their "begin a new archive" vaults and their
+ * reflections on the Sagan archive — while keeping the seeded Sagan vault
+ * itself intact. A selective delete rather than a truncate + re-seed: the
+ * seed is imported once (off-Vercel, with its media + Azure embeddings), so
+ * the nightly job needs no seed files and no model calls, which makes it
+ * fast and reliable on serverless.
  *
- * Auth: Vercel Cron sends `Authorization: Bearer $CRON_SECRET`. Refused
- * unless CRON_SECRET is set and matches, and only on the hosted-demo
- * profile (never wipe a real local/VM archive by accident).
+ * Auth: Vercel Cron sends `Authorization: Bearer $CRON_SECRET`.
  */
 async function handle(req: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET;
@@ -34,28 +39,50 @@ async function handle(req: Request): Promise<Response> {
     return Response.json({ error: "admin_db_unavailable" }, { status: 500 });
   }
 
-  // Wipe submissions. users/vaults CASCADE to captures, reflections,
-  // nominees, releases, etc.; app_settings is instance config and survives.
-  // blob_objects holds the bytea media and is re-populated by the seed.
-  await sqlAdmin`TRUNCATE users CASCADE`;
-  await sqlAdmin`TRUNCATE blob_objects`;
+  // Guard: if the seed account is somehow missing, do nothing rather than
+  // wipe an unseeded database blank.
+  const [seed] = await sqlAdmin<{ id: string }[]>`
+    SELECT id FROM users WHERE email = ${SEED_EMAIL} LIMIT 1
+  `;
+  if (!seed) {
+    return Response.json({ error: "seed_account_missing" }, { status: 409 });
+  }
 
-  // Re-import the bundled Sagan seed (traced into the function via
-  // outputFileTracingIncludes in next.config.ts).
-  const { importSeedArchive } = await import(
-    "../../../../../desktop/scripts/import-seed-archive"
-  );
-  const seedDir = path.join(process.cwd(), "desktop/seed-archives/sagan");
-  const result = await importSeedArchive(seedDir);
+  // 1. Drop every archive not owned by the seed creator (public "begin a new
+  //    archive" vaults). CASCADE clears their captures, nominees, releases,
+  //    reflections, etc.
+  const vaults = await sqlAdmin`
+    DELETE FROM vaults WHERE creator_id <> ${seed.id}
+  `;
+  // 2. Clear the public Q&A on the demo vault (the transparency-page log).
+  const reflections = await sqlAdmin`
+    DELETE FROM reflections
+     WHERE vault_id IN (SELECT id FROM vaults WHERE creator_id = ${seed.id})
+  `;
+  // 3. Remove now-orphaned visitor users (creators of the deleted vaults).
+  //    Keep the seed creator and the shared nominee "You" user.
+  const users = await sqlAdmin`
+    DELETE FROM users u
+     WHERE u.email <> ${SEED_EMAIL}
+       AND NOT EXISTS (SELECT 1 FROM vaults v WHERE v.creator_id = u.id)
+       AND NOT EXISTS (SELECT 1 FROM nominees n WHERE n.user_id = u.id)
+  `;
 
-  return Response.json({ ok: true, reseeded: true, ...result });
+  return Response.json({
+    ok: true,
+    cleared: {
+      public_vaults: vaults.count,
+      reflections: reflections.count,
+      orphan_users: users.count,
+    },
+  });
 }
 
 export async function POST(req: Request) {
   return handle(req);
 }
 
-// Vercel Cron issues GET by default.
+// Vercel Cron issues GET.
 export async function GET(req: Request) {
   return handle(req);
 }
