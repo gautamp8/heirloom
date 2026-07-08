@@ -1,0 +1,7 @@
+marketing
+desktop/src-tauri/target
+desktop/scripts/node_modules
+storage
+*.dmg
+tests
+docs

@@ -5,27 +5,37 @@ Working notes for the launch-readiness run (started 2026-07-07, branch
 this file holds the queue of things only Gautam can do, plus decisions
 worth remembering.
 
-## Needs your approval / credentials (blocking those items only)
+## WS6 hosted demo — now on VERCEL + Neon (GCP VM torn down 2026-07-08)
 
-1. **Finish the demo VM deploy (WS6).** The instance is live —
-   `heirloom-demo` (e2-small) on `cmhq-vpc`, static IP **34.63.201.214**,
-   tags `web`+`ssh`, IAP SSH working, 3 GB swap added, source staged at
-   `/opt/heirloom/app`. The Azure OpenAI deployments (`heirloom-chat` =
-   gpt-5.4-mini, `heirloom-embed` = text-embedding-3-small) are live on
-   `cmhq-foundry-eastus2` with a \$30/mo budget alert. The only remaining
-   step — running `infra/vm-setup-demo.sh` (stands up the public service +
-   writes the Azure key into `/opt/heirloom/.env`) — was **blocked by the
-   auto-mode classifier** (public deploy + credential handling on a shared
-   account). Approve it / run outside auto mode and it's one SSH command;
-   scripts are ready (`vm-setup-demo.sh` → `build-and-start.sh` →
-   `reset-demo.sh` for the seed).
-2. **`demo.withheirloom.app` DNS — I can do this once the VM is live.**
-   `withheirloom.app` is on Vercel DNS and this machine is authenticated to
-   Vercel, so it's one command (not a human step):
-   `vercel dns add withheirloom.app demo A 34.63.201.214` — an explicit
-   record overrides the current `*` wildcard ALIAS. I'm holding it until
-   the VM actually serves so the URL doesn't resolve to a dead host. Caddy
-   on the VM fetches the TLS cert once DNS resolves.
+Decision (2026-07-08, Gautam): host the demo on **Vercel** (where the
+marketing site already lives), not the GCP VM. The VM `heirloom-demo` +
+its static IP were deleted. Same Azure OpenAI inference; voice scoped out;
+public archive with an explicit disclaimer, wiped nightly.
+
+**Done and committed** (`launch-ready`): pluggable Postgres-bytea blob
+backend (`HEIRLOOM_BLOB_BACKEND=postgres`, migration 009 — Sagan photos
+survive on serverless), serverless hardening (build-phase DB guard,
+pooler-aware `prepare:false`, `after()` pipeline, transcribe + .hloom
+import gated off on hosted-demo, `maxDuration`), voice scoped out cleanly,
+nightly-reset Cron route (`/api/cron/reset-demo`, Bearer `CRON_SECRET`) +
+callable seed importer + `vercel.json` cron, `infra/neon-setup.sh`. Vercel
+project `gautamp8s-projects/heirloom-demo` created + linked; 9 non-secret
+env vars set. Production build passes locally and (preview) on Vercel.
+
+**Two things only you can do, then I finish autonomously:**
+1. **Accept Neon Marketplace terms** (one browser click):
+   `https://vercel.com/gautamp8s-projects/~/integrations/accept-terms/neon?source=cli`
+   Then I: `vercel integration add neon` → run `infra/neon-setup.sh`
+   (creates the `heirloom_app` RLS role + schema + migrations) → seed Sagan
+   with Azure embeddings + `DATABASE_ADMIN_URL` set.
+2. **Approve writing the demo secrets** to the `heirloom-demo` project
+   (classifier holds live-secret writes until named): `AZURE_OPENAI_API_KEY`,
+   `JWT_SECRET`, `CRON_SECRET`, and `DATABASE_URL`/`DATABASE_ADMIN_URL`
+   (Neon, after #1). Then: `vercel deploy --prod` →
+   `vercel dns add withheirloom.app demo` → live grounding-eval verify.
+
+DNS: `withheirloom.app` is on Vercel DNS and this machine is authenticated,
+so pointing `demo` at the deployment is one command once the app serves.
 
 ## [HUMAN] queue — batched, none of these block current work
 
