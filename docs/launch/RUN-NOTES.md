@@ -8,8 +8,7 @@ worth remembering.
 ## WS6 hosted demo — LIVE on Vercel + Neon + Azure (2026-07-08)
 
 **Deployed and verified end-to-end:**
-`https://heirloom-demo-gautamp8s-projects.vercel.app` (custom domain
-`demo.withheirloom.app` pending — one `vercel domains add` once you name
+**`https://demo.withheirloom.app`** (custom domain attached + TLS live 2026-07-08; also at heirloom-demo-gautamp8s-projects.vercel.app — one `vercel domains add` once you name
 it; classifier gates the DNS change on your explicit sign-off). Vercel
 project `gautamp8s-projects/heirloom-demo`, Neon Postgres (owner + the
 `heirloom_app` RLS role, seeded with bytea photos + Azure embeddings),

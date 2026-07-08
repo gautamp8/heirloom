@@ -253,3 +253,11 @@ reset wiped the DB (ENOENT — seed files not traced under Turbopack) →
 reworked to selective delete; and a promotion-race where the stable alias
 briefly served the old reset code. Custom domain `demo.withheirloom.app`
 is the one remaining step (DNS change, user-gated).
+
+**demo.withheirloom.app is live.** Custom domain attached to the
+heirloom-demo Vercel project on the user's explicit go-ahead; Vercel
+manages withheirloom.app's DNS so the record auto-created and verified
+immediately and TLS provisioned within seconds. Verified end-to-end on the
+branded host: /api/health ok (hosted-demo profile, Neon postgres ok),
+/portal 200, nominee reflect returns a grounded answer. WS6 complete — the
+hosted Sagan demo is public at https://demo.withheirloom.app.
