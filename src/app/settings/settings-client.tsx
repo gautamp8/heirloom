@@ -1056,7 +1056,7 @@ function ProviderSection() {
               text, when it is tagged.
               {cloudEmbeds
                 ? " With cloud embeddings on, the full text of every memory is also sent once for indexing."
-                : " Recordings, transcription, your voice, and the archive index never leave this device."}
+                : ` Recordings, transcription, your voice, and the archive index are never sent to ${host} — they stay on this device, travelling only inside the encrypted archive you choose to hand to someone.`}
             </p>
           </div>
 
@@ -1656,11 +1656,13 @@ function VoiceSection() {
       {state.kind === "hosted" && (
         <div className="rounded-[12px] border border-rule-soft p-4 max-w-[560px] bg-paper">
           <p className="p-meta mb-2">
-            Voice stays on your own device.
+            Voice is made on your device.
           </p>
           <p className="p-meta max-w-[480px]">
-            Recording, transcription, and voice cloning all run locally so
-            your voice never travels to a server. This hosted demo runs in the
+            Recording, transcription, and cloning all run on your own device -
+            never a cloud service. Your voice reaches the people you choose
+            only inside the end-to-end-encrypted archive you hand them; it is
+            never uploaded to a server in between. This hosted demo runs in the
             cloud, so it leaves voice out on purpose. Install the free macOS
             app to record in your own voice - the rest of the archive works
             exactly the same.

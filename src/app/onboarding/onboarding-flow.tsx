@@ -546,12 +546,14 @@ function VoiceStep(props: { onBack: () => void; onContinue: () => void }) {
     return (
       <>
         <p className="eyebrow mb-2">Step two</p>
-        <h1 className="h-title mb-2">Voice stays on your device.</h1>
+        <h1 className="h-title mb-2">Voice is made on your device.</h1>
         <p className="p-body max-w-[520px] mb-1">
-          Recording, transcription, and voice cloning all run locally so your
-          voice never travels to a server. This hosted demo runs in the cloud,
-          so it leaves voice out on purpose &mdash; the free app records in your
-          own voice, and the rest of the archive works exactly the same.
+          Recording, transcription, and cloning all run on your own device
+          &mdash; never a cloud service. Your voice reaches your people only
+          inside the end-to-end-encrypted archive you hand them. This hosted
+          demo runs in the cloud, so it leaves voice out on purpose; the free
+          app records in your own voice, and the rest of the archive works the
+          same.
         </p>
         <div className="flex items-center gap-4 mt-6">
           <button type="button" className="btn" onClick={props.onContinue}>

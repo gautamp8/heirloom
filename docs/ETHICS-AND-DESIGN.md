@@ -476,7 +476,8 @@ The product exists for situations that are, for many people, the
 hardest weeks or months of their lives. The discipline we try to
 hold while building is: nothing about the software should add to
 the weight. The empty state is verbatim. The notifications don't
-chase. The voice never invents. The data never leaves. The
+chase. The voice never invents. The data never leaves on its own —
+only inside the encrypted archive you choose to hand over. The
 relationship between a person and what they choose to leave behind
 is theirs - Heirloom is just where it stays.
 
