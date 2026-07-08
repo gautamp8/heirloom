@@ -1,7 +1,29 @@
 import postgres from "postgres";
 
+// `next build` evaluates route modules to collect page data, which pulls
+// this module in. Skip the hard requirement during the build phase (Next
+// sets NEXT_PHASE) so a deploy can compile even before DATABASE_URL is
+// wired; it is still required at runtime. The pool is lazy — postgres.js
+// does not connect until the first query — so the build placeholder never
+// opens a socket.
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 const url = process.env.DATABASE_URL;
-if (!url) throw new Error("DATABASE_URL is not set. Copy .env.example to .env.local.");
+if (!url && !isBuildPhase) {
+  throw new Error("DATABASE_URL is not set. Copy .env.example to .env.local.");
+}
+const effectiveUrl = url ?? "postgres://build@127.0.0.1:5432/build";
+
+// postgres.js prepared statements break on a transaction-mode pooler
+// (Neon's `-pooler` host / PgBouncer), which is what a serverless deploy
+// must use to avoid connection exhaustion. Disable them there — detected
+// from the host, or forced with HEIRLOOM_DB_PREPARE=false. On a plain VM
+// (direct connection) prepared statements stay on.
+function pooled(connStr: string): boolean {
+  return (
+    process.env.HEIRLOOM_DB_PREPARE === "false" || /-pooler\./.test(connStr)
+  );
+}
+const POOL_MAX = Number(process.env.HEIRLOOM_DB_POOL_MAX) || 8;
 
 declare global {
   var __heirloomSql: ReturnType<typeof postgres> | undefined;
@@ -10,11 +32,12 @@ declare global {
 
 export const sql =
   globalThis.__heirloomSql ??
-  postgres(url, {
-    max: 8,
+  postgres(effectiveUrl, {
+    max: POOL_MAX,
     idle_timeout: 30,
     connect_timeout: 10,
     transform: { undefined: null },
+    prepare: !pooled(effectiveUrl),
   });
 
 if (process.env.NODE_ENV !== "production") {
@@ -29,10 +52,11 @@ export const sqlAdmin: ReturnType<typeof postgres> | null = (() => {
   const adminUrl = process.env.DATABASE_ADMIN_URL;
   if (!adminUrl) return null;
   const client = postgres(adminUrl, {
-    max: 2,
+    max: Math.min(2, POOL_MAX),
     idle_timeout: 30,
     connect_timeout: 10,
     transform: { undefined: null },
+    prepare: !pooled(adminUrl),
   });
   if (process.env.NODE_ENV !== "production") {
     globalThis.__heirloomSqlAdmin = client;

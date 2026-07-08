@@ -18,6 +18,10 @@ import {
 import { HttpError, errorResponse, requireSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
+// Grounded synthesis waits on retrieval + a streamed model completion (and
+// one non-streaming retry on stream corruption). On Vercel the default
+// function budget can be too short for a cloud round-trip, so lift it.
+export const maxDuration = 60;
 
 /**
  * POST /api/reflect → Server-Sent Events

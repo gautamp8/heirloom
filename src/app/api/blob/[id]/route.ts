@@ -1,25 +1,8 @@
-import { readFileSync, statSync } from "node:fs";
-import { extname } from "node:path";
 import { withRls } from "@/lib/db";
-import { resolveBlob } from "@/lib/storage";
+import { extensionFromBlobUrl, mimeForExtension, readBlob } from "@/lib/storage";
 import { errorResponse, HttpError, requireSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
-
-const MIME: Record<string, string> = {
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".png": "image/png",
-  ".webp": "image/webp",
-  ".gif": "image/gif",
-  ".heic": "image/heic",
-  ".mp4": "video/mp4",
-  ".webm": "video/webm",
-  ".ogg": "audio/ogg",
-  ".m4a": "audio/mp4",
-  ".wav": "audio/wav",
-  ".mp3": "audio/mpeg",
-};
 
 /**
  * GET /api/blob/[id]
@@ -44,21 +27,18 @@ export async function GET(
     });
     if (!row?.blob_url) throw new HttpError(404, "not_found");
 
-    const abs = resolveBlob(row.blob_url);
-    let stat;
+    let data: Buffer;
     try {
-      stat = statSync(abs);
+      data = await readBlob(row.blob_url);
     } catch {
       throw new HttpError(404, "missing_file");
     }
-    const data = readFileSync(abs);
-    const ext = extname(abs).toLowerCase();
-    const mime = MIME[ext] ?? "application/octet-stream";
+    const mime = mimeForExtension(extensionFromBlobUrl(row.blob_url));
 
     return new Response(new Uint8Array(data), {
       headers: {
         "content-type": mime,
-        "content-length": String(stat.size),
+        "content-length": String(data.length),
         "cache-control": "private, max-age=3600",
       },
     });

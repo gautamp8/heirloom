@@ -1,5 +1,3 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import { generateText } from "ai";
 import { resolveProvider, visionModel } from "./provider";
 
@@ -22,14 +20,6 @@ function buildSystemPrompt(people: RecognizedPerson[]): string {
     .join("\n");
 }
 
-const MEDIA_TYPES: Record<string, string> = {
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".png": "image/png",
-  ".webp": "image/webp",
-  ".gif": "image/gif",
-  ".heic": "image/heic",
-};
 
 /** Describe a photo in archival third-person voice. When `people` is
  *  provided, the system prompt names them so the caption reads "Rita
@@ -39,10 +29,9 @@ const MEDIA_TYPES: Record<string, string> = {
  *  native chat API (its multimodal request shape is the proven path for
  *  gemma4:e4b); cloud profiles go through the AI SDK with an image part. */
 export async function captionPhoto(
-  absPath: string,
-  opts: { people?: RecognizedPerson[] } = {},
+  buf: Buffer,
+  opts: { people?: RecognizedPerson[]; mediaType?: string } = {},
 ): Promise<string> {
-  const buf = await fs.readFile(absPath);
   const people = opts.people ?? [];
   const system = buildSystemPrompt(people);
   const provider = await resolveProvider();
@@ -75,8 +64,7 @@ export async function captionPhoto(
     return (data.message?.content ?? "").trim();
   }
 
-  const mediaType =
-    MEDIA_TYPES[path.extname(absPath).toLowerCase()] ?? "image/jpeg";
+  const mediaType = opts.mediaType ?? "image/jpeg";
   const { text } = await generateText({
     model: await visionModel(),
     system,

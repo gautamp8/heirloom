@@ -8,7 +8,8 @@ import {
 import argon2 from "argon2";
 import type { Session } from "./auth";
 import { sqlAdmin, vec } from "./db";
-import { resolveBlob } from "./storage";
+import { readBlob, resolveBlob } from "./storage";
+import { describeProvider } from "./provider";
 
 /**
  * .hloom wire format. A UTF-8 JSON envelope wrapping base64 ciphertext
@@ -192,7 +193,7 @@ export async function exportVault(
   }
   for (const url of blobUrls) {
     try {
-      const data = await fs.readFile(resolveBlob(url));
+      const data = await readBlob(url);
       blobs[url] = data.toString("base64");
     } catch (e) {
       console.warn("[export] missing blob", url, e);
@@ -301,6 +302,13 @@ export async function importVault(
   session: Session,
 ): Promise<ImportSummary> {
   if (session.role !== "creator") throw new Error("creator_only");
+  // The hosted demo has no persistent disk and, more to the point, is a
+  // public server: decrypting someone's private .hloom onto it defeats the
+  // local-first guarantee. Import stays a local-app feature where the
+  // archive never leaves the device.
+  if ((await describeProvider()).profile === "hosted-demo") {
+    throw new Error("import_is_local_only");
+  }
   if (!sqlAdmin) throw new Error("admin_db_unavailable");
   if (!passphrase || passphrase.trim().length < 6) {
     throw new Error("passphrase_too_short");

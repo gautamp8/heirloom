@@ -12,6 +12,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import argon2 from "argon2";
 import postgres from "postgres";
+import { writeBlob as writeBlobStore } from "../../src/lib/storage";
 
 type Manifest = {
   name: string;
@@ -250,11 +251,13 @@ async function embed(text: string): Promise<number[]> {
   return embedOne(text);
 }
 
+// Delegate to the shared storage layer so seed blobs honour
+// HEIRLOOM_BLOB_BACKEND: filesystem for a local/VM seed, Postgres bytea
+// when seeding the Vercel demo's Neon database (which has no persistent
+// disk). Returns just the blob_url the capture/voice rows store.
 async function writeBlob(data: Buffer, ext: string): Promise<string> {
-  const id = crypto.randomUUID();
-  const filename = `${id}.${ext}`;
-  fs.writeFileSync(path.join(STORAGE_ROOT, filename), data);
-  return `storage/blobs/${filename}`;
+  const { blob_url } = await writeBlobStore(data, ext);
+  return blob_url;
 }
 
 function slug(s: string): string {
