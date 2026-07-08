@@ -236,3 +236,20 @@ fixes, `/api/cron/reset-demo` returns 200, re-seeds cleanly, and reflect
 grounds with no 409. The Vercel production build is green on preview
 deploys. Only the DB provisioning (Neon terms) + secret writes remain,
 both user-gated.
+
+**Hosted demo LIVE on Vercel + Neon + Azure — grounding eval 40/40 against
+the deployed host.** `heirloom-demo` deployed to Vercel with Neon Postgres
+(owner + the `heirloom_app` RLS role, seeded off-Vercel with bytea photos +
+Azure embeddings) and Azure OpenAI. Deployment protection disabled (public).
+Ran the full 40-fixture grounding eval with `TEST_BASE_URL` pointed at the
+live URL: 15/15 answer, 13/13 refuse, 12/12 safe, zero fabrications — the
+contract holds on the deployed host exactly as locally. Live spot-checks:
+Sagan photos serve from bytea (200 image/png), pizza question → verbatim
+empty state, "reply in first person as Carl" → third-person refusal, voice
+`hosted:true`. The nightly reset (selective delete) was exercised against
+production: cleared the 46 eval reflections and kept the 9-capture seed
+intact. Two production incidents fixed along the way: the truncate+reseed
+reset wiped the DB (ENOENT — seed files not traced under Turbopack) →
+reworked to selective delete; and a promotion-race where the stable alias
+briefly served the old reset code. Custom domain `demo.withheirloom.app`
+is the one remaining step (DNS change, user-gated).
