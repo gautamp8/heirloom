@@ -5,7 +5,22 @@ Working notes for the launch-readiness run (started 2026-07-07, branch
 this file holds the queue of things only Gautam can do, plus decisions
 worth remembering.
 
-## WS6 hosted demo — now on VERCEL + Neon (GCP VM torn down 2026-07-08)
+## WS6 hosted demo — LIVE on Vercel + Neon + Azure (2026-07-08)
+
+**Deployed and verified end-to-end:**
+`https://heirloom-demo-gautamp8s-projects.vercel.app` (custom domain
+`demo.withheirloom.app` pending — one `vercel domains add` once you name
+it; classifier gates the DNS change on your explicit sign-off). Vercel
+project `gautamp8s-projects/heirloom-demo`, Neon Postgres (owner + the
+`heirloom_app` RLS role, seeded with bytea photos + Azure embeddings),
+Azure OpenAI (`heirloom-chat` / `heirloom-embed`). Deployment protection
+disabled (public). Live checks passed: health/Neon/Azure, nominee sign-in,
+Sagan photos from bytea, grounded reflect + citations, ungrounded refused,
+impersonation refused (third person), voice scoped out, banner, and the
+nightly reset (selective-delete cron, keeps the seed). To re-seed by hand:
+the seed command in `docs/DEPLOY-VERCEL.md` with the Neon URLs.
+
+### (history) moved here from GCP VM
 
 Decision (2026-07-08, Gautam): host the demo on **Vercel** (where the
 marketing site already lives), not the GCP VM. The VM `heirloom-demo` +
