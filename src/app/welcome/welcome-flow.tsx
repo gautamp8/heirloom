@@ -46,7 +46,7 @@ export function WelcomeFlow() {
           from_name: "Rita",
           to_name: "Sam",
           body:
-            "Sam - there is something here for you.\n\nTake your time with this. There is no rush, and nothing in here is going anywhere.\n\nI love you.\n\n- Rita",
+            "Sam — there is something here for you.\n\nTake your time with this. There is no rush, and nothing in here is going anywhere.\n\nI love you.\n\n— Rita",
         }
       : null,
   );
@@ -65,7 +65,7 @@ export function WelcomeFlow() {
         body: JSON.stringify({ passphrase: v }),
       });
       if (!r.ok) {
-        setError("That isn't the right passphrase. Try again, or contact the executor.");
+        setError("That isn’t the right passphrase. Try again, or ask the person who shared it with you.");
         setShake((n) => n + 1);
         setBusy(false);
         return;
@@ -97,8 +97,11 @@ export function WelcomeFlow() {
       window.setTimeout(() => setStage("emerging"), 1200);
       window.setTimeout(() => setStage("unfolding"), 2200);
       window.setTimeout(() => setStage("reading"), 3500);
-    } finally {
-      // busy stays true through the choreography
+      // busy stays true through the choreography on the happy path
+    } catch {
+      setError("Something went wrong opening this. Check your connection and try again.");
+      setShake((n) => n + 1);
+      setBusy(false);
     }
   }
 
@@ -126,11 +129,12 @@ export function WelcomeFlow() {
 
   return (
     <main className="stage relative min-h-dvh overflow-hidden flex flex-col items-center justify-center px-6">
+      <h1 className="sr-only">A sealed letter for you</h1>
       {stage === "envelope" && (
         <button
           type="button"
           onClick={() => router.push("/portal")}
-          className="absolute top-5 left-5 z-30 font-mono text-[10px] tracking-[0.18em] uppercase text-ink-muted hover:text-ink py-2"
+          className="absolute top-5 left-5 z-30 font-mono text-[10px] tracking-[0.18em] uppercase text-ink-muted hover:text-ink px-3 py-3 -m-1"
         >
           ← Back
         </button>
@@ -168,7 +172,7 @@ export function WelcomeFlow() {
                 transition={{ duration: 0.6, ease: EASE_PAPER, delay: 0.2 }}
                 className="mt-12 flex flex-col items-center gap-2 w-full max-w-[300px]"
               >
-                <p className="eyebrow mb-3">A passphrase, please</p>
+                <p id="passphrase-label" className="eyebrow mb-3">A passphrase, please</p>
                 <input
                   type="password"
                   autoFocus
@@ -180,6 +184,7 @@ export function WelcomeFlow() {
                     if (e.key === "Enter") unlock();
                   }}
                   disabled={busy}
+                  aria-labelledby="passphrase-label"
                   aria-invalid={error ? "true" : "false"}
                   aria-describedby="passphrase-error"
                 />

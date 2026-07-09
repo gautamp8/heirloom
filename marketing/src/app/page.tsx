@@ -9,13 +9,7 @@ import { MockupEmptyState } from "@/mockups/empty-state";
 import { MockupSealedLetterPhone } from "@/mockups/sealed-letter-phone";
 import { HeroEnvelope } from "@/components/hero-envelope";
 import { links } from "@/components/links";
-import {
-  IconArrow,
-  IconLock,
-  IconLetter,
-  IconMic,
-  IconExternal,
-} from "@/components/icons";
+import { IconArrow, IconExternal } from "@/components/icons";
 
 export default function Home() {
   return (
@@ -150,8 +144,8 @@ export default function Home() {
               title={<>Sealed letters wait for the right moment.</>}
               body={
                 <>
-                  Write a letter <em className="italic">"for when Sam feels lost"</em>{" "}
-                  or <em className="italic">"the morning after Sam's wedding."</em>{" "}
+                  Write a letter <em className="italic">&ldquo;for when Sam feels lost&rdquo;</em>{" "}
+                  or <em className="italic">&ldquo;the morning after Sam&rsquo;s wedding.&rdquo;</em>{" "}
                   Five triggers: an absolute date, a life event, a mood the
                   nominee taps, a Reflection that matches the letter's intent,
                   or simply a first visit. The body stays sealed until then.
@@ -243,7 +237,7 @@ export default function Home() {
               <ContractStep
                 n={5}
                 title="One refusal sentence."
-                body={<>When the contract fails, the answer collapses to one line, the same every time: <em className="italic">"I don't have that in the archive. Try asking another way?"</em></>}
+                body={<>When the contract fails, the answer collapses to one line, the same every time: <em className="italic">&ldquo;I don&rsquo;t have that in the archive. Try asking another way?&rdquo;</em></>}
               />
             </ol>
 
@@ -765,9 +759,9 @@ function ContractStep({
         {n}
       </div>
       <div>
-        <h4 className="h-section" style={{ fontSize: 16 }}>
+        <h3 className="h-section" style={{ fontSize: 16 }}>
           {title}
-        </h4>
+        </h3>
         <p className="p-body mt-1.5" style={{ fontSize: 14 }}>
           {body}
         </p>

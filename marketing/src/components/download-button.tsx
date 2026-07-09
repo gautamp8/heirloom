@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconApple, IconClose, IconExternal } from "./icons";
 import { links } from "./links";
@@ -37,20 +37,68 @@ export function DownloadButton({
   );
 }
 
+// A trigger that opens the same instructional download modal. Lets the
+// nav and footer route their "Download" entries through the identical
+// setup flow (model pull, right-click → Open) the hero uses, instead of
+// linking straight to the raw .dmg. Children/styling are supplied by the
+// caller so it can look like a button or a plain link.
+export function DownloadTrigger({
+  children,
+  className,
+  style,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={className}
+        style={style}
+      >
+        {children}
+      </button>
+      {open && <DownloadModal onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
 function DownloadModal({ onClose }: { onClose: () => void }) {
   // The hero section wraps its children in a stacking context
   // (`.stage { isolation: isolate }`) plus `z-10` on the inner div,
   // so a fixed modal rendered inline gets trapped underneath the
   // page sections that follow. Portal to the body to escape that.
   const [mounted, setMounted] = useState(false);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
+    // Remember what to return focus to, then lock scroll and wire Escape.
+    triggerRef.current = document.activeElement as HTMLElement | null;
     setMounted(true);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCloseRef.current();
+    };
+    document.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prev;
+      document.removeEventListener("keydown", onKey);
+      triggerRef.current?.focus?.();
     };
   }, []);
+
+  // Move focus into the dialog (the close button) once it renders.
+  useEffect(() => {
+    if (mounted) closeRef.current?.focus();
+  }, [mounted]);
 
   if (!mounted) return null;
 
@@ -87,6 +135,7 @@ function DownloadModal({ onClose }: { onClose: () => void }) {
         }}
       >
         <button
+          ref={closeRef}
           type="button"
           onClick={onClose}
           aria-label="Close"

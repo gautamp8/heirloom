@@ -42,9 +42,13 @@ export function SetupRoom() {
 
   async function copyAll() {
     if (!result) return;
-    await navigator.clipboard.writeText(result.letter_body);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
+    try {
+      await navigator.clipboard.writeText(result.letter_body);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setError("Couldn’t copy — select the text manually.");
+    }
   }
 
   return (
@@ -66,7 +70,9 @@ export function SetupRoom() {
               {busy ? "Generating…" : "Generate a passphrase"}
             </button>
             {error && (
-              <p className="p-body text-wax mt-6 text-center">{error}</p>
+              <p role="alert" className="p-body text-wax mt-6 text-center">
+                {error}
+              </p>
             )}
           </motion.div>
         ) : (
@@ -77,8 +83,12 @@ export function SetupRoom() {
             transition={{ duration: 0.6, ease: [0.22, 0.61, 0.36, 1] }}
             className="flex flex-col items-center w-full"
           >
-            <p className="eyebrow mb-3">This passphrase is shown only once</p>
+            <p className="eyebrow mb-3 print:hidden">
+              This passphrase is shown only once
+            </p>
             <div
+              role="status"
+              aria-live="polite"
               className="rounded-[14px] border border-rule px-5 py-4 bg-paper-2 mb-6 w-full text-center"
               style={{ boxShadow: "var(--shadow-paper-1)" }}
             >
@@ -95,16 +105,19 @@ export function SetupRoom() {
               {result.letter_body}
             </pre>
 
-            <div className="flex items-center gap-3 mt-6">
+            <div className="flex items-center gap-3 mt-6 print:hidden">
               <button className="btn" onClick={() => window.print()}>
                 Print
               </button>
-              <button className="btn-ghost" onClick={copyAll}>
+              <button
+                className="btn-ghost inline-flex items-center justify-center px-3 min-h-[44px]"
+                onClick={copyAll}
+              >
                 {copied ? "Copied" : "Copy letter"}
               </button>
             </div>
 
-            <p className="p-meta mt-10 max-w-[400px] text-center">
+            <p className="p-meta mt-10 max-w-[400px] text-center print:hidden">
               Heirloom won&rsquo;t remember this passphrase. Hand the letter to
               someone you trust, or keep it somewhere safe yourself.
             </p>

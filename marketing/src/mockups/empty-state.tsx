@@ -19,7 +19,7 @@ export function MockupEmptyState() {
         className="voice"
         style={{ marginTop: 14, fontSize: 19, lineHeight: 1.35 }}
       >
-        "Did he ever talk about my mother?"
+        &ldquo;Did he ever talk about my mother?&rdquo;
       </p>
 
       <div
@@ -40,7 +40,7 @@ export function MockupEmptyState() {
             color: "var(--color-ink)",
           }}
         >
-          I don't have that in the archive. Try asking another way?
+          I don&rsquo;t have that in the archive. Try asking another way?
         </p>
       </div>
 

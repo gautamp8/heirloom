@@ -56,6 +56,10 @@ export function OnboardingFlow() {
   >([]);
 
   const stepIndex = STEPS.indexOf(step);
+  // Snapshot of the nominees last POSTed, so returning from Letters and
+  // pressing Continue again doesn't re-save (and re-rotate passphrases) when
+  // nothing changed.
+  const savedNomineesKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -147,23 +151,31 @@ export function OnboardingFlow() {
       setError("Add at least one person this archive is for.");
       return;
     }
+    const payload = valid.map((n) => ({
+      name: n.name.trim(),
+      relation: n.relation.trim() || null,
+      birthday: n.birthday || null,
+      face_embedding:
+        Array.isArray(n.face_embedding) && n.face_embedding.length === 128
+          ? n.face_embedding
+          : null,
+    }));
+    const key = JSON.stringify(payload);
+    // Unchanged since the last save: skip the POST so we don't rotate
+    // passphrases already shown. Keep any drafts the user has started.
+    if (savedNomineesKeyRef.current === key) {
+      setError(null);
+      setStep("letters");
+      if (!drafts) loadDrafts();
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
       const r = await fetch("/api/onboarding/nominees", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          nominees: valid.map((n) => ({
-            name: n.name.trim(),
-            relation: n.relation.trim() || null,
-            birthday: n.birthday || null,
-            face_embedding:
-              Array.isArray(n.face_embedding) && n.face_embedding.length === 128
-                ? n.face_embedding
-                : null,
-          })),
-        }),
+        body: JSON.stringify({ nominees: payload }),
       });
       const d = (await r.json()) as {
         nominees?: { name: string; passphrase: string }[];
@@ -171,6 +183,7 @@ export function OnboardingFlow() {
       if (Array.isArray(d.nominees)) {
         setPassphrases(d.nominees.map((n) => ({ name: n.name, passphrase: n.passphrase })));
       }
+      savedNomineesKeyRef.current = key;
       setStep("letters");
       // Eagerly fetch Gemma-generated prompts when we land on letters
       loadDrafts();
@@ -270,7 +283,10 @@ export function OnboardingFlow() {
           )}
           {step === "voice" && (
             <VoiceStep
-              onBack={() => setStep("welcome")}
+              onBack={() => {
+                setError(null);
+                setStep("welcome");
+              }}
               onContinue={() => setStep("anchors")}
             />
           )}
@@ -278,7 +294,10 @@ export function OnboardingFlow() {
             <AnchorsStep
               events={events}
               setEvents={setEvents}
-              onBack={() => setStep("voice")}
+              onBack={() => {
+                setError(null);
+                setStep("voice");
+              }}
               onContinue={submitAnchors}
               submitting={submitting}
             />
@@ -287,7 +306,10 @@ export function OnboardingFlow() {
             <NomineesStep
               nominees={nominees}
               setNominees={setNominees}
-              onBack={() => setStep("anchors")}
+              onBack={() => {
+                setError(null);
+                setStep("anchors");
+              }}
               onContinue={submitNominees}
               submitting={submitting}
             />
@@ -299,7 +321,10 @@ export function OnboardingFlow() {
               loading={draftsLoading}
               passphrases={passphrases}
               onReload={loadDrafts}
-              onBack={() => setStep("nominees")}
+              onBack={() => {
+                setError(null);
+                setStep("nominees");
+              }}
               onComplete={submitLetters}
               submitting={submitting}
             />
@@ -308,7 +333,9 @@ export function OnboardingFlow() {
       </AnimatePresence>
 
       {error && (
-        <p className="mt-6 font-serif italic text-[15px] text-wax">{error}</p>
+        <p role="alert" className="mt-6 font-serif italic text-[15px] text-wax">
+          {error}
+        </p>
       )}
     </>
   );
@@ -343,8 +370,11 @@ function WelcomeStep(props: {
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="eyebrow">Your name</label>
+        <label className="eyebrow" htmlFor="onboarding-name">
+          Your name
+        </label>
         <input
+          id="onboarding-name"
           type="text"
           value={props.name}
           onChange={(e) => props.setName(e.target.value)}
@@ -367,7 +397,6 @@ function WelcomeStep(props: {
         {!props.selfiePreview && (
           <label
             className="block w-full max-w-[260px] border border-dashed border-rule-strong rounded-[14px] p-6 text-center cursor-pointer hover:border-ink-muted transition-colors bg-bg-raised"
-            aria-label="Take a selfie"
           >
             <input
               type="file"
@@ -482,9 +511,26 @@ function VoiceStep(props: { onBack: () => void; onContinue: () => void }) {
   const startedAtRef = useRef<number>(0);
 
   async function start() {
+    let stream: MediaStream;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setState({ kind: "error", message: "Microphone access was denied." });
+      return;
+    }
+    try {
+      const mimeType =
+        typeof MediaRecorder !== "undefined" &&
+        MediaRecorder.isTypeSupported("audio/webm")
+          ? "audio/webm"
+          : typeof MediaRecorder !== "undefined" &&
+              MediaRecorder.isTypeSupported("audio/mp4")
+            ? "audio/mp4"
+            : undefined;
+      const mr = new MediaRecorder(
+        stream,
+        mimeType ? { mimeType } : undefined,
+      );
       chunksRef.current = [];
       mr.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
@@ -504,43 +550,66 @@ function VoiceStep(props: { onBack: () => void; onContinue: () => void }) {
       };
       requestAnimationFrame(tick);
     } catch {
-      setState({ kind: "error", message: "Microphone access was denied." });
+      stream.getTracks().forEach((t) => t.stop());
+      setState({
+        kind: "error",
+        message:
+          "This browser can’t record audio here. Try Chrome, or add your voice later from Settings.",
+      });
     }
   }
 
   async function stop() {
     const mr = recRef.current;
     if (!mr) return;
-    await new Promise<void>((resolve) => {
-      mr.addEventListener("stop", () => resolve(), { once: true });
-      mr.stop();
-    });
-    setState({ kind: "processing" });
-    const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-    const wav = await webmBlobToWav(blob);
-    setState({ kind: "preview", url: URL.createObjectURL(wav), blob: wav });
+    try {
+      await new Promise<void>((resolve) => {
+        mr.addEventListener("stop", () => resolve(), { once: true });
+        mr.stop();
+      });
+      setState({ kind: "processing" });
+      const blob = new Blob(chunksRef.current, {
+        type: mr.mimeType || "audio/webm",
+      });
+      const wav = await webmBlobToWav(blob);
+      setState({ kind: "preview", url: URL.createObjectURL(wav), blob: wav });
+    } catch {
+      setState({
+        kind: "error",
+        message:
+          "Something went wrong processing that recording. Please try again.",
+      });
+    }
   }
 
   async function save() {
     if (state.kind !== "preview") return;
     setState({ kind: "uploading" });
-    const fd = new FormData();
-    fd.append("audio", state.blob, "reference.wav");
-    fd.append("reference_text", VOICE_SCRIPT);
-    const r = await fetch("/api/voice/clone", { method: "POST", body: fd });
-    if (!r.ok) {
-      const err = (await r.json().catch(() => null)) as
-        | { error?: { code?: string } }
-        | null;
-      const msg =
-        err?.error?.code === "recording_too_short"
-          ? "That recording is a bit short. Try reading the full passage so the voice can be cloned cleanly."
-          : "Couldn't save your voice. The engine may be starting up.";
-      setState({ kind: "error", message: msg });
-      return;
+    try {
+      const fd = new FormData();
+      fd.append("audio", state.blob, "reference.wav");
+      fd.append("reference_text", VOICE_SCRIPT);
+      const r = await fetch("/api/voice/clone", { method: "POST", body: fd });
+      if (!r.ok) {
+        const err = (await r.json().catch(() => null)) as
+          | { error?: { code?: string } }
+          | null;
+        const msg =
+          err?.error?.code === "recording_too_short"
+            ? "That recording is a bit short. Try reading the full passage so the voice can be cloned cleanly."
+            : "Couldn't save your voice. The engine may be starting up.";
+        setState({ kind: "error", message: msg });
+        return;
+      }
+      setState({ kind: "done" });
+      props.onContinue();
+    } catch {
+      setState({
+        kind: "error",
+        message:
+          "Couldn't save your voice. Please check your connection and try again.",
+      });
     }
-    setState({ kind: "done" });
-    props.onContinue();
   }
 
   if (hosted) {
@@ -626,7 +695,7 @@ function VoiceStep(props: { onBack: () => void; onContinue: () => void }) {
             </button>
             <button
               type="button"
-              className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink underline"
+              className="inline-flex items-center min-h-11 font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink underline"
               onClick={() => {
                 URL.revokeObjectURL(state.url);
                 setState({ kind: "ready" });
@@ -652,7 +721,7 @@ function VoiceStep(props: { onBack: () => void; onContinue: () => void }) {
             <button type="button" className="btn" onClick={() => setState({ kind: "ready" })}>
               Try again
             </button>
-            <p className="p-meta">{state.message}</p>
+            <p className="font-serif italic text-[15px] text-wax">{state.message}</p>
           </>
         )}
       </div>
@@ -702,7 +771,7 @@ function AnchorsStep(props: {
   return (
     <div className="flex flex-col gap-7">
       <div>
-        <p className="eyebrow mb-2">Step two</p>
+        <p className="eyebrow mb-2">Step three</p>
         <h1 className="h-title mb-3">
           Dates <em>that matter.</em>
         </h1>
@@ -719,8 +788,11 @@ function AnchorsStep(props: {
             className="grid grid-cols-1 sm:grid-cols-[1fr_180px_120px_auto] gap-2 items-end rounded-[12px] border border-rule bg-bg-raised p-3"
           >
             <div className="flex flex-col gap-1">
-              <label className="eyebrow text-[9px]">Label</label>
+              <label className="eyebrow text-[9px]" htmlFor={`event-label-${i}`}>
+                Label
+              </label>
               <input
+                id={`event-label-${i}`}
                 type="text"
                 value={e.label}
                 onChange={(ev) => update(i, { label: ev.target.value })}
@@ -730,8 +802,11 @@ function AnchorsStep(props: {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="eyebrow text-[9px]">Kind</label>
+              <label className="eyebrow text-[9px]" htmlFor={`event-kind-${i}`}>
+                Kind
+              </label>
               <select
+                id={`event-kind-${i}`}
                 value={e.kind}
                 onChange={(ev) => update(i, { kind: ev.target.value })}
                 className="font-sans text-[14px] text-ink bg-transparent outline-none border-b border-rule py-1"
@@ -744,8 +819,11 @@ function AnchorsStep(props: {
               </select>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="eyebrow text-[9px]">Date</label>
+              <label className="eyebrow text-[9px]" htmlFor={`event-date-${i}`}>
+                Date
+              </label>
               <input
+                id={`event-date-${i}`}
                 type="date"
                 value={e.event_date}
                 onChange={(ev) => update(i, { event_date: ev.target.value })}
@@ -755,7 +833,7 @@ function AnchorsStep(props: {
             <button
               type="button"
               onClick={() => remove(i)}
-              className="text-ink-muted hover:text-wax text-[18px] self-center pb-1"
+              className="inline-flex items-center justify-center min-w-11 min-h-11 self-center -my-1 text-ink-muted hover:text-wax text-[18px]"
               aria-label="Remove this entry"
             >
               ×
@@ -847,7 +925,7 @@ function NomineesStep(props: {
   return (
     <div className="flex flex-col gap-7">
       <div>
-        <p className="eyebrow mb-2">Step three</p>
+        <p className="eyebrow mb-2">Step four</p>
         <h1 className="h-title mb-3">
           Who is this <em>for?</em>
         </h1>
@@ -864,8 +942,11 @@ function NomineesStep(props: {
             className="grid grid-cols-1 sm:grid-cols-[1fr_160px_140px_auto] gap-2 items-end rounded-[12px] border border-rule bg-bg-raised p-3"
           >
             <div className="flex flex-col gap-1">
-              <label className="eyebrow text-[9px]">Name</label>
+              <label className="eyebrow text-[9px]" htmlFor={`nominee-name-${i}`}>
+                Name
+              </label>
               <input
+                id={`nominee-name-${i}`}
                 type="text"
                 value={n.name}
                 onChange={(ev) => update(i, { name: ev.target.value })}
@@ -875,8 +956,14 @@ function NomineesStep(props: {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="eyebrow text-[9px]">Relation</label>
+              <label
+                className="eyebrow text-[9px]"
+                htmlFor={`nominee-relation-${i}`}
+              >
+                Relation
+              </label>
               <input
+                id={`nominee-relation-${i}`}
                 type="text"
                 value={n.relation}
                 onChange={(ev) => update(i, { relation: ev.target.value })}
@@ -886,8 +973,14 @@ function NomineesStep(props: {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="eyebrow text-[9px]">Birthday</label>
+              <label
+                className="eyebrow text-[9px]"
+                htmlFor={`nominee-birthday-${i}`}
+              >
+                Birthday
+              </label>
               <input
+                id={`nominee-birthday-${i}`}
                 type="date"
                 value={n.birthday}
                 onChange={(ev) => update(i, { birthday: ev.target.value })}
@@ -897,7 +990,7 @@ function NomineesStep(props: {
             <button
               type="button"
               onClick={() => remove(i)}
-              className="text-ink-muted hover:text-wax text-[18px] self-center pb-1"
+              className="inline-flex items-center justify-center min-w-11 min-h-11 self-center -my-1 text-ink-muted hover:text-wax text-[18px]"
               aria-label="Remove this entry"
             >
               ×
@@ -928,7 +1021,7 @@ function NomineesStep(props: {
                       ? "No face detected. Try another photo."
                       : "A photo of them, if you like - helps the archive recognise them."}
               </p>
-              <label className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink underline cursor-pointer whitespace-nowrap">
+              <label className="inline-flex items-center min-h-11 font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink underline cursor-pointer whitespace-nowrap">
                 <input
                   type="file"
                   accept="image/*"
@@ -1098,7 +1191,7 @@ function LetterDraftCard(props: {
         <textarea
           value={props.draft.body}
           onChange={(e) => props.onChange(e.target.value)}
-          placeholder="Begin when you're ready. A few lines is enough."
+          placeholder="Begin when you’re ready. A few lines is enough."
           rows={4}
           className="w-full font-serif text-[16px] leading-[1.55] text-ink bg-transparent outline-none border-t border-rule pt-3 resize-y placeholder:text-ink-muted placeholder:italic"
         />

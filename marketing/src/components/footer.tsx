@@ -1,4 +1,5 @@
 import { Seal } from "./seal";
+import { DownloadTrigger } from "./download-button";
 import { links, tryAsNominee } from "./links";
 
 export function Footer() {
@@ -44,9 +45,23 @@ export function Footer() {
             <FooterLink href={tryAsNominee()} external>
               Try the Sagan archive
             </FooterLink>
-            <FooterLink href={links.dmgDownload}>
-              Download for macOS
-            </FooterLink>
+            <li>
+              <DownloadTrigger
+                className="transition-colors"
+                style={{
+                  color: "var(--color-ink-soft)",
+                  background: "transparent",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontSize: 14,
+                  fontFamily: "var(--font-sans)",
+                }}
+              >
+                Download for macOS
+              </DownloadTrigger>
+            </li>
             <FooterLink href="/design">Design and ethics</FooterLink>
             <FooterLink href="/transparency">The grounding contract</FooterLink>
             <FooterLink href={links.github} external>

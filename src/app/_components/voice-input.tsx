@@ -113,7 +113,7 @@ export function VoiceInput({
           : "Dictate";
 
   const base =
-    "flex-shrink-0 grid place-items-center w-10 h-10 rounded-full transition-all border";
+    "flex-shrink-0 grid place-items-center w-11 h-11 rounded-full transition-all border";
   const tone =
     state === "recording"
       ? "bg-wax text-paper border-wax shadow-paper-2"

@@ -31,12 +31,12 @@ export function UnlockForm() {
         return;
       }
       if (r.status === 423) {
-        setError("This passphrase is no longer valid. Please contact the creator if they're available.");
+        setError("This passphrase is no longer valid. Please contact the creator if they’re available.");
         return;
       }
       if (!r.ok) {
         setError(
-          "That isn't the right passphrase, or the creator's email hint doesn't match. Try again.",
+          "That isn’t the right passphrase, or the creator’s email hint doesn’t match. Try again.",
         );
         setShake((n) => n + 1);
         return;
@@ -117,7 +117,9 @@ export function UnlockForm() {
       </button>
 
       {error && (
-        <p className="p-body text-wax text-center mt-4">{error}</p>
+        <p role="alert" className="p-body text-wax text-center mt-4">
+          {error}
+        </p>
       )}
     </motion.form>
   );

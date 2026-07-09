@@ -104,7 +104,7 @@ export function Home(props: {
               onClick={shufflePrompt}
               disabled={shuffling}
               aria-label="Suggest another"
-              className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-muted hover:text-ink disabled:opacity-50 flex items-center gap-1 transition-colors"
+              className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-muted hover:text-ink disabled:opacity-50 flex items-center gap-1 transition-colors min-h-[44px] -my-3"
             >
               {shuffling ? "Listening…" : "Another"}
               <svg
@@ -152,9 +152,9 @@ export function Home(props: {
         </article>
 
         {/* Capture chips */}
-        <h3 className="mt-7 mb-3 font-mono text-[10px] tracking-[0.18em] uppercase text-ink-muted font-medium">
+        <h2 className="mt-7 mb-3 font-mono text-[10px] tracking-[0.18em] uppercase text-ink-muted font-medium">
           Capture
-        </h3>
+        </h2>
         <div className="grid grid-cols-2 gap-2.5">
           <CapChip
             label="Voice"
@@ -174,7 +174,7 @@ export function Home(props: {
             icon={<IconPhoto />}
             onClick={() => setSheet({ mode: "photo" })}
           />
-          <CapChip label="Video" sub="Short clip" icon={<IconVideo />} disabled />
+          <CapChip label="Video" sub="Coming soon" icon={<IconVideo />} disabled />
         </div>
 
         {/* Reflection entry */}
@@ -199,10 +199,10 @@ export function Home(props: {
         )}
 
         {/* Recent */}
-        <h3 className="mt-7 mb-3 font-mono text-[10px] tracking-[0.18em] uppercase text-ink-muted font-medium flex items-center justify-between">
+        <h2 className="mt-7 mb-3 font-mono text-[10px] tracking-[0.18em] uppercase text-ink-muted font-medium flex items-center justify-between">
           <span>Recent</span>
           <span className="text-ink-fade">{props.stats.captures}</span>
-        </h3>
+        </h2>
         {recent.length === 0 ? (
           <p className="p-body text-ink-muted">Begin when you&rsquo;re ready.</p>
         ) : (
@@ -243,6 +243,8 @@ function CapChip(props: {
       type="button"
       onClick={props.onClick}
       disabled={props.disabled}
+      aria-disabled={props.disabled || undefined}
+      title={props.disabled ? `${props.label} — ${props.sub}` : undefined}
       className="cap-chip text-left rounded-[12px] border border-rule bg-bg-raised p-3.5 flex items-center gap-3 transition disabled:opacity-50 disabled:cursor-not-allowed hover:border-ink-muted hover:-translate-y-[1px]"
     >
       <span className="w-8 h-8 grid place-items-center rounded-[8px] bg-paper-2 text-wax">

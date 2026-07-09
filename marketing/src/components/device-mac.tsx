@@ -21,6 +21,7 @@ export function DeviceMac({
   return (
     <div
       className={className}
+      aria-hidden="true"
       style={{
         width,
         maxWidth: "100%",
@@ -51,7 +52,8 @@ export function DeviceMac({
 
       <div
         style={{
-          height,
+          width: "100%",
+          aspectRatio: `${width}/${height}`,
           background: "var(--color-paper)",
           position: "relative",
           overflow: "hidden",
