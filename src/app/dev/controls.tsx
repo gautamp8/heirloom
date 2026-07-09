@@ -104,7 +104,7 @@ export function DevControls({ snapshot }: { snapshot: Snapshot }) {
           </button>
         </div>
         <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-fade mt-3 leading-[1.6]">
-          New creator sessions land on onboarding - the name + nominees you
+          New creator sessions land on onboarding — the name + nominees you
           enter there are the names the rest of the app uses. The fixture
           nominee shortcut still works with the dev passphrase
           &ldquo;the long road home&rdquo;.

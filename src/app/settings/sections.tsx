@@ -167,7 +167,7 @@ export function NotificationsSection() {
       <h2 className="eyebrow">Notifications</h2>
       <p className="p-body max-w-[480px]">
         Heirloom can let you know when a sealed letter unlocks and surface
-        one memory each day. Notifications carry only a title - never the
+        one memory each day. Notifications carry only a title — never the
         contents of a memory.
       </p>
 
@@ -250,7 +250,7 @@ export function SignOutSection({
       <h2 className="eyebrow">Session</h2>
       <p className="p-body max-w-[480px]">
         {copy ??
-          "Sign out to hand this device to someone else - the next person opens the portal and signs in with their own passphrase."}
+          "Sign out to hand this device to someone else — the next person opens the portal and signs in with their own passphrase."}
       </p>
       <div>
         <button

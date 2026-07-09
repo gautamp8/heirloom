@@ -643,7 +643,7 @@ function VoiceStep(props: { onBack: () => void; onContinue: () => void }) {
       <h1 className="h-title mb-2">A little of your voice.</h1>
       <p className="p-body max-w-[520px] mb-1">
         Read this passage once, in your usual voice. The archive can then read
-        anything you write back to your people in your own voice - verbatim,
+        anything you write back to your people in your own voice — verbatim,
         only the words you actually said or wrote.
       </p>
       <p className="p-meta max-w-[520px] mb-4">
@@ -930,7 +930,7 @@ function NomineesStep(props: {
           Who is this <em>for?</em>
         </h1>
         <p className="p-body max-w-[480px]">
-          The people you want this archive to reach. A name is enough - anything
+          The people you want this archive to reach. A name is enough — anything
           else helps the archive know them as they grow.
         </p>
       </div>
@@ -1019,7 +1019,7 @@ function NomineesStep(props: {
                     ? "Face captured"
                     : n.photo_state === "error"
                       ? "No face detected. Try another photo."
-                      : "A photo of them, if you like - helps the archive recognise them."}
+                      : "A photo of them, if you like — helps the archive recognise them."}
               </p>
               <label className="inline-flex items-center min-h-11 font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink underline cursor-pointer whitespace-nowrap">
                 <input
@@ -1104,11 +1104,11 @@ function LettersStep(props: {
           }}
         >
           <p className="font-mono text-[10px] tracking-[0.18em] uppercase text-wax mb-2">
-            Passphrases - write these down
+            Passphrases — write these down
           </p>
           <p className="p-body max-w-[480px] mb-4">
             One passphrase per nominee, shown here only once. Print them, hand
-            them over in person, or store them somewhere safe out-of-band - this
+            them over in person, or store them somewhere safe out-of-band — this
             is how each person will open their archive.
           </p>
           <ul className="flex flex-col gap-4">

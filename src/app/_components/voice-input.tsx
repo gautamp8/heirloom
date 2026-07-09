@@ -109,7 +109,7 @@ export function VoiceInput({
       : state === "uploading"
         ? "Transcribing…"
         : state === "error"
-          ? "Couldn't transcribe - try again"
+          ? "Couldn't transcribe — try again"
           : "Dictate";
 
   const base =

@@ -297,7 +297,7 @@ export default function Home() {
               />
               <PrivacyRow
                 host="Your archive"
-                purpose="Stays on your device. Never sent anywhere"
+                purpose="Stays on your device. Never leaves on its own — only the encrypted file you choose to hand on"
                 tone="moss"
               />
               <PrivacyRow

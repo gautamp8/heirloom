@@ -20,7 +20,7 @@ export default function ExecutorUnlock() {
         <p className="p-body max-w-[400px] mb-10">
           Enter the passphrase that was given to you. This will release the
           contents to the people the creator chose. You won&rsquo;t see those
-          contents yourself - only the confirmation that release has happened.
+          contents yourself — only the confirmation that release has happened.
         </p>
 
         <UnlockForm />

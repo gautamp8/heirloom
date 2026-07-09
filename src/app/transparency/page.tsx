@@ -63,7 +63,7 @@ export default async function TransparencyPage() {
           What Heirloom <em>decided.</em>
         </h1>
         <p className="p-body max-w-[560px] mb-10">
-          Every Reflection query Heirloom answered - or refused - and why. The
+          Every Reflection query Heirloom answered — or refused — and why. The
           grounding gate, the citation check, the first-person scrubber: all
           visible. Nothing leaves the model unsupervised.
         </p>
@@ -176,7 +176,7 @@ function ReflectionAudit({ row }: { row: Row }) {
           ok={passedGate}
           detail={
             passedGate
-              ? "Top similarity ≥ threshold - proceed to synthesis"
+              ? "Top similarity ≥ threshold — proceed to synthesis"
               : `Top similarity ${top?.toFixed(3) ?? "0"} < ${(threshold as number).toFixed(2)} → empty state, model NOT called`
           }
         />
@@ -196,7 +196,7 @@ function ReflectionAudit({ row }: { row: Row }) {
               ok={rejected !== "first_person"}
               detail={
                 rejected === "first_person"
-                  ? 'Answer used "I" or "my" outside quotes - refused'
+                  ? 'Answer used "I" or "my" outside quotes — refused'
                   : "Answer stays in third person about the archive"
               }
             />

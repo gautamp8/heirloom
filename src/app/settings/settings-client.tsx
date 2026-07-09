@@ -1670,7 +1670,7 @@ function VoiceSection() {
       <h2 className="eyebrow">Your voice</h2>
       <p className="p-body max-w-[520px]">
         Heirloom can read your archive aloud in your own voice. Record the
-        short passage below - once. Future captures, letters, and reflection
+        short passage below — once. Future captures, letters, and reflection
         sources can be played back in your voice on demand.
       </p>
 
@@ -1682,7 +1682,7 @@ function VoiceSection() {
           Your recording stays on this device. We use it to clone the timbre
           of your voice so the archive can read your own words aloud later.
           The system <strong>never</strong> generates new sentences in your
-          voice - only your actual writing, recordings, and the verbatim
+          voice — only your actual writing, recordings, and the verbatim
           source text behind a Reflection answer.
         </p>
       </details>
@@ -1702,7 +1702,7 @@ function VoiceSection() {
             only inside the end-to-end-encrypted archive you hand them; it is
             never uploaded to a server in between. This hosted demo runs in the
             cloud, so it leaves voice out on purpose. Install the free macOS
-            app to record in your own voice - the rest of the archive works
+            app to record in your own voice — the rest of the archive works
             exactly the same.
           </p>
         </div>
@@ -1719,7 +1719,7 @@ function VoiceSection() {
             bash &quot;/Applications/Heirloom.app/Contents/Resources/tts/install-tts.sh&quot;
           </pre>
           <p className="p-meta mt-2">
-            After it finishes, quit and relaunch Heirloom - the voice
+            After it finishes, quit and relaunch Heirloom — the voice
             sidecar will auto-start.
           </p>
         </div>
