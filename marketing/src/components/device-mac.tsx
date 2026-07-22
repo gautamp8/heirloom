@@ -22,6 +22,9 @@ export function DeviceMac({
     <div
       className={className}
       aria-hidden="true"
+      // aria-hidden alone leaves the mockup's fake buttons in the tab
+      // order; inert removes them from it too.
+      inert
       style={{
         width,
         maxWidth: "100%",

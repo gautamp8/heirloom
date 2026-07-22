@@ -338,9 +338,11 @@ function Pipe({
         {eyebrow}
       </span>
       <div>
-        <h4 className="h-section" style={{ fontSize: 16 }}>
+        {/* h3, not h4: these sit directly under a section h2, and skipping
+            a level breaks heading-order navigation. Size is unchanged. */}
+        <h3 className="h-section" style={{ fontSize: 16 }}>
           {title}
-        </h4>
+        </h3>
         <p className="p-body mt-1.5" style={{ fontSize: 14 }}>
           {body}
         </p>

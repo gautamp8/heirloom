@@ -11,20 +11,23 @@ export function Footer() {
       <div className="mx-auto max-w-[1180px] px-5 grid md:grid-cols-[1.4fr_1fr] gap-12">
         <div>
           <div className="flex items-center gap-2.5 mb-4">
-            <Seal size={26} />
+            <Seal size={26} decorative />
             <span
               className="font-serif"
               style={{ fontSize: 18, color: "var(--color-ink)" }}
             >
               Heirloom
               <sup
+                aria-hidden
                 style={{
                   marginLeft: 4,
                   fontFamily: "var(--font-mono)",
                   fontSize: 9.5,
                   letterSpacing: "0.14em",
                   textTransform: "uppercase",
-                  color: "var(--color-candle)",
+                  // Candle (#c9892a) is only 2.76:1 on paper at this size;
+                // darkened to clear WCAG AA while keeping its amber.
+                color: "#8a5a12",
                   top: "-0.6em",
                   position: "relative",
                 }}
