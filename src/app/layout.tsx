@@ -71,12 +71,14 @@ export default function RootLayout({
       className={`${sourceSerif.variable} ${geist.variable} ${jetbrainsMono.variable}`}
       suppressHydrationWarning
     >
-      {DEMO_NOTICE && (
-        <head>
-          {/* Applies the per-session demo-banner dismissal BEFORE first
-              paint. The banner itself is server-rendered (so it costs no
-              layout shift); this hides it for someone who already
-              dismissed it, without a flash. */}
+      <body className="min-h-dvh bg-paper text-ink" suppressHydrationWarning>
+        {/* Applies the per-session demo-banner dismissal BEFORE the banner
+            paints. The banner is server-rendered (so it costs no layout
+            shift); this hides it for someone who already dismissed it,
+            without a flash. It sits at the top of <body> rather than in a
+            <head> element, because declaring a raw <head> in the root
+            layout changes how Next generates the document shell. */}
+        {DEMO_NOTICE && (
           <script
             dangerouslySetInnerHTML={{
               __html:
@@ -84,9 +86,7 @@ export default function RootLayout({
                 "document.documentElement.setAttribute('data-demo-banner-dismissed','1')}catch(e){}",
             }}
           />
-        </head>
-      )}
-      <body className="min-h-dvh bg-paper text-ink" suppressHydrationWarning>
+        )}
         <MotionProvider>
           <DemoBanner enabled={DEMO_NOTICE} />
           {children}
