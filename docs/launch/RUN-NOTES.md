@@ -5,6 +5,41 @@ Working notes for the launch-readiness run (started 2026-07-07, branch
 this file holds the queue of things only Gautam can do, plus decisions
 worth remembering.
 
+## WS5 PWA — update lifecycle fixed; video artifact rendered (2026-07-22)
+
+**Service-worker cache busting was genuinely broken**, exactly as WS5
+suspected. `VERSION` was the constant `"heirloom-v1"`, which failed
+twice: a browser only reinstalls a worker whose *bytes* changed, so a
+deploy never triggered install/activate at all; and `activate` evicts by
+`!k.startsWith(VERSION)`, which with a constant VERSION matches every
+cache and evicts none. An offline visitor kept a stale shell forever.
+
+`public/sw.js` is now generated from `public/sw.template.js` by
+`tools/build-sw.mjs`, stamped with the deployment commit SHA. Verified
+live: `demo.withheirloom.app/sw.js` serves
+`const VERSION = "heirloom-a011ec64fec8"`, matching the deployed commit.
+
+Two traps worth remembering, both of which silently produced *no* worker:
+- pnpm does not run `pre`/`post` scripts by default, so a `prebuild`
+  hook never fired. The stamp is chained into `build`/`dev` instead.
+- The script first lived in `scripts/`, which `.vercelignore` excludes,
+  and a `!` negation cannot re-include a file whose parent directory is
+  excluded (gitignore semantics). It lives in `tools/` now.
+
+The precache list itself was already sound: only stable paths (`/`,
+manifest, icons, seal), never fingerprinted chunks, so it cannot go
+stale against a new build. All five files exist.
+
+**Still [HUMAN]:** installing to the home screen and confirming a push
+notification actually arrives needs taps on a physical iOS/Android
+device.
+
+**Demo video.** `docs/launch/media/heirloom-overview.mp4` is rendered
+from the remotion project (1920x1080, 20s). Note this is the
+motion-graphics overview, *not* what WS8 asks for — that is a 60-90s
+narrated screen recording of a real archive, "one take energy, flaw kept
+in", which is a performance rather than a render.
+
 ## WS4 desktop — DMG v0.2.0 built and verified (2026-07-22)
 
 `desktop/scripts/package.sh` produced a 516 MB aarch64 DMG
