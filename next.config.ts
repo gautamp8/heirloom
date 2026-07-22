@@ -21,31 +21,6 @@ const nextConfig: NextConfig = {
   // bundler leaves their .node binaries for the runtime to load, and NFT
   // traces the correct platform prebuild on Vercel.
   serverExternalPackages: ["better-sqlite3", "sqlite-vec", "argon2"],
-  // Keep sharp out of the traced function bundles on Vercel. Nothing in
-  // Heirloom imports it - it is Next's image-optimizer dependency, and
-  // Vercel optimizes images on its own infrastructure, so it is dead
-  // weight in a lambda there. It is not harmless dead weight: pinning
-  // sharp to >=0.35.3 (for GHSA-f88m-g3jw-g9cj) dragged its platform
-  // packages into every route bundle, which pushed each past the size at
-  // which Vercel groups routes into shared lambdas. The deployment went
-  // from 4 functions to over 12 and was rejected by the Hobby cap.
-  // Scoped to Vercel so local and desktop builds, where next/image does
-  // use sharp, are untouched.
-  ...(process.env.VERCEL
-    ? {
-        outputFileTracingExcludes: {
-          // pnpm keeps the real files under node_modules/.pnpm/<pkg>@<ver>/,
-          // with node_modules/<pkg> only a symlink into it, so a plain
-          // "node_modules/sharp/**" glob matches nothing.
-          "*": [
-            "**/node_modules/sharp/**",
-            "**/node_modules/@img/**",
-            "**/.pnpm/sharp@*/**",
-            "**/.pnpm/@img+*/**",
-          ],
-        },
-      }
-    : {}),
   // Standalone output bundles only the deps Heirloom actually needs
   // into .next/standalone/, so the Tauri .dmg can ship the server
   // without dragging a full node_modules tree.
