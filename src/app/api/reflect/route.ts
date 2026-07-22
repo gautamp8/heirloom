@@ -1,13 +1,13 @@
-import { streamObject } from "ai";
+import { generateObject, streamObject } from "ai";
 import { withRls, vec } from "@/lib/db";
 import { embedOne } from "@/lib/embed";
 import { fetchTopK, canonicalSourceText } from "@/lib/retrieval";
 import { backfillMissingChunks, cleanupMislabeledFaces } from "@/lib/pipeline";
-import { ollama, SYNTHESIS_MODEL } from "@/lib/ollama";
+import { retrievalFloor, synthesisModel } from "@/lib/provider";
+import { EMBEDDING_MISMATCH, ensureVaultEmbedder } from "@/lib/embedding-guard";
 import { fireLetterConditions } from "@/lib/letter-conditions";
 import {
   EMPTY_STATE_ANSWER,
-  REFLECTION_SIMILARITY_THRESHOLD,
   ReflectionSchema,
   buildReflectionPrompt,
   hasFirstPersonOutsideQuotes,
@@ -18,6 +18,10 @@ import {
 import { HttpError, errorResponse, requireSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
+// Grounded synthesis waits on retrieval + a streamed model completion (and
+// one non-streaming retry on stream corruption). On Vercel the default
+// function budget can be too short for a cloud round-trip, so lift it.
+export const maxDuration = 60;
 
 /**
  * POST /api/reflect → Server-Sent Events
@@ -81,6 +85,11 @@ export async function POST(req: Request) {
             console.warn("[/api/reflect] face cleanup failed", e);
           }
 
+          // Refuse to search an index built by a different embedding
+          // model — cosine scores across models are meaningless.
+          await ensureVaultEmbedder(session.vault_id);
+
+          const floor = await retrievalFloor();
           const qEmb = await embedOne(question);
 
           // Fire matching sealed letters BEFORE the grounding gate so they
@@ -118,7 +127,7 @@ export async function POST(req: Request) {
           const lexicalHit = hasLexicalOverlap(question, chunks);
           const grounded =
             chunks.length > 0 &&
-            (topSim >= REFLECTION_SIMILARITY_THRESHOLD || lexicalHit);
+            (topSim >= floor || lexicalHit);
 
           if (!grounded) {
             send("grounded", { grounded: false });
@@ -133,7 +142,7 @@ export async function POST(req: Request) {
                 diagnostics: {
                   retrieved_count: chunks.length,
                   top_similarity: topSim,
-                  threshold: REFLECTION_SIMILARITY_THRESHOLD,
+                  threshold: floor,
                   rejected_for: chunks.length === 0
                     ? "no_chunks"
                     : "similarity_below_threshold",
@@ -161,7 +170,7 @@ export async function POST(req: Request) {
           );
 
           const { partialObjectStream, object } = streamObject({
-            model: ollama(SYNTHESIS_MODEL),
+            model: await synthesisModel(),
             schema: ReflectionSchema,
             prompt,
             temperature: 0.3,
@@ -218,11 +227,60 @@ export async function POST(req: Request) {
             });
           }
 
-          const final: ReflectionAnswer = await object;
-          const cite = validateCitations(final, chunks);
-          const noClaims = final.claims.length === 0;
-          const firstPerson = hasFirstPersonOutsideQuotes(final.answer);
-          if (!cite.ok || firstPerson || noClaims) {
+          // Synthesis failure is a grounding failure. Cloud models can
+          // corrupt the stream mid-object (e.g. a content-policy refusal
+          // spliced into the JSON while quoting a famous passage). One
+          // silent non-streaming retry absorbs the flaky case; if that
+          // fails too, the contract collapses to the verbatim empty state
+          // rather than surfacing half-validated prose.
+          let final: ReflectionAnswer | null = null;
+          try {
+            final = await object;
+          } catch (synthErr) {
+            console.warn("[/api/reflect] synthesis failed, retrying once", synthErr);
+            try {
+              const retry = await generateObject({
+                model: await synthesisModel(),
+                schema: ReflectionSchema,
+                prompt,
+                temperature: 0.3,
+              });
+              final = retry.object;
+              // The stream's partials are stale now; hand the client the
+              // retried claims so citation chips still appear.
+              final.claims.forEach((c, i) => {
+                const validCitations = c.citations.filter((id) =>
+                  chunks.some((ch) => ch.capture_id === id),
+                );
+                if (validCitations.length === 0) return;
+                send("claim", {
+                  index: 1000 + i,
+                  text: c.text,
+                  citations: validCitations.map((cid) => {
+                    const ch = chunks.find((x) => x.capture_id === cid)!;
+                    const source = canonicalSourceText(ch);
+                    return {
+                      capture_id: cid,
+                      snippet: trimToSentence(source || ch.text, 800),
+                      source_text: source,
+                      kind: ch.kind,
+                      blob_url: ch.blob_url,
+                    };
+                  }),
+                });
+              });
+            } catch (retryErr) {
+              console.warn("[/api/reflect] retry failed", retryErr);
+            }
+          }
+          const cite = final
+            ? validateCitations(final, chunks)
+            : ({ ok: false, reason: "synthesis_failed" } as const);
+          const noClaims = !final || final.claims.length === 0;
+          const firstPerson = final
+            ? hasFirstPersonOutsideQuotes(final.answer)
+            : false;
+          if (!final || !cite.ok || firstPerson || noClaims) {
             send("grounded", { grounded: false });
             send("answer", { text: EMPTY_STATE_ANSWER });
             const reflection_id = await saveReflection(
@@ -235,12 +293,14 @@ export async function POST(req: Request) {
                 diagnostics: {
                   retrieved_count: chunks.length,
                   top_similarity: topSim,
-                  threshold: REFLECTION_SIMILARITY_THRESHOLD,
-                  rejected_for: firstPerson
-                    ? "first_person"
-                    : !cite.ok
-                      ? "invalid_citation"
-                      : "no_claims",
+                  threshold: floor,
+                  rejected_for: !final
+                    ? "synthesis_failed"
+                    : firstPerson
+                      ? "first_person"
+                      : !cite.ok
+                        ? "invalid_citation"
+                        : "no_claims",
                   grounded: false,
                   retrieved_chunks: chunks.slice(0, 8).map((c) => ({
                     capture_id: c.capture_id,
@@ -266,7 +326,7 @@ export async function POST(req: Request) {
               diagnostics: {
                 retrieved_count: chunks.length,
                 top_similarity: topSim,
-                threshold: REFLECTION_SIMILARITY_THRESHOLD,
+                threshold: floor,
                 rejected_for: null,
                 grounded: true,
                 retrieved_chunks: chunks.slice(0, 8).map((c) => ({
@@ -282,7 +342,11 @@ export async function POST(req: Request) {
           controller.close();
         } catch (err) {
           console.error("[/api/reflect]", err);
-          send("error", { message: "Reflection failed. Try again in a moment." });
+          const message =
+            err instanceof Error && err.message.startsWith(EMBEDDING_MISMATCH)
+              ? "This archive needs reindexing — the embedding model changed. See Settings."
+              : "Reflection failed. Try again in a moment.";
+          send("error", { message });
           controller.close();
         }
       },

@@ -4,20 +4,24 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 
 /** HEIRLOOM_WHISPER_MODEL takes precedence; otherwise walk up from cwd
- *  to support both `pnpm dev` and the standalone server. */
+ *  to support both `pnpm dev` and the standalone server. small.en is the
+ *  default (better accuracy, and what the code + self-host install use);
+ *  base.en is accepted as a fallback so an older bundle still transcribes. */
 function resolveModelPath(): string {
   const override = process.env.HEIRLOOM_WHISPER_MODEL;
   if (override) return override;
-  const rel = path.join("storage", "whisper-models", "ggml-small.en.bin");
+  const names = ["ggml-small.en.bin", "ggml-base.en.bin"];
   let dir = process.cwd();
   for (let i = 0; i < 6; i++) {
-    const candidate = path.join(dir, rel);
-    if (existsSync(candidate)) return candidate;
+    for (const name of names) {
+      const candidate = path.join(dir, "storage", "whisper-models", name);
+      if (existsSync(candidate)) return candidate;
+    }
     const parent = path.dirname(dir);
     if (parent === dir) break;
     dir = parent;
   }
-  return path.join(process.cwd(), rel);
+  return path.join(process.cwd(), "storage", "whisper-models", names[0]);
 }
 
 const MODEL_PATH = resolveModelPath();

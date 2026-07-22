@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import * as path from "node:path";
 import { errorResponse, HttpError, requireSession } from "@/lib/auth";
+import { describeProvider } from "@/lib/provider";
 import { transcribeAudio } from "@/lib/whisper";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,15 @@ const TMP_DIR = process.env.HEIRLOOM_TMP_DIR ?? "/tmp";
 export async function POST(req: Request) {
   try {
     await requireSession();
+
+    // Transcription runs a local whisper.cpp binary — on-device only. The
+    // hosted demo has no such sidecar, so refuse cleanly (the mic
+    // affordance handles this by falling back to typing) instead of
+    // spawning a process that does not exist on serverless.
+    if ((await describeProvider()).profile === "hosted-demo") {
+      throw new HttpError(400, "transcription_is_on_device_only");
+    }
+
     const form = await req.formData();
     const file = form.get("audio");
     if (!(file instanceof File)) throw new HttpError(400, "missing_audio");

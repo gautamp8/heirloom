@@ -12,6 +12,15 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import argon2 from "argon2";
 import postgres from "postgres";
+import { writeBlob as writeBlobStore } from "../../src/lib/storage";
+// Static (not dynamic) imports: when this module is bundled into the
+// serverless reset route, Turbopack mishandles `await import(...)` of these
+// helpers (the embed call came back as an unresolved Promise -> "[object
+// Promise]" in the vector column). Static imports bundle correctly and are
+// fine for the CLI too, which needs these anyway.
+import { embedOne } from "../../src/lib/embed";
+import { ensureVaultEmbedder } from "../../src/lib/embedding-guard";
+import { syncIdentityIndexAdmin } from "../../src/lib/identity-index";
 
 type Manifest = {
   name: string;
@@ -39,33 +48,37 @@ type Manifest = {
 };
 
 const TTS_BASE = process.env.HEIRLOOM_TTS_URL ?? "http://127.0.0.1:11435";
-const OLLAMA_BASE = process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434";
 const STORAGE_ROOT = path.resolve(
   process.env.HEIRLOOM_BLOB_DIR ??
     path.join(process.cwd(), "storage", "blobs"),
 );
 
-async function main() {
-  const seedDir = process.argv[2];
+export async function importSeedArchive(seedDirArg?: string) {
+  const seedDir = seedDirArg ?? process.argv[2];
   if (!seedDir) {
-    console.error("usage: import-seed-archive.ts <path-to-archive-dir>");
-    process.exit(1);
+    throw new Error("usage: import-seed-archive.ts <path-to-archive-dir>");
   }
   const absSeed = path.resolve(seedDir);
   const manifestPath = path.join(absSeed, "manifest.json");
   if (!fs.existsSync(manifestPath)) {
-    console.error(`no manifest.json at ${manifestPath}`);
-    process.exit(1);
+    throw new Error(`no manifest.json at ${manifestPath}`);
   }
   const manifest: Manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 
   // Use the admin connection so we bypass per-vault RLS while seeding.
   const url = process.env.DATABASE_ADMIN_URL ?? process.env.DATABASE_URL;
   if (!url) {
-    console.error("DATABASE_ADMIN_URL (or DATABASE_URL) not set");
-    process.exit(1);
+    throw new Error("DATABASE_ADMIN_URL (or DATABASE_URL) not set");
   }
-  const sql = postgres(url, { max: 4, transform: { undefined: null } });
+  // prepare:false when talking to a transaction-mode pooler (Neon's
+  // -pooler host), which the nightly reset does from a serverless function.
+  const usePooler =
+    process.env.HEIRLOOM_DB_PREPARE === "false" || /-pooler\./.test(url);
+  const sql = postgres(url, {
+    max: 4,
+    transform: { undefined: null },
+    prepare: !usePooler,
+  });
   fs.mkdirSync(STORAGE_ROOT, { recursive: true });
 
   console.log(`importing "${manifest.name}" from ${absSeed}`);
@@ -93,6 +106,10 @@ async function main() {
   console.log(`  vault: ${vaultId}`);
 
   await sql`UPDATE vaults SET onboarded_at = COALESCE(onboarded_at, now()) WHERE id = ${vaultId}`;
+
+  // Stamp the vault with the active embedder before any vectors land, so
+  // the app refuses to query this index under a different embedding model.
+  await ensureVaultEmbedder(vaultId);
 
   // Voice profile: register the reference wav with the TTS sidecar and
   // upsert the row that downstream /api/voice/speak reads from. If the
@@ -228,7 +245,6 @@ async function main() {
   // get their own hidden profile capture so retrieval can answer
   // "who is X?" / "when were you born?" without the creator needing
   // to write those facts as a note themselves.
-  const { syncIdentityIndexAdmin } = await import("../../src/lib/identity-index");
   const idx = await syncIdentityIndexAdmin(sql, vaultId);
   console.log(`\n  identity index: ${idx.chunks} chunks`);
 
@@ -237,31 +253,34 @@ async function main() {
   console.log(`  open /portal, click "I have a sealed letter", enter that phrase.`);
 
   await sql.end();
+  return { passphrase };
 }
 
 async function embed(text: string): Promise<number[]> {
-  const r = await fetch(`${OLLAMA_BASE}/api/embed`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ model: "embeddinggemma", input: text }),
-  });
-  if (!r.ok) throw new Error(`embed: ${r.status}`);
-  const { embeddings } = (await r.json()) as { embeddings: number[][] };
-  return embeddings[0];
+  // Provider-routed so a hosted-demo import (Azure embeddings) writes
+  // vectors that match what the running app will query with.
+  return embedOne(text);
 }
 
+// Delegate to the shared storage layer so seed blobs honour
+// HEIRLOOM_BLOB_BACKEND: filesystem for a local/VM seed, Postgres bytea
+// when seeding the Vercel demo's Neon database (which has no persistent
+// disk). Returns just the blob_url the capture/voice rows store.
 async function writeBlob(data: Buffer, ext: string): Promise<string> {
-  const id = crypto.randomUUID();
-  const filename = `${id}.${ext}`;
-  fs.writeFileSync(path.join(STORAGE_ROOT, filename), data);
-  return `storage/blobs/${filename}`;
+  const { blob_url } = await writeBlobStore(data, ext);
+  return blob_url;
 }
 
 function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// CLI entry — only when run directly (pnpm tsx …), not when the reset
+// route imports importSeedArchive().
+const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";
+if (invokedPath.includes("import-seed-archive")) {
+  importSeedArchive().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

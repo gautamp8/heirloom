@@ -19,6 +19,7 @@ type StreamState = {
   topSimilarity: number | null;
   answer: string;
   claims: { text: string; citations: Citation[] }[];
+  errorMessage: string | null;
 };
 
 const EMPTY_STATE: StreamState = {
@@ -27,6 +28,7 @@ const EMPTY_STATE: StreamState = {
   topSimilarity: null,
   answer: "",
   claims: [],
+  errorMessage: null,
 };
 
 export function ReflectionRoom({
@@ -42,6 +44,7 @@ export function ReflectionRoom({
   const [drawer, setDrawer] = useState<Citation | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- close whichever stream is live at unmount, not the one from mount
     return () => esRef.current?.close();
   }, []);
 
@@ -53,8 +56,8 @@ export function ReflectionRoom({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function ask() {
-    const q = question.trim();
+  async function ask(override?: string) {
+    const q = (override ?? question).trim();
     if (!q) return;
     esRef.current?.close();
     setS({ ...EMPTY_STATE, status: "retrieving" });
@@ -62,32 +65,38 @@ export function ReflectionRoom({
     // EventSource doesn't support POST natively. We use a small fetch+stream
     // reader pattern instead.
     const ctrl = new AbortController();
-    const res = await fetch("/api/reflect", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ question: q }),
-      signal: ctrl.signal,
-    });
-    if (!res.ok || !res.body) {
-      setS((p) => ({ ...p, status: "error" }));
-      return;
-    }
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      let idx;
-      // Each SSE event is `event: <name>\ndata: <json>\n\n`
-      while ((idx = buffer.indexOf("\n\n")) >= 0) {
-        const chunk = buffer.slice(0, idx);
-        buffer = buffer.slice(idx + 2);
-        const ev = parseEvent(chunk);
-        if (!ev) continue;
-        handle(ev);
+    try {
+      const res = await fetch("/api/reflect", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ question: q }),
+        signal: ctrl.signal,
+      });
+      if (!res.ok || !res.body) {
+        setS((p) => ({ ...p, status: "error" }));
+        return;
       }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let idx;
+        // Each SSE event is `event: <name>\ndata: <json>\n\n`
+        while ((idx = buffer.indexOf("\n\n")) >= 0) {
+          const chunk = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
+          const ev = parseEvent(chunk);
+          if (!ev) continue;
+          handle(ev);
+        }
+      }
+    } catch (err) {
+      // An intentional abort (unmount, or a newer question) is not an error.
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      setS((p) => ({ ...p, status: "error" }));
     }
   }
 
@@ -129,6 +138,8 @@ export function ReflectionRoom({
         }
         case "error": {
           next.status = "error";
+          next.errorMessage =
+            (ev.data as { message?: string }).message ?? null;
           break;
         }
       }
@@ -137,7 +148,7 @@ export function ReflectionRoom({
   }
 
   const showEmpty = s.status === "ungrounded" || s.answer === "I don't have that in the archive. Try asking another way?";
-  const showAnswer = !!s.answer && !showEmpty;
+  const showAnswer = !!s.answer && !showEmpty && s.status !== "error";
   const citations = uniqueCitations(s.claims);
   // Listening: grounded matches found but no prose has streamed yet.
   // The skeleton clears as soon as any partial answer text arrives.
@@ -146,6 +157,7 @@ export function ReflectionRoom({
 
   return (
     <div className="flex-1 flex flex-col relative z-10">
+      <h1 className="sr-only">Reflection</h1>
       {/* Answer area */}
       <section className="flex-1 px-6 pt-8 pb-32 overflow-y-auto">
         {s.status === "idle" && (
@@ -158,9 +170,10 @@ export function ReflectionRoom({
               {suggestedPrompts.map((p) => (
                 <li key={p}>
                   <button
-                    className="font-serif italic text-[15px] text-ink-fade hover:text-ink-soft transition-colors"
+                    className="inline-flex items-center justify-center min-h-[44px] py-2.5 font-serif italic text-[15px] text-ink-fade hover:text-ink-soft transition-colors"
                     onClick={() => {
                       setQuestion(p);
+                      ask(p);
                     }}
                   >
                     {p}
@@ -194,6 +207,15 @@ export function ReflectionRoom({
           <div className="max-w-[520px] mx-auto pt-8">
             <p className="font-serif text-[19px] leading-[1.55] text-ink-soft text-wrap-pretty italic">
               I don&rsquo;t have that in the archive. Try asking another way?
+            </p>
+          </div>
+        )}
+
+        {s.status === "error" && (
+          <div className="max-w-[520px] mx-auto pt-8">
+            <p className="font-serif text-[19px] leading-[1.55] text-ink-soft text-wrap-pretty italic">
+              {s.errorMessage ??
+                "Something interrupted that reflection. Try again in a moment."}
             </p>
           </div>
         )}
@@ -243,7 +265,7 @@ export function ReflectionRoom({
                     .map((c, i) => (
                       <li key={c.capture_id}>
                         <button
-                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-rule font-mono text-[11px] tracking-wider uppercase text-ink-soft hover:border-ink-muted bg-bg-raised transition-colors"
+                          className="inline-flex items-center gap-2 min-h-[44px] px-3 py-2.5 rounded-full border border-rule font-mono text-[11px] tracking-wider uppercase text-ink-soft hover:border-ink-muted bg-bg-raised transition-colors"
                           onClick={() => setDrawer(c)}
                         >
                           <sup className="text-wax">{i + 1}</sup>
@@ -276,6 +298,7 @@ export function ReflectionRoom({
             type="text"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
+            aria-label="Ask the archive a question"
             placeholder="What are you looking for?"
             className="flex-1 bg-transparent font-serif italic text-[17px] text-ink placeholder:text-ink-muted outline-none border-b border-rule focus:border-ink-muted py-2"
             disabled={s.status === "retrieving" || s.status === "answering"}

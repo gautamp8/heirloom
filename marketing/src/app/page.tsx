@@ -7,15 +7,9 @@ import { MockupCapture } from "@/mockups/capture";
 import { MockupNominee } from "@/mockups/nominee";
 import { MockupEmptyState } from "@/mockups/empty-state";
 import { MockupSealedLetterPhone } from "@/mockups/sealed-letter-phone";
-import { Seal } from "@/components/seal";
+import { HeroEnvelope } from "@/components/hero-envelope";
 import { links } from "@/components/links";
-import {
-  IconArrow,
-  IconLock,
-  IconLetter,
-  IconMic,
-  IconExternal,
-} from "@/components/icons";
+import { IconArrow, IconExternal } from "@/components/icons";
 
 export default function Home() {
   return (
@@ -24,8 +18,8 @@ export default function Home() {
       <section className="stage relative">
         <div className="mx-auto max-w-[1180px] px-5 pt-16 pb-20 md:pt-24 md:pb-28 relative z-10">
           <div className="flex flex-col items-center text-center fade-up">
-            <Seal size={64} />
-            <div className="flex items-center gap-2 mt-6">
+            <HeroEnvelope />
+            <div className="flex items-center gap-2 mt-2">
               <span className="pill">Local-first</span>
               <span className="pill pill-beta">Beta</span>
               <span className="pill pill-moss">Open source</span>
@@ -49,7 +43,7 @@ export default function Home() {
             </div>
 
             <p className="p-meta mt-7 fade-up-d3">
-              No telemetry · No account · Nothing leaves your device
+              No telemetry · No account · Nothing leaves without you
             </p>
           </div>
         </div>
@@ -150,8 +144,8 @@ export default function Home() {
               title={<>Sealed letters wait for the right moment.</>}
               body={
                 <>
-                  Write a letter <em className="italic">"for when Sam feels lost"</em>{" "}
-                  or <em className="italic">"the morning after Sam's wedding."</em>{" "}
+                  Write a letter <em className="italic">&ldquo;for when Sam feels lost&rdquo;</em>{" "}
+                  or <em className="italic">&ldquo;the morning after Sam&rsquo;s wedding.&rdquo;</em>{" "}
                   Five triggers: an absolute date, a life event, a mood the
                   nominee taps, a Reflection that matches the letter's intent,
                   or simply a first visit. The body stays sealed until then.
@@ -243,7 +237,7 @@ export default function Home() {
               <ContractStep
                 n={5}
                 title="One refusal sentence."
-                body={<>When the contract fails, the answer collapses to one line, the same every time: <em className="italic">"I don't have that in the archive. Try asking another way?"</em></>}
+                body={<>When the contract fails, the answer collapses to one line, the same every time: <em className="italic">&ldquo;I don&rsquo;t have that in the archive. Try asking another way?&rdquo;</em></>}
               />
             </ol>
 
@@ -278,10 +272,12 @@ export default function Home() {
                 Local-first. <em className="italic">Visible</em>, not just true.
               </h2>
               <p className="p-lead mt-6">
-                Heirloom installs on your own laptop. The model runs there.
-                Your archive lives there. No accounts, no analytics, no
-                third parties — and the few times anything is sent to the
-                network at all, the list is short and named.
+                Heirloom installs on your own laptop. By default the model
+                runs there and your archive stays put — until you deliberately
+                hand it on, as one encrypted file only your passphrase opens.
+                No accounts, no analytics, no telemetry — and the few times
+                anything is sent to the network at all, the list is short and
+                named, right here.
               </p>
             </div>
 
@@ -301,8 +297,13 @@ export default function Home() {
               />
               <PrivacyRow
                 host="Your archive"
-                purpose="Stays on your device. Never sent anywhere"
+                purpose="Stays on your device. Never leaves on its own — only the encrypted file you choose to hand on"
                 tone="moss"
+              />
+              <PrivacyRow
+                host="A cloud model"
+                purpose="Only if you bring your own key. Then your question and the passages it matches go to that provider — the settings screen says so plainly"
+                tone="muted"
               />
               <PrivacyRow
                 host="Notifications"
@@ -311,7 +312,7 @@ export default function Home() {
               />
               <PrivacyRow
                 host="Anyone else"
-                purpose="No analytics. No tracking. No third parties"
+                purpose="No analytics. No tracking. No telemetry, ever"
                 tone="ink"
               />
             </ul>
@@ -758,9 +759,9 @@ function ContractStep({
         {n}
       </div>
       <div>
-        <h4 className="h-section" style={{ fontSize: 16 }}>
+        <h3 className="h-section" style={{ fontSize: 16 }}>
           {title}
-        </h4>
+        </h3>
         <p className="p-body mt-1.5" style={{ fontSize: 14 }}>
           {body}
         </p>

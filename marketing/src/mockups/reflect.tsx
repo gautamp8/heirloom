@@ -32,7 +32,7 @@ export function MockupReflect({ showDrawer = false, desktop = false }: Props) {
           lineHeight: 1.35,
         }}
       >
-        "What did he say about insignificance?"
+        &ldquo;What did he say about insignificance?&rdquo;
       </p>
 
       <div style={{ marginTop: 18, maxWidth: 640 }}>

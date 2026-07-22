@@ -17,10 +17,15 @@ PRAGMA foreign_keys = ON;
 PRAGMA journal_mode = WAL;
 
 CREATE TABLE IF NOT EXISTS users (
-    id              TEXT PRIMARY KEY DEFAULT (gen_uuid()),
-    email           TEXT UNIQUE NOT NULL COLLATE NOCASE,
-    display_name    TEXT NOT NULL,
-    created_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    id                  TEXT PRIMARY KEY DEFAULT (gen_uuid()),
+    email               TEXT UNIQUE NOT NULL COLLATE NOCASE,
+    display_name        TEXT NOT NULL,
+    -- Creator archive-key hash (migration 007 on postgres). Declared here
+    -- so a FRESH sqlite database has it; the idempotent ALTER in
+    -- db/sqlite.ts only needs to backfill older databases.
+    passphrase_hash     TEXT,
+    passphrase_set_at   TEXT,
+    created_at          TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS vaults (
@@ -28,7 +33,16 @@ CREATE TABLE IF NOT EXISTS vaults (
     creator_id      TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     name            TEXT NOT NULL DEFAULT 'My Archive',
     onboarded_at    TEXT,
+    embedding_meta  TEXT,                    -- JSON: which embedder built this vault's index
     created_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Instance-level key/value settings (BYOK provider config etc.).
+-- Single-user desktop build: no privilege separation needed here.
+CREATE TABLE IF NOT EXISTS app_settings (
+    key         TEXT PRIMARY KEY,
+    value       TEXT NOT NULL,               -- JSON
+    updated_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS captures (

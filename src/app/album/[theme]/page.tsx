@@ -65,7 +65,7 @@ export default async function AlbumPage({
       <div className="max-w-[680px] mx-auto relative z-10">
         <Link
           href="/"
-          className="font-mono text-[10px] tracking-[0.18em] uppercase text-ink-muted hover:text-ink"
+          className="inline-flex items-center min-h-[44px] -mt-3 font-mono text-[10px] tracking-[0.18em] uppercase text-ink-muted hover:text-ink"
         >
           ← Home
         </Link>
@@ -89,7 +89,7 @@ export default async function AlbumPage({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={`/api/blob/${c.id}`}
-                  alt=""
+                  alt={c.title ?? "Photograph"}
                   className="w-12 h-12 rounded-[10px] object-cover flex-shrink-0 bg-paper-2"
                   loading="lazy"
                 />

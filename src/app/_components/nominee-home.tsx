@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -53,6 +53,7 @@ export function NomineeHome(props: {
 
   return (
     <section className="px-6 pt-2 pb-32 relative z-10 flex-1">
+      <h1 className="sr-only">Your archive from {props.framing.from_name}</h1>
       {/* Framing strip */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
@@ -114,9 +115,9 @@ export function NomineeHome(props: {
           {/* Themed albums */}
           {props.albums.length > 0 && (
             <>
-              <h3 className="mt-10 mb-3 font-mono text-[10px] tracking-[0.18em] uppercase text-ink-muted font-medium">
+              <h2 className="mt-10 mb-3 font-mono text-[10px] tracking-[0.18em] uppercase text-ink-muted font-medium">
                 Themes
-              </h3>
+              </h2>
               <ul className="grid grid-cols-2 gap-3">
                 {props.albums.map((a) => (
                   <AlbumCard key={a.theme} album={a} />
@@ -128,10 +129,10 @@ export function NomineeHome(props: {
           {/* Earlier pieces */}
           {rest.length > 0 && (
             <>
-              <h3 className="mt-10 mb-3 font-mono text-[10px] tracking-[0.18em] uppercase text-ink-muted font-medium flex items-center justify-between">
+              <h2 className="mt-10 mb-3 font-mono text-[10px] tracking-[0.18em] uppercase text-ink-muted font-medium flex items-center justify-between">
                 <span>Earlier pieces</span>
                 <span className="text-ink-fade">{rest.length}</span>
-              </h3>
+              </h2>
               <ul className="flex flex-col">
                 {rest.map((c) => (
                   <ReleasedRow key={c.id} cap={c} />
@@ -142,20 +143,23 @@ export function NomineeHome(props: {
         </>
       )}
 
-      {/* Floating Reflection pill - the killer surface for nominees */}
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5, duration: 0.7, ease: [0.22, 0.61, 0.36, 1] }}
-        className="fixed bottom-6 left-0 right-0 flex justify-center pointer-events-none z-20"
-      >
-        <Link
-          href="/reflect"
-          className="pointer-events-auto rounded-full px-6 py-3 text-paper bg-ink font-serif italic text-[15px] shadow-paper-3 hover:bg-wax transition-colors"
+      {/* Floating Reflection pill - the killer surface for nominees.
+          Only meaningful once there is released material to ground on. */}
+      {hasArchive && (
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.7, ease: [0.22, 0.61, 0.36, 1] }}
+          className="fixed bottom-6 left-0 right-0 flex justify-center pointer-events-none z-20"
         >
-          Ask the archive a question
-        </Link>
-      </motion.div>
+          <Link
+            href="/reflect"
+            className="pointer-events-auto rounded-full px-6 py-3 text-paper bg-ink font-serif italic text-[15px] shadow-paper-3 hover:bg-wax transition-colors"
+          >
+            Ask the archive a question
+          </Link>
+        </motion.div>
+      )}
     </section>
   );
 }
@@ -229,19 +233,76 @@ function DailyHero({ capture }: { capture: ReleasedCapture }) {
         </div>
       )}
       {lightbox && (
-        <div
-          className="fixed inset-0 z-40 bg-black/80 flex items-center justify-center p-4"
-          onClick={() => setLightbox(false)}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`/api/blob/${capture.id}`}
-            alt={capture.title ?? "Photograph"}
-            className="max-w-full max-h-full object-contain"
-          />
-        </div>
+        <PhotoLightbox
+          src={`/api/blob/${capture.id}`}
+          alt={capture.title ?? "Photograph"}
+          onClose={() => setLightbox(false)}
+        />
       )}
     </motion.article>
+  );
+}
+
+/**
+ * Full-screen photo viewer presented as an accessible modal dialog:
+ * labelled, dismissible with Escape or the close button, and it moves
+ * focus to the close control on open and restores it to the trigger on
+ * close.
+ */
+function PhotoLightbox({
+  src,
+  alt,
+  onClose,
+}: {
+  src: string;
+  alt: string;
+  onClose: () => void;
+}) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
+  // Keep the ref pointed at the latest onClose without re-running the
+  // mount effect below (which would re-focus/re-bind on every render).
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onCloseRef.current();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      previouslyFocused?.focus();
+    };
+  }, []);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={alt}
+      className="fixed inset-0 z-40 bg-black/80 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <button
+        ref={closeRef}
+        type="button"
+        onClick={onClose}
+        aria-label="Close photo"
+        className="absolute top-4 right-4 min-h-[44px] min-w-[44px] grid place-items-center rounded-full bg-black/40 text-paper text-[18px] hover:bg-black/60 transition-colors"
+      >
+        ✕
+      </button>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={alt}
+        className="max-w-full max-h-full object-contain"
+      />
+    </div>
   );
 }
 
@@ -308,7 +369,7 @@ function MoodCard({
             type="button"
             disabled={!!busy}
             onClick={() => tap(c)}
-            className="px-3 py-1.5 rounded-full border border-rule-strong bg-bg-raised text-ink text-[13px] font-sans hover:border-ink-muted disabled:opacity-50 transition-colors"
+            className="inline-flex items-center justify-center min-h-[44px] px-3 py-1.5 rounded-full border border-rule-strong bg-bg-raised text-ink text-[13px] font-sans hover:border-ink-muted disabled:opacity-50 transition-colors"
           >
             {busy === c ? "Listening…" : c}
           </button>
@@ -316,7 +377,7 @@ function MoodCard({
         <button
           type="button"
           onClick={() => setShowInput((v) => !v)}
-          className="px-3 py-1.5 rounded-full border border-dashed border-rule-strong text-ink-muted text-[13px] font-sans hover:border-ink-muted transition-colors"
+          className="inline-flex items-center justify-center min-h-[44px] px-3 py-1.5 rounded-full border border-dashed border-rule-strong text-ink-muted text-[13px] font-sans hover:border-ink-muted transition-colors"
         >
           {showInput ? "Cancel" : "Something else…"}
         </button>
@@ -327,7 +388,8 @@ function MoodCard({
             type="text"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="A few words about what's on your mind"
+            aria-label="Tell the archive what kind of moment you're in"
+            placeholder="A few words about what’s on your mind"
             maxLength={120}
             className="flex-1 font-serif italic text-[15px] text-ink bg-transparent border-b border-rule-strong outline-none py-1.5 placeholder:text-ink-muted"
           />
@@ -360,7 +422,7 @@ function MoodCard({
                 key={i}
                 className="font-serif italic text-[15px] text-wax leading-[1.45]"
               >
-                {u.occasion} - opened just for you.
+                {u.occasion} &mdash; opened just for you.
               </p>
             ))}
           </motion.div>
@@ -540,17 +602,11 @@ function ReleasedRow({ cap }: { cap: ReleasedCapture }) {
         </div>
       </div>
       {lightbox && (
-        <div
-          className="fixed inset-0 z-40 bg-black/80 flex items-center justify-center p-4"
-          onClick={() => setLightbox(false)}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`/api/blob/${cap.id}`}
-            alt={cap.title ?? "Photograph"}
-            className="max-w-full max-h-full object-contain"
-          />
-        </div>
+        <PhotoLightbox
+          src={`/api/blob/${cap.id}`}
+          alt={cap.title ?? "Photograph"}
+          onClose={() => setLightbox(false)}
+        />
       )}
       {expanded && (
         <div
@@ -569,7 +625,7 @@ function ReleasedRow({ cap }: { cap: ReleasedCapture }) {
                     : "Written note"}
               </p>
               <button
-                className="text-ink-muted hover:text-ink p-1 px-2 rounded-md"
+                className="text-ink-muted hover:text-ink min-h-[44px] min-w-[44px] grid place-items-center rounded-md -mr-2"
                 onClick={() => setExpanded(false)}
                 aria-label="Close"
               >
@@ -623,10 +679,3 @@ function formatLongDate(d: Date): string {
   });
 }
 
-function formatDuration(ms: number): string {
-  if (!ms) return "0:00";
-  const s = Math.floor(ms / 1000);
-  const m = Math.floor(s / 60);
-  const r = s - m * 60;
-  return `${m}:${r.toString().padStart(2, "0")}`;
-}

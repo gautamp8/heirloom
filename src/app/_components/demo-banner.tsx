@@ -1,8 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 const STORAGE_KEY = "heirloom-demo-banner-dismissed";
+const DISMISS_EVENT = "heirloom-demo-banner-dismissed";
+
+function subscribe(onChange: () => void) {
+  window.addEventListener(DISMISS_EVENT, onChange);
+  return () => window.removeEventListener(DISMISS_EVENT, onChange);
+}
+
+function readDismissed() {
+  try {
+    return sessionStorage.getItem(STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Sticky banner shown on the public Sagan demo deployment so visitors
@@ -11,16 +25,9 @@ const STORAGE_KEY = "heirloom-demo-banner-dismissed";
  * can dismiss it per browser session.
  */
 export function DemoBanner({ enabled }: { enabled: boolean }) {
-  const [hidden, setHidden] = useState(true); // hide on first paint to avoid layout shift
-
-  useEffect(() => {
-    if (!enabled) return;
-    try {
-      setHidden(sessionStorage.getItem(STORAGE_KEY) === "1");
-    } catch {
-      setHidden(false);
-    }
-  }, [enabled]);
+  // Server snapshot says "hidden" so the banner never flashes during
+  // hydration; the client snapshot reads the real per-session dismissal.
+  const hidden = useSyncExternalStore(subscribe, readDismissed, () => true);
 
   if (!enabled || hidden) return null;
 
@@ -65,10 +72,11 @@ export function DemoBanner({ enabled }: { enabled: boolean }) {
           Public demo
         </span>
         <span style={{ flex: 1 }}>
-          This is the Sagan demo, hosted on a small Azure VM. Answers can be
-          slow, and anything you submit here is stored on the VM — not on
-          your own device. For real use, install Heirloom on your own
-          device.
+          This is the Sagan demo — a public archive on a small cloud server
+          running Azure OpenAI, so you can try Heirloom without installing
+          anything. The real product runs fully offline on your own device and
+          keeps nothing on a server; here, treat it as public — anything you
+          submit is visible to others and wiped nightly.
         </span>
         <button
           type="button"
@@ -78,7 +86,7 @@ export function DemoBanner({ enabled }: { enabled: boolean }) {
             } catch {
               /* ignore */
             }
-            setHidden(true);
+            window.dispatchEvent(new Event(DISMISS_EVENT));
           }}
           aria-label="Dismiss demo notice"
           style={{

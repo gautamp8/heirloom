@@ -1,6 +1,7 @@
 import type { Sql } from "postgres";
-import { withRls, vec } from "./db";
+import { withRls } from "./db";
 import { embedAll } from "./embed";
+import { ensureVaultEmbedder } from "./embedding-guard";
 import { chunkText } from "./chunking";
 import type { Session } from "./auth";
 
@@ -178,6 +179,7 @@ export async function syncIdentityIndexAdmin(
   sql: Sql,
   vault_id: string,
 ): Promise<{ chunks: number }> {
+  await ensureVaultEmbedder(vault_id);
   const facts = await readFacts(sql, vault_id);
   const text = renderIdentityProse(facts).trim();
 
@@ -195,12 +197,17 @@ export async function syncIdentityIndexAdmin(
   if (chunks.length === 0) return { chunks: 0 };
   const vectors = await embedAll(chunks.map((c) => c.text));
   for (let i = 0; i < chunks.length; i++) {
+    // Inline literal rather than the db-bound vec() fragment: this runs
+    // against a caller-supplied `sql` (the seed importer's own client), and
+    // a fragment bound to a different postgres instance serializes to
+    // "[object Promise]" when the two aren't the same bundled copy.
+    const lit = `[${vectors[i].join(",")}]`;
     await sql`
       INSERT INTO transcript_chunks
         (capture_id, vault_id, chunk_index, text, embedding)
       VALUES
         (${cap.id}, ${vault_id}, ${chunks[i].index},
-         ${chunks[i].text}, ${vec(vectors[i])})
+         ${chunks[i].text}, ${lit}::vector)
     `;
   }
   return { chunks: chunks.length };

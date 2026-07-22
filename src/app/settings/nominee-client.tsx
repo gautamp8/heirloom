@@ -33,7 +33,7 @@ export function NomineeSettingsClient({
       <NotificationsSection />
 
       <SignOutSection
-        copy="Sign out to hand this device to someone else. The archive itself stays where the creator set it up - you can come back anytime with the passphrase they shared."
+        copy="Sign out to hand this device to someone else. The archive itself stays where the creator set it up — you can come back anytime with the passphrase they shared."
       />
     </div>
   );

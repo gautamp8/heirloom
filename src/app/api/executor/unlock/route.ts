@@ -10,6 +10,22 @@ export const dynamic = "force-dynamic";
 const ATTEMPTS = new Map<string, { count: number; firstAt: number }>();
 const MAX_PER_HOUR = 5;
 const MAX_LIFETIME = 10;
+// The per-IP limit above is keyed on a client-controlled X-Forwarded-For,
+// so an attacker rotating that header could sidestep it. A process-wide
+// ceiling on failed attempts per rolling hour is the backstop that no
+// header trick evades (the passphrase is argon2id over 4 words + 2 digits,
+// so this caps online guessing regardless of source IP).
+const GLOBAL_MAX_FAILS_PER_HOUR = 200;
+let globalFails: { count: number; windowAt: number } = {
+  count: 0,
+  windowAt: 0,
+};
+function noteGlobalFailure(now: number): void {
+  if (now - globalFails.windowAt > 60 * 60 * 1000) {
+    globalFails = { count: 0, windowAt: now };
+  }
+  globalFails.count += 1;
+}
 
 /**
  * POST /api/executor/unlock
@@ -34,9 +50,14 @@ export async function POST(req: Request) {
     const phrase = body.passphrase ?? "";
     if (!hint || !phrase) throw new HttpError(400, "missing_fields");
 
-    // Rate limit by IP
+    // Rate limit by IP, with a process-wide backstop that a spoofed
+    // X-Forwarded-For can't evade.
     const ip = req.headers.get("x-forwarded-for") ?? "local";
     const now = Date.now();
+    if (now - globalFails.windowAt <= 60 * 60 * 1000 &&
+        globalFails.count >= GLOBAL_MAX_FAILS_PER_HOUR) {
+      throw new HttpError(429, "rate_limited");
+    }
     const rec = ATTEMPTS.get(ip);
     if (rec && now - rec.firstAt < 60 * 60 * 1000) {
       if (rec.count >= MAX_PER_HOUR) {
@@ -114,9 +135,11 @@ export async function POST(req: Request) {
 }
 
 function bumpAttempts(ip: string) {
+  const now = Date.now();
+  noteGlobalFailure(now);
   const rec = ATTEMPTS.get(ip);
   if (!rec) {
-    ATTEMPTS.set(ip, { count: 1, firstAt: Date.now() });
+    ATTEMPTS.set(ip, { count: 1, firstAt: now });
   } else {
     rec.count++;
   }

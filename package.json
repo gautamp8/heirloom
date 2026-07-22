@@ -1,18 +1,24 @@
 {
   "name": "heirloom",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev -H 0.0.0.0",
     "build": "next build",
     "start": "next start -H 0.0.0.0",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "tauri": "tauri --config desktop/src-tauri/tauri.conf.json",
     "tauri:dev": "HEIRLOOM_BACKEND=sqlite tauri dev --config desktop/src-tauri/tauri.conf.json",
-    "tauri:build": "HEIRLOOM_BACKEND=sqlite tauri build --config desktop/src-tauri/tauri.conf.json"
+    "tauri:build": "HEIRLOOM_BACKEND=sqlite tauri build --config desktop/src-tauri/tauri.conf.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:injection": "vitest run --config vitest.injection.config.ts",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@ai-sdk/azure": "^3.0.85",
+    "@ai-sdk/openai-compatible": "^2.0.57",
     "ai": "^6.0.177",
     "argon2": "^0.44.0",
     "better-sqlite3": "^12.10.0",
@@ -30,6 +36,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/cli": "^2.11.1",
@@ -38,8 +45,18 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.10",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10",
+    "yaml": "^2.9.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "node-fetch@2": ">=2.6.7",
+      "postcss": "^8.5.6"
+    }
   }
 }

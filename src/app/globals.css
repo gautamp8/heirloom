@@ -24,8 +24,10 @@
   /* Ink */
   --color-ink: #1f1b14;
   --color-ink-soft: #4a4338;
-  --color-ink-muted: #8c8472;
-  --color-ink-fade: #9c9075;
+  /* Darkened from #8c8472 / #9c9075 so meta/eyebrow text at 10-11px clears
+     WCAG AA 4.5:1 on the paper canvas while staying subordinate to body ink. */
+  --color-ink-muted: #6a6350;
+  --color-ink-fade: #746c58;
 
   /* Accents - wax is ceremonial only (Record/Designate/Release) */
   --color-sepia: #5c3a21;
@@ -182,11 +184,15 @@ body {
     letter-spacing: 0.01em;
     transition: transform 120ms ease, background 200ms ease;
   }
-  .btn:hover {
+  .btn:not(:disabled):hover {
     background: var(--color-wax);
   }
-  .btn:active {
+  .btn:not(:disabled):active {
     transform: translateY(1px);
+  }
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
   .btn-full {
     width: 100%;
@@ -203,8 +209,12 @@ body {
     padding: 8px 0;
     transition: color 200ms ease;
   }
-  .btn-ghost:hover {
+  .btn-ghost:not(:disabled):hover {
     color: var(--color-wax);
+  }
+  .btn-ghost:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 
   /* ---- Inputs ---- */
@@ -255,6 +265,21 @@ body {
 ::selection {
   background: var(--color-paper-3);
   color: var(--color-ink);
+}
+
+/* Keyboard focus — visible ring on every interactive control (buttons, the
+   mono underline "link-buttons", inputs, links, summaries). Mouse clicks
+   don't trigger :focus-visible, so it stays invisible for pointer users. */
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* text-wrap: pretty balances ragged last lines. Used ~20x across the app as
+   `text-wrap-pretty`, which Tailwind v4 does not define, so declare it. */
+@utility text-wrap-pretty {
+  text-wrap: pretty;
 }
 
 /* Reduced motion */

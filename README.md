@@ -51,9 +51,12 @@ receives access on the creator's terms, on hardware they own.
 - **Not a grief loop.** No streaks, no engagement notifications. The
   archive is available; it never asks. People come back when they want
   to, not because an app pulled them in.
-- **Not in a cloud.** No telemetry, no managed inference, no
-  third-party model providers. Heirloom installs on the creator's own
-  laptop or a Mac mini the family owns.
+- **Not in a cloud, by default.** No telemetry, ever. Out of the box the
+  language model, transcription, voice cloning, and face matching all run
+  on the creator's own machine. If you'd rather use a cloud model you can
+  bring your own API key — an opt-in the settings screen spells out
+  precisely (exactly what leaves the device, and when). The public demo
+  is the one hosted exception, and its banner says so.
 
 Long-form treatment in
 [`docs/ETHICS-AND-DESIGN.md`](./docs/ETHICS-AND-DESIGN.md).
@@ -228,6 +231,13 @@ the whole reply.
 5. **Verbatim empty state.** Failures collapse to one sentence:
    *"I don't have that in the archive. Try asking another way?"*
 
+The `0.30` floor is calibrated on EmbeddingGemma's cosine geometry;
+when you use a cloud embedding model it is re-calibrated per model,
+because the distribution shifts. A 40-question eval against the Sagan
+seed (must-answer, must-refuse, and adversarial) returns **zero
+fabrications**, and a 24-attack prompt-injection corpus
+(`tests/prompt-injection/`) all fails safely — run per provider profile.
+
 Diagnostics for every Reflection (answered or refused) are persisted
 at `/transparency`.
 
@@ -245,34 +255,41 @@ Carl Sagan's writing, three public-domain photographs, and one
 sealed letter, *for when you feel insignificant*. No signup, no
 account.
 
-The demo runs on a small Azure VM; latencies are higher than a
-local install, and anything you submit there lives on the VM,
-not your device.
+The demo runs on a small cloud server with Azure OpenAI inference — the
+opposite of the shipped product, so you can try it without installing
+anything. Latencies are higher than a local install, anything you submit
+lives on the server, and the archive is wiped back to the pristine Sagan
+seed nightly.
 
-### Install on macOS (~15 minutes, then a real app)
+### Install on macOS (~10 minutes, then a real app)
 
 1. Download `Heirloom.dmg` from the
    [latest release](https://github.com/gautamp8/heirloom/releases/latest).
-2. **One-time prep.** Install [Ollama](https://ollama.com), then
-   pull the two Gemma 4 models (~10 minutes on a decent connection):
-   ```bash
-   ollama pull gemma4:e4b
-   ollama pull embeddinggemma
-   ```
-   This release candidate does not auto-pull yet; the next RC will.
-   See [issue #1](https://github.com/gautamp8/heirloom/issues/1).
-3. Open the DMG, drag *Heirloom* into your Applications folder.
-4. **First open**: right-click *Heirloom* in Applications and choose
-   *Open*. Confirm the second prompt. Apple notarization is on the
-   way; until then this right-click step is the documented way past
-   Gatekeeper.
+2. Open the DMG, drag *Heirloom* into your Applications folder.
+3. **First open**: right-click *Heirloom* in Applications and choose
+   *Open*. Confirm the second prompt. (Apple notarization is queued;
+   until then this right-click is the documented way past Gatekeeper.)
+4. On first launch the app walks you through the one-time model
+   download itself — a splash screen pulls the two Gemma 4 models with
+   visible progress (size, rate, ETA) and resumes if you quit mid-way.
+   No terminal, no manual `ollama pull`.
 
 Everything else is bundled: Ollama, Node, the Next.js server,
-`whisper.cpp` with `ggml-base.en` baked in, and the SQLite database
-at `~/Library/Application Support/app.heirloom.desktop/`. Voice
-cloning is opt-in: run `Contents/Resources/tts/install-tts.sh`
-once after install to drop a Python venv with LuxTTS into
+`whisper.cpp` with `ggml-small.en` baked in, and the SQLite database at
+`~/Library/Application Support/app.heirloom.desktop/`. Voice cloning is
+opt-in: run `Contents/Resources/tts/install-tts.sh` once after install to
+drop a Python venv with LuxTTS into
 `~/Library/Application Support/Heirloom/tts/` (~2 GB).
+
+### Bring your own cloud model (optional)
+
+Prefer a hosted model to running Gemma locally? Settings → *Language
+model* takes an OpenRouter (or any OpenAI-compatible) API key. The key is
+stored only on your machine, and the same screen states in plain words
+exactly what leaves the device: your questions and the retrieved passages
+at reflect time, photos at caption time, note text at tag time.
+Embeddings stay local by default so your whole archive is never uploaded
+for indexing.
 
 ### Try as a PWA on your phone (~20 minutes, full features)
 
@@ -398,6 +415,10 @@ screen flows) lives in
   motion, voice register
 - [`design-system/handoff/`](./design-system/handoff/) - architecture,
   API contracts, schema, prompts, guardrails
+- [`docs/HLOOM-FORMAT.md`](./docs/HLOOM-FORMAT.md) - the encrypted `.hloom`
+  format spec, with a runnable decrypt-it-yourself snippet
+- [`SECURITY.md`](./SECURITY.md) + [`docs/THREAT-MODEL.md`](./docs/THREAT-MODEL.md)
+  - report contact, scope, and an honest threat model
 - [`docs/DEPLOY-AZURE-VM.md`](./docs/DEPLOY-AZURE-VM.md) - self-hosted
   VM runbook
 
@@ -410,5 +431,6 @@ EmbeddingGemma is licensed under the Gemma terms; LuxTTS / ZipVoice
 carries its upstream license. See `infra/tts-server/` for details.
 
 If Heirloom disappears, the source remains yours under Apache 2.0 and
-any `.hloom` bundle you've exported is still readable with the open
-spec in `src/lib/vault-export.ts`.
+any `.hloom` bundle you've exported is still readable with the open spec
+in [`docs/HLOOM-FORMAT.md`](./docs/HLOOM-FORMAT.md) — including a Python
+snippet that decrypts it with standard libraries, no Heirloom required.

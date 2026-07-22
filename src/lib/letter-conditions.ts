@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { sqlAdmin, cosineSim } from "./db";
 import { embedOne } from "./embed";
+import { ensureVaultEmbedder } from "./embedding-guard";
 import type { Session } from "./auth";
 import { sendToUser } from "./notifications";
 
@@ -50,6 +51,9 @@ export async function fireLetterConditions(
 
   let stateEmbedding: number[] | null = null;
   if (ctx.trigger_kind === "state") {
+    if (!(ctx.embedding && ctx.embedding.length === 768)) {
+      await ensureVaultEmbedder(session.vault_id);
+    }
     stateEmbedding =
       ctx.embedding && ctx.embedding.length === 768
         ? ctx.embedding

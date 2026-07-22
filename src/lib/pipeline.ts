@@ -1,9 +1,15 @@
 import { withRls, vec, sqlAdmin } from "./db";
-import { resolveBlob } from "./storage";
+import {
+  extensionFromBlobUrl,
+  mimeForExtension,
+  readBlob,
+  resolveBlob,
+} from "./storage";
 import { transcribeAudio } from "./whisper";
 import { captionPhoto } from "./vision";
 import { chunkText } from "./chunking";
 import { embedAll } from "./embed";
+import { ensureVaultEmbedder } from "./embedding-guard";
 import { FACE_MATCH_THRESHOLD } from "./faces";
 import { tagCapture, type CaptureTags } from "./tagging";
 import { generateNoteTitle } from "./prompts";
@@ -76,7 +82,7 @@ async function recaptionPhoto(captureId: string, session: Session): Promise<void
     blob_url: string | null;
   }[]>`
     SELECT id, vault_id, kind, blob_url
-      FROM captures WHERE id = ${captureId}
+      FROM captures WHERE id = ${captureId} AND vault_id = ${session.vault_id}
   `;
   if (!cap || cap.kind !== "photo" || !cap.blob_url) return;
 
@@ -89,13 +95,20 @@ async function recaptionPhoto(captureId: string, session: Session): Promise<void
        AND p.display_name IS NOT NULL
   `;
 
-  const abs = resolveBlob(cap.blob_url);
-  const caption = await captionPhoto(abs, { people: recognized });
+  const buf = await readBlob(cap.blob_url);
+  const caption = await captionPhoto(buf, {
+    people: recognized,
+    mediaType: mimeForExtension(extensionFromBlobUrl(cap.blob_url)),
+  });
   await sqlAdmin`UPDATE captures SET caption = ${caption} WHERE id = ${cap.id}`;
 
   // The chunks may quote the old caption verbatim; flag for backfill.
   await sqlAdmin`DELETE FROM transcript_chunks WHERE capture_id = ${cap.id}`;
-  void runCapturePipelineEmbedOnly(cap.id, session);
+  // Awaited (not fire-and-forget): this whole function already runs inside
+  // the capture route's after() callback, and a nested detached promise
+  // would be dropped when that callback resolves on serverless. Awaiting
+  // keeps the re-embed inside the tracked work.
+  await runCapturePipelineEmbedOnly(cap.id, session);
 }
 
 /** Embed-only re-run: assumes the capture is already 'ready' and just
@@ -118,6 +131,7 @@ async function runCapturePipelineEmbedOnly(
  *  admin because transcript_chunks INSERT is creator-only under RLS. */
 export async function backfillMissingChunks(session: Session): Promise<number> {
   if (!sqlAdmin) return 0;
+  await ensureVaultEmbedder(session.vault_id);
 
   const candidates = await sqlAdmin<{
     id: string;
@@ -242,6 +256,8 @@ export async function runCapturePipeline(
     });
     if (!cap) return;
 
+    await ensureVaultEmbedder(cap.vault_id);
+
     let text = cap.body ?? "";
     if (cap.kind === "audio" && cap.blob_url) {
       const abs = resolveBlob(cap.blob_url);
@@ -255,7 +271,7 @@ export async function runCapturePipeline(
         `;
       });
     } else if (cap.kind === "photo" && cap.blob_url) {
-      const abs = resolveBlob(cap.blob_url);
+      const buf = await readBlob(cap.blob_url);
 
       const recognized = await withRls(
         session.user_id,
@@ -270,7 +286,10 @@ export async function runCapturePipeline(
         `,
       );
 
-      const caption = await captionPhoto(abs, { people: recognized });
+      const caption = await captionPhoto(buf, {
+        people: recognized,
+        mediaType: mimeForExtension(extensionFromBlobUrl(cap.blob_url)),
+      });
       text = caption;
       await withRls(session.user_id, session.role, async (tx) => {
         await tx`UPDATE captures SET caption = ${caption} WHERE id = ${cap.id}`;

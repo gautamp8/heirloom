@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Seal } from "./seal";
 import { IconGithub, IconDownload, IconExternal } from "./icons";
+import { DownloadTrigger } from "./download-button";
 import { links, tryAsNominee } from "./links";
 
 export function Nav() {
@@ -72,25 +73,24 @@ export function Nav() {
             target="_blank"
             rel="noopener noreferrer"
             className="btn-secondary btn"
-            style={{ padding: "9px 16px", fontSize: 13.5 }}
+            style={{ padding: "9px 16px", fontSize: 13.5, minHeight: 44 }}
           >
             Try the archive
             <IconExternal size={14} />
           </a>
-          <a
-            href={links.dmgDownload}
+          <DownloadTrigger
             className="btn btn-wax hidden sm:inline-flex"
-            style={{ padding: "9px 16px", fontSize: 13.5 }}
+            style={{ padding: "9px 16px", fontSize: 13.5, minHeight: 44 }}
           >
             <IconDownload size={14} />
             Download
-          </a>
+          </DownloadTrigger>
           <a
             href={links.github}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="GitHub repository"
-            className="text-ink-soft hover:text-ink transition-colors p-2 -mr-2"
+            className="text-ink-soft hover:text-ink transition-colors inline-flex items-center justify-center min-h-[44px] min-w-[44px] -mr-2.5"
           >
             <IconGithub size={20} />
           </a>
@@ -122,7 +122,7 @@ function NavLink({
   return (
     <Link
       href={href}
-      className="px-3 py-1.5 rounded-full transition-colors"
+      className="px-3 rounded-full transition-colors inline-flex items-center justify-center min-h-[44px]"
       style={{
         color: "var(--color-ink-soft)",
         fontFamily: "var(--font-sans)",

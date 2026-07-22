@@ -2,11 +2,14 @@ import { errorResponse, HttpError, requireSession } from "@/lib/auth";
 import { withRls } from "@/lib/db";
 import { writeBlob } from "@/lib/storage";
 import { encodeReference } from "@/lib/tts";
+import { describeProvider } from "@/lib/provider";
 
 export const dynamic = "force-dynamic";
 
 const MAX_REFERENCE_BYTES = 12 * 1024 * 1024; // 12 MB ≈ 4 min of 16-bit mono 24 kHz
-// LuxTTS clones from up to 15s of prompt audio; require at least 8s
+// The TTS model encodes at most 15s of prompt audio; the on-screen
+// script (~20s) ensures the recording comfortably exceeds that. Require
+// at least 8s
 // so timbre is captured cleanly.
 const MIN_REFERENCE_SECONDS = 8;
 
@@ -25,6 +28,13 @@ export async function POST(req: Request) {
   try {
     const session = await requireSession();
     if (session.role !== "creator") throw new HttpError(403, "creator_only");
+
+    // Privacy guard: the hosted demo must never receive reference audio. Voice
+    // capture is on-device only, so refuse the upload before it is read rather
+    // than relaying a recording to a cloud server.
+    if ((await describeProvider()).profile === "hosted-demo") {
+      throw new HttpError(403, "voice_capture_is_on_device_only");
+    }
 
     const form = await req.formData();
     const file = form.get("audio");

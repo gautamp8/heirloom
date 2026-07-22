@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [master, launch-ready]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Unit tests
+        run: pnpm test
+
+  # The prompt-injection harness and E2E matrix need a live instance +
+  # Ollama, so they run nightly on a self-hosted runner rather than here.
+  # See docs/QA-LOG.md for how they're driven per provider profile.

@@ -63,3 +63,14 @@ desktop/dist/
 desktop/server/
 desktop/bin/*
 !desktop/bin/.gitkeep
+
+# Internal run/goal notes
+GOAL.md
+
+# E2E artifacts
+.e2e-blobs/
+playwright-report/
+test-results/
+docs/eval/
+.vercel
+.env*

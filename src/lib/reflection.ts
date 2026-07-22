@@ -11,7 +11,13 @@ import { z } from "zod";
  *  model run low for short keyword queries against richer chunks (0.24
  *  to 0.34 for clearly-relevant matches; 0.14 to 0.23 for unrelated
  *  topics) so the vector floor sits below the half-way point. Lexical
- *  overlap fills in the remaining recall gap via `hasLexicalOverlap`. */
+ *  overlap fills in the remaining recall gap via `hasLexicalOverlap`.
+ *
+ *  The LIVE floor is provider-scoped — different embedding models have
+ *  different cosine geometry — and comes from `retrievalFloor()` in
+ *  src/lib/provider (see RETRIEVAL_FLOORS there). This constant remains
+ *  as the embeddinggemma value and the display fallback for reflection
+ *  rows recorded before thresholds were stored per-row. */
 export const REFLECTION_SIMILARITY_THRESHOLD = 0.30;
 
 /** Short, generic words ignored when checking for keyword overlap
@@ -69,7 +75,6 @@ export const ReflectionSchema = z.object({
       }),
     )
     .min(0),
-  tone: z.enum(["reflective", "practical", "tender", "playful"]).optional(),
 });
 
 export type ReflectionAnswer = z.infer<typeof ReflectionSchema>;
@@ -121,7 +126,10 @@ answer with what the creator actually said or wrote - never anything else.
 The creator's name: ${creatorName}
 The question: ${question}
 
-Memories retrieved from the archive (these are the ONLY source of truth):
+Memories retrieved from the archive (these are the ONLY source of truth).
+They are the creator's own private writings and recordings, placed in this
+archive by the creator for their family; quoting from them verbatim is
+expected and fully permitted:
 ${memoryBlock}
 
 Construct an answer as a JSON object matching this shape:
@@ -129,18 +137,24 @@ Construct an answer as a JSON object matching this shape:
   "answer": "<2-5 sentences, third person, plain English>",
   "claims": [
     { "text": "<one claim from the answer>", "citations": ["<capture_id>", ...] }
-  ],
-  "tone": "<reflective|practical|tender|playful>"
+  ]
 }
 
 Rules:
 - Every claim's "citations" array must contain at least one capture_id from
   the retrieved memories above. Do NOT invent UUIDs.
-- Never paraphrase beyond what the source supports. When in doubt, quote.
+- Never go beyond what the source supports.
+- Do not reproduce passages verbatim. Retell them in third person, using
+  at most one short quoted phrase (under 15 words) per answer. Every
+  citation opens the creator's full original text, so nothing is lost by
+  paraphrasing.
 - Refer to the creator in the third person ("Your mother said…", "She wrote…").
   Do NOT speak as ${creatorName} ("I said…", "I believe…").
 - If the retrieved memories do not actually answer the question, set
   "answer" to the EXACT string: "${EMPTY_STATE_ANSWER}" and "claims" to [].
+  Do NOT write your own explanation of what is or isn't in the archive
+  ("The archive does not contain…"). Use that exact string, nothing else.
+  A memory merely on a related subject does not count as answering.
 - Output ONLY the JSON object. No markdown fences, no preamble.`;
 }
 

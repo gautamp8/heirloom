@@ -25,6 +25,7 @@ export function DeviceiPhone({
   return (
     <div
       className={className}
+      aria-hidden="true"
       style={{
         width,
         height,

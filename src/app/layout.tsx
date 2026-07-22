@@ -3,6 +3,7 @@ import { Source_Serif_4, Geist, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ServiceWorkerRegister } from "./_components/sw-register";
 import { DemoBanner } from "./_components/demo-banner";
+import { MotionProvider } from "./_components/motion-provider";
 
 const DEMO_NOTICE = process.env.NEXT_PUBLIC_HEIRLOOM_DEMO_NOTICE === "1";
 
@@ -52,7 +53,10 @@ export const viewport: Viewport = {
   themeColor: "#faf7f0",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  // No maximumScale: pinch-zoom must stay available for low-vision users
+  // (Lighthouse a11y flags maximum-scale=1). iOS auto-zoom on input focus
+  // is prevented the accessible way instead — inputs are ≥16px (globals.css
+  // `.input`), which stops the zoom without trapping the whole viewport.
   viewportFit: "cover",
 };
 
@@ -68,9 +72,11 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-dvh bg-paper text-ink" suppressHydrationWarning>
-        <DemoBanner enabled={DEMO_NOTICE} />
-        {children}
-        <ServiceWorkerRegister />
+        <MotionProvider>
+          <DemoBanner enabled={DEMO_NOTICE} />
+          {children}
+          <ServiceWorkerRegister />
+        </MotionProvider>
       </body>
     </html>
   );

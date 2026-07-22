@@ -103,9 +103,9 @@ export function PortalActions() {
         <button
           type="button"
           onClick={copy}
-          className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink underline"
+          className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink underline py-2"
         >
-          {copied ? "Copied" : "Copy to clipboard"}
+          <span aria-live="polite">{copied ? "Copied" : "Copy to clipboard"}</span>
         </button>
         <button
           className="btn mt-2"
@@ -148,13 +148,14 @@ export function PortalActions() {
         <input
           type="password"
           autoComplete="off"
+          aria-label="Bundle passphrase"
           placeholder="Bundle passphrase"
           value={bundlePass}
           onChange={(e) => setBundlePass(e.target.value)}
           className="border border-rule rounded-[10px] px-4 py-3 bg-bg-raised font-mono text-[15px]"
         />
         {importErr && (
-          <p className="p-meta text-[13px] text-clay text-center">
+          <p className="font-serif italic text-[14px] text-wax text-center">
             {importErr}
           </p>
         )}
@@ -194,7 +195,7 @@ export function PortalActions() {
       <button className="btn-ghost" onClick={() => setMode("import")}>
         Import an existing archive
       </button>
-      <p className="p-meta mt-3">Local-first · Nothing leaves this device</p>
+      <p className="p-meta mt-3">Local-first · Nothing leaves without you</p>
     </div>
   );
 }

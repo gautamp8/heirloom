@@ -16,13 +16,13 @@ function pipelineLabel(
     switch (stage) {
       case null:
       case "uploaded":
-        return "Saving the recording…";
+        return "Saving the recording";
       case "transcribed":
-        return "Listening for the words…";
+        return "Listening for the words";
       case "embedded":
-        return "Tracing the threads…";
+        return "Tracing the threads";
       case "tagged":
-        return "Almost there…";
+        return "Almost there";
       case "ready":
         return "Saved. This is the beginning.";
       case "failed":
@@ -33,13 +33,13 @@ function pipelineLabel(
     switch (stage) {
       case null:
       case "uploaded":
-        return "Holding the photograph…";
+        return "Holding the photograph";
       case "transcribed":
-        return "Looking at the photograph…";
+        return "Looking at the photograph";
       case "embedded":
-        return "Tracing the threads…";
+        return "Tracing the threads";
       case "tagged":
-        return "Almost there…";
+        return "Almost there";
       case "ready":
         return "Saved. This is the beginning.";
       case "failed":
@@ -49,12 +49,12 @@ function pipelineLabel(
   switch (stage) {
     case null:
     case "uploaded":
-      return "Saving your words…";
+      return "Saving your words";
     case "embedded":
-      return "Reading what you wrote…";
+      return "Reading what you wrote";
     case "transcribed":
     case "tagged":
-      return "Tracing the threads…";
+      return "Tracing the threads";
     case "ready":
       return "Saved. This is the beginning.";
     case "failed":
@@ -133,6 +133,10 @@ export function CaptureSheet(props: {
     note: "Write a memory",
     photo: "Hold a photograph",
   };
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, []);
   return (
     <div
       className="fixed inset-0 z-50 flex items-end bg-black/30"
@@ -141,14 +145,20 @@ export function CaptureSheet(props: {
       }}
     >
       <div
-        className="w-full bg-paper rounded-t-[24px] shadow-paper-3 max-h-[92dvh] overflow-y-auto"
+        ref={dialogRef}
+        tabIndex={-1}
+        className="w-full bg-paper rounded-t-[24px] shadow-paper-3 max-h-[92dvh] overflow-y-auto outline-none"
         role="dialog"
         aria-modal="true"
+        aria-labelledby="capture-sheet-title"
+        onKeyDown={(e) => {
+          if (e.key === "Escape") props.onClose();
+        }}
       >
         <div className="pt-3 pb-2 px-5 flex flex-col items-center sticky top-0 bg-paper z-10">
           <div className="w-9 h-1 rounded-full bg-rule-strong mb-3" />
           <div className="w-full flex items-center justify-between">
-            <p className="font-serif italic text-[20px] text-ink">
+            <p id="capture-sheet-title" className="font-serif italic text-[20px] text-ink">
               {headers[props.mode]}
             </p>
             <button
@@ -250,6 +260,7 @@ function VoiceCapture({
       };
       rec.onstop = () => commit();
       rec.start(250);
+      // eslint-disable-next-line react-hooks/purity -- runs in a click handler, never during render
       startedAtRef.current = Date.now();
       setState("recording");
       tick();
@@ -279,6 +290,7 @@ function VoiceCapture({
       out.push(Math.min(1, Math.max(0.08, max * 1.4)));
     }
     setBars(out);
+    // eslint-disable-next-line react-hooks/purity -- runs in a rAF loop, never during render
     setElapsedMs(Date.now() - startedAtRef.current);
     rafRef.current = requestAnimationFrame(tick);
   }
@@ -411,6 +423,7 @@ function VoiceCapture({
             boxShadow: "var(--shadow-wax)",
           }}
           onClick={start}
+          aria-label="Start recording"
         >
           <span className="w-[18px] h-[18px] rounded-full bg-white" />
         </button>
@@ -424,6 +437,7 @@ function VoiceCapture({
             boxShadow: "var(--shadow-wax)",
           }}
           onClick={stop}
+          aria-label="Stop recording"
         >
           <span className="w-[18px] h-[18px] rounded-[3px] bg-white" />
         </button>
@@ -431,7 +445,7 @@ function VoiceCapture({
 
       {(state === "uploading" || state === "processing" || state === "ready") && (
         <div className="flex flex-col items-center gap-4 w-full">
-          <p className="p-meta">
+          <p className="p-meta" aria-live="polite">
             {state === "ready"
               ? pipelineLabel("audio", "ready")
               : pipelineLabel("audio", stage) + dots.slice(0, dots.length - 1)}
@@ -465,7 +479,7 @@ function VoiceCapture({
         </div>
       )}
 
-      {error && <p className="p-body text-wax">{error}</p>}
+      {error && <p className="p-body text-wax" role="alert">{error}</p>}
     </div>
   );
 }
@@ -585,11 +599,12 @@ function NoteCapture({
       )}
       <textarea
         className="w-full font-serif text-[17px] leading-[1.55] text-ink bg-transparent border-none outline-none resize-none min-h-[240px] placeholder:text-ink-muted placeholder:italic"
-        placeholder="Take your time. Begin when you're ready. Or tap the mic and speak it."
+        placeholder="Take your time. Begin when you’re ready. Or tap the mic and speak it."
         value={text}
         onChange={(e) => setText(e.target.value)}
         autoFocus={!titleEditable}
         disabled={state !== "typing"}
+        aria-label="Your memory"
       />
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -611,7 +626,7 @@ function NoteCapture({
 
       {(state === "saving" || state === "processing" || state === "ready") && (
         <div className="flex flex-col gap-3 mt-2">
-          <p className="p-meta">
+          <p className="p-meta" aria-live="polite">
             {state === "ready"
               ? pipelineLabel("note", "ready")
               : pipelineLabel("note", stage) + dots.slice(0, dots.length - 1)}
@@ -634,7 +649,7 @@ function NoteCapture({
         </div>
       )}
 
-      {error && <p className="p-body text-wax">{error}</p>}
+      {error && <p className="p-body text-wax" role="alert">{error}</p>}
     </div>
   );
 }
@@ -778,7 +793,7 @@ function PhotoCapture({
           <input
             type="file"
             accept="image/*"
-            className="hidden"
+            className="sr-only"
             onChange={onPick}
           />
           <span className="block font-serif italic text-[18px] text-ink mb-1">
@@ -793,6 +808,7 @@ function PhotoCapture({
       {preview && state !== "picking" && (
         <div className="relative w-full rounded-[14px] overflow-hidden border border-rule bg-paper-2 max-h-[58vh] flex items-center justify-center">
           <div className="relative inline-block max-w-full max-h-[58vh]">
+            {/* eslint-disable-next-line @next/next/no-img-element -- local object-URL preview; next/image can't optimize blob: sources */}
             <img
               src={preview}
               alt="Selected photograph"
@@ -862,7 +878,7 @@ function PhotoCapture({
 
       {(state === "saving" || state === "processing" || state === "ready") && (
         <div className="flex flex-col gap-3 mt-2">
-          <p className="p-meta">
+          <p className="p-meta" aria-live="polite">
             {state === "ready"
               ? pipelineLabel("photo", "ready")
               : pipelineLabel("photo", stage) + dots.slice(0, dots.length - 1)}
@@ -890,7 +906,7 @@ function PhotoCapture({
         </div>
       )}
 
-      {error && <p className="p-body text-wax">{error}</p>}
+      {error && <p className="p-body text-wax" role="alert">{error}</p>}
     </div>
   );
 }

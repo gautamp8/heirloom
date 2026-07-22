@@ -81,21 +81,5 @@ function pickMoodChips(fromName: string): string[] {
       "What is science?",
     ];
   }
-  if (key.includes("fred rogers")) {
-    return [
-      "I feel afraid",
-      "I miss you",
-      "What did you believe about children?",
-      "Tell me about love",
-    ];
-  }
-  if (key.includes("gandhi")) {
-    return [
-      "I feel powerless",
-      "Tell me about truth",
-      "What is non-violence?",
-      "On hard days",
-    ];
-  }
   return ["I miss you", "I need advice", "On hard days", "A big moment"];
 }

@@ -1,9 +1,11 @@
 // Single source for all external destinations the site links out to.
 
 export const links = {
-  azure:
-    process.env.NEXT_PUBLIC_AZURE_URL ??
-    "https://heirloom-1ab066.eastus2.cloudapp.azure.com",
+  // The public Sagan demo. Runs on a small cloud server with Azure OpenAI
+  // inference — the opposite of the shipped product, so anyone can try it
+  // without installing. A custom domain, never a cloud auto-hostname
+  // (those can't survive a provider move).
+  demo: process.env.NEXT_PUBLIC_DEMO_URL ?? "https://demo.withheirloom.app",
   github:
     process.env.NEXT_PUBLIC_GITHUB_URL ?? "https://github.com/gautamp8/heirloom",
   releases: "https://github.com/gautamp8/heirloom/releases",
@@ -22,5 +24,5 @@ export const links = {
 // The product app's /welcome page decodes ?p= (dashes back to spaces) and
 // auto-submits, so a visitor lands inside the envelope with no friction.
 export function tryAsNominee() {
-  return `${links.azure}/welcome?p=carl-sagan-archive-1990`;
+  return `${links.demo}/welcome?p=carl-sagan-archive-1990`;
 }

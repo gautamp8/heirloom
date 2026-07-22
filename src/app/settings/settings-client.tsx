@@ -3,11 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { VOICE_SCRIPT, webmBlobToWav } from "@/lib/voice-record";
-import {
-  NotificationsSection,
-  SignOutSection,
-  isDesktopWebView,
-} from "./sections";
+import { NotificationsSection, SignOutSection } from "./sections";
 
 type LifeEvent = {
   id: string;
@@ -47,11 +43,13 @@ export function SettingsClient({ initial }: { initial: Initial }) {
   const [name, setName] = useState(initial.user.display_name);
   const [savingName, setSavingName] = useState(false);
   const [nameSaved, setNameSaved] = useState(false);
+  const [nameError, setNameError] = useState(false);
 
   async function saveName() {
     if (!name.trim() || name.trim() === initial.user.display_name) return;
     setSavingName(true);
     setNameSaved(false);
+    setNameError(false);
     try {
       const r = await fetch("/api/me/profile", {
         method: "PATCH",
@@ -59,6 +57,9 @@ export function SettingsClient({ initial }: { initial: Initial }) {
         body: JSON.stringify({ display_name: name.trim() }),
       });
       if (r.ok) setNameSaved(true);
+      else setNameError(true);
+    } catch {
+      setNameError(true);
     } finally {
       setSavingName(false);
     }
@@ -69,29 +70,32 @@ export function SettingsClient({ initial }: { initial: Initial }) {
       <section className="flex flex-col gap-3">
         <h2 className="eyebrow">You</h2>
         <div className="flex flex-col gap-2 max-w-[420px]">
-          <label className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted">
+          <label htmlFor="display-name" className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted">
             Your name
           </label>
           <input
+            id="display-name"
             type="text"
             value={name}
             onChange={(e) => {
               setName(e.target.value);
               setNameSaved(false);
+              setNameError(false);
             }}
             onBlur={saveName}
             maxLength={60}
             className="w-full font-serif text-[22px] font-light text-ink bg-transparent border-b border-rule-strong outline-none focus:border-ink py-2"
-            aria-label="Display name"
           />
           <p className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-fade min-h-[14px]">
             {savingName
               ? "Saving…"
-              : nameSaved
-                ? "Saved"
-                : name.trim() !== initial.user.display_name
-                  ? "Press tab or click outside to save"
-                  : ""}
+              : nameError
+                ? "Couldn’t save — try again"
+                : nameSaved
+                  ? "Saved"
+                  : name.trim() !== initial.user.display_name
+                    ? "Press tab or click outside to save"
+                    : ""}
           </p>
         </div>
       </section>
@@ -107,6 +111,8 @@ export function SettingsClient({ initial }: { initial: Initial }) {
       <ArchiveKeySection />
 
       <NotificationsSection />
+
+      <ProviderSection />
 
       <VaultSection />
 
@@ -167,7 +173,7 @@ function LifeEventsSection({
             <button
               type="button"
               onClick={() => remove(e.id)}
-              className="text-ink-muted hover:text-wax text-[18px] ml-3"
+              className="inline-flex items-center justify-center w-11 h-11 -mr-2 text-ink-muted hover:text-wax text-[18px] ml-1"
               aria-label={`Remove ${e.label}`}
             >
               ×
@@ -236,23 +242,25 @@ function AddLifeEventForm({
   return (
     <div className="rounded-[12px] border border-rule p-3 bg-bg-raised grid grid-cols-1 sm:grid-cols-[1fr_140px_140px_auto] gap-2 items-end">
       <div className="flex flex-col gap-1">
-        <label className="eyebrow text-[9px]">Label</label>
+        <label htmlFor="life-label" className="eyebrow text-[9px]">Label</label>
         <input
+          id="life-label"
           type="text"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           placeholder="My wedding day"
           maxLength={80}
-          className="font-serif text-[16px] text-ink bg-transparent outline-none border-b border-rule placeholder:text-ink-muted placeholder:italic"
+          className="font-serif text-[16px] text-ink bg-transparent outline-none border-b border-rule focus:border-ink placeholder:text-ink-muted placeholder:italic"
           autoFocus
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="eyebrow text-[9px]">Kind</label>
+        <label htmlFor="life-kind" className="eyebrow text-[9px]">Kind</label>
         <select
+          id="life-kind"
           value={kind}
           onChange={(e) => setKind(e.target.value)}
-          className="font-sans text-[14px] text-ink bg-transparent outline-none border-b border-rule py-1"
+          className="font-sans text-[14px] text-ink bg-transparent outline-none border-b border-rule focus:border-ink py-1"
         >
           {EVENT_KINDS.map((k) => (
             <option key={k.value} value={k.value}>
@@ -262,12 +270,13 @@ function AddLifeEventForm({
         </select>
       </div>
       <div className="flex flex-col gap-1">
-        <label className="eyebrow text-[9px]">Date</label>
+        <label htmlFor="life-date" className="eyebrow text-[9px]">Date</label>
         <input
+          id="life-date"
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          className="font-mono text-[12px] text-ink bg-transparent outline-none border-b border-rule py-1"
+          className="font-mono text-[12px] text-ink bg-transparent outline-none border-b border-rule focus:border-ink py-1"
         />
       </div>
       <div className="flex gap-2 self-end">
@@ -400,13 +409,13 @@ function NomineesSection({
                 }}
               >
                 <p className="font-mono text-[10px] tracking-[0.16em] uppercase text-wax">
-                  Write this down - shown only once
+                  Write this down &mdash; shown only once
                 </p>
-                <code className="font-mono text-[16px] text-ink select-all">
+                <code className="font-mono text-[16px] text-ink select-all break-words break-all">
                   {revealed[n.id]}
                 </code>
                 <p className="font-serif italic text-[13px] text-ink-soft mt-1">
-                  Hand this to {n.name} however feels right - printed, written,
+                  Hand this to {n.name} however feels right &mdash; printed, written,
                   in person. The previous passphrase no longer works.
                 </p>
               </div>
@@ -529,7 +538,7 @@ function NomineePhotoControl({
                 ? "Reference photo on file"
                 : "No reference photo for this person"}
       </p>
-      <label className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink underline cursor-pointer whitespace-nowrap">
+      <label className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink underline cursor-pointer whitespace-nowrap inline-block py-2">
         <input
           type="file"
           accept="image/*"
@@ -593,35 +602,38 @@ function AddNomineeForm({
   return (
     <div className="rounded-[12px] border border-rule p-3 bg-bg-raised grid grid-cols-1 sm:grid-cols-[1fr_140px_140px_auto] gap-2 items-end">
       <div className="flex flex-col gap-1">
-        <label className="eyebrow text-[9px]">Name</label>
+        <label htmlFor="nominee-name" className="eyebrow text-[9px]">Name</label>
         <input
+          id="nominee-name"
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Sam"
           maxLength={60}
-          className="font-serif text-[16px] text-ink bg-transparent outline-none border-b border-rule placeholder:text-ink-muted placeholder:italic"
+          className="font-serif text-[16px] text-ink bg-transparent outline-none border-b border-rule focus:border-ink placeholder:text-ink-muted placeholder:italic"
           autoFocus
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="eyebrow text-[9px]">Relation</label>
+        <label htmlFor="nominee-relation" className="eyebrow text-[9px]">Relation</label>
         <input
+          id="nominee-relation"
           type="text"
           value={relation}
           onChange={(e) => setRelation(e.target.value)}
           placeholder="daughter"
           maxLength={40}
-          className="font-sans text-[14px] text-ink bg-transparent outline-none border-b border-rule placeholder:text-ink-muted"
+          className="font-sans text-[14px] text-ink bg-transparent outline-none border-b border-rule focus:border-ink placeholder:text-ink-muted"
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="eyebrow text-[9px]">Birthday</label>
+        <label htmlFor="nominee-birthday" className="eyebrow text-[9px]">Birthday</label>
         <input
+          id="nominee-birthday"
           type="date"
           value={birthday}
           onChange={(e) => setBirthday(e.target.value)}
-          className="font-mono text-[12px] text-ink bg-transparent outline-none border-b border-rule py-1"
+          className="font-mono text-[12px] text-ink bg-transparent outline-none border-b border-rule focus:border-ink py-1"
         />
       </div>
       <div className="flex gap-2 self-end">
@@ -730,9 +742,15 @@ function ArchiveKeySection() {
       <h2 className="eyebrow">Your archive key</h2>
       <p className="p-body max-w-[520px]">
         A passphrase that opens your own archive after you sign out. Write
-        it down somewhere safe - if you lose it, the only way back is to
+        it down somewhere safe &mdash; if you lose it, the only way back is to
         generate a new one from a device that&rsquo;s still signed in.
       </p>
+
+      {state === null && (
+        <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-fade max-w-[520px]">
+          Checking…
+        </p>
+      )}
 
       {state?.has_passphrase && !revealed && (
         <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-fade max-w-[520px]">
@@ -751,7 +769,7 @@ function ArchiveKeySection() {
           }}
         >
           <p className="font-mono text-[10px] tracking-[0.16em] uppercase text-wax">
-            Write this down - shown only once
+            Write this down &mdash; shown only once
           </p>
           <code className="font-mono text-[16px] text-ink select-all break-words">
             {revealed}
@@ -759,49 +777,51 @@ function ArchiveKeySection() {
           <button
             type="button"
             onClick={copy}
-            className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink underline self-start"
+            className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink underline self-start inline-block py-2"
           >
             {copied ? "Copied" : "Copy"}
           </button>
         </div>
       )}
 
-      <div className="flex items-center gap-3 max-w-[520px]">
-        {confirming ? (
-          <>
+      {state !== null && (
+        <div className="flex items-center gap-3 max-w-[520px]">
+          {confirming ? (
+            <>
+              <button
+                type="button"
+                className="btn-ghost text-ink-muted"
+                onClick={() => setConfirming(false)}
+                disabled={busy}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn"
+                style={{ background: "var(--color-wax)" }}
+                onClick={regenerate}
+                disabled={busy}
+              >
+                {busy
+                  ? "Generating…"
+                  : state.has_passphrase
+                    ? "Yes, replace it"
+                    : "Generate"}
+              </button>
+            </>
+          ) : (
             <button
               type="button"
-              className="btn-ghost text-ink-muted"
-              onClick={() => setConfirming(false)}
+              className="btn-ghost self-start"
+              onClick={() => setConfirming(true)}
               disabled={busy}
             >
-              Cancel
+              {state.has_passphrase ? "Generate a new key" : "Generate a key"}
             </button>
-            <button
-              type="button"
-              className="btn"
-              style={{ background: "var(--color-wax)" }}
-              onClick={regenerate}
-              disabled={busy}
-            >
-              {busy
-                ? "Generating…"
-                : state?.has_passphrase
-                  ? "Yes, replace it"
-                  : "Generate"}
-            </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            className="btn-ghost self-start"
-            onClick={() => setConfirming(true)}
-            disabled={busy}
-          >
-            {state?.has_passphrase ? "Generate a new key" : "Generate a key"}
-          </button>
-        )}
-      </div>
+          )}
+        </div>
+      )}
       {confirming && state?.has_passphrase && (
         <p className="font-serif italic text-[13px] text-ink-soft max-w-[520px]">
           Your current key will stop working. Anyone who has it will no
@@ -813,6 +833,299 @@ function ArchiveKeySection() {
 }
 
 
+
+type ProviderInfo = {
+  active: {
+    profile: string;
+    synthesis: string;
+    vision: string;
+    embedding: string;
+  } | null;
+  byok: {
+    enabled: boolean;
+    base_url: string;
+    api_key_masked: string;
+    synthesis_model: string;
+    vision_model: string | null;
+    embeddings: { mode: "local" } | { mode: "cloud"; model: string };
+  } | null;
+};
+
+/** Settings → the model that reads and writes with you. Local by
+ *  default; a creator can bring their own OpenAI-compatible key. The
+ *  privacy statement spells out exactly what leaves the device when a
+ *  key is active — that copy is a product commitment, not decoration. */
+function ProviderSection() {
+  const [info, setInfo] = useState<ProviderInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Form fields
+  const [baseUrl, setBaseUrl] = useState("https://openrouter.ai/api/v1");
+  const [apiKey, setApiKey] = useState("");
+  const [model, setModel] = useState("");
+  const [cloudEmbeds, setCloudEmbeds] = useState(false);
+  const [embedModel, setEmbedModel] = useState("text-embedding-3-small");
+
+  const refresh = async () => {
+    try {
+      const r = await fetch("/api/settings/provider", { cache: "no-store" });
+      if (!r.ok) return;
+      const d = (await r.json()) as ProviderInfo;
+      setInfo(d);
+      if (d.byok) {
+        setBaseUrl(d.byok.base_url);
+        setModel(d.byok.synthesis_model);
+        setCloudEmbeds(d.byok.embeddings.mode === "cloud");
+        if (d.byok.embeddings.mode === "cloud")
+          setEmbedModel(d.byok.embeddings.model);
+      }
+    } catch {
+      /* section stays in its quiet default */
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh() is async; state settles after the fetch, not synchronously
+    void refresh();
+  }, []);
+
+  const byokActive = info?.byok?.enabled ?? false;
+  const host = (() => {
+    try {
+      return new URL(baseUrl).hostname;
+    } catch {
+      return "the provider";
+    }
+  })();
+
+  async function save(enabled: boolean) {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await fetch("/api/settings/provider", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          enabled,
+          base_url: baseUrl.trim(),
+          api_key: apiKey.trim() === "" ? "__keep__" : apiKey.trim(),
+          synthesis_model: model.trim(),
+          embeddings: cloudEmbeds
+            ? { mode: "cloud", model: embedModel.trim() }
+            : { mode: "local" },
+        }),
+      });
+      if (!r.ok) {
+        const d = (await r.json().catch(() => null)) as {
+          error?: { message?: string };
+        } | null;
+        setError(
+          d?.error?.message ??
+            "The key check failed. Verify the endpoint, key and model name.",
+        );
+        return;
+      }
+      setEditing(false);
+      setApiKey("");
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function forget() {
+    setBusy(true);
+    setError(null);
+    try {
+      await fetch("/api/settings/provider", { method: "DELETE" });
+      setEditing(false);
+      setApiKey("");
+      setBaseUrl("https://openrouter.ai/api/v1");
+      setModel("");
+      setCloudEmbeds(false);
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="eyebrow">Language model</h2>
+
+      {loading && !editing && (
+        <p className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-fade max-w-[520px]">
+          Checking…
+        </p>
+      )}
+
+      {!loading && !byokActive && !editing && (
+        <>
+          <p className="p-body max-w-[520px]">
+            Heirloom runs on this device. Questions, answers, tags and photo
+            captions are handled by Gemma&nbsp;4 through Ollama — nothing is
+            sent anywhere.
+          </p>
+          <div>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => setEditing(true)}
+            >
+              Use a cloud model instead…
+            </button>
+          </div>
+        </>
+      )}
+
+      {byokActive && !editing && info?.byok && (
+        <div className="rounded-[12px] border border-rule p-4 bg-bg-raised flex flex-col gap-2 max-w-[520px]">
+          <p className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted">
+            Your key · {info.byok.api_key_masked}
+          </p>
+          <p className="font-serif text-[16px] text-ink leading-snug">
+            {info.byok.synthesis_model}
+          </p>
+          <p className="text-[13px] leading-[1.6] text-ink-soft">
+            via {(() => { try { return new URL(info.byok.base_url).hostname; } catch { return info.byok.base_url; } })()} ·
+            embeddings {info.byok.embeddings.mode === "cloud"
+              ? `in the cloud (${info.byok.embeddings.model})`
+              : "stay on this device"}
+          </p>
+          <div className="flex gap-2 mt-1">
+            <button type="button" className="btn-ghost" onClick={() => setEditing(true)}>
+              Change
+            </button>
+            <button type="button" className="btn-ghost" onClick={forget} disabled={busy}>
+              Forget key &amp; go local
+            </button>
+          </div>
+        </div>
+      )}
+
+      {editing && (
+        <div className="rounded-[12px] border border-rule p-4 bg-bg-raised flex flex-col gap-3 max-w-[520px]">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="provider-endpoint" className="eyebrow text-[9px]">Endpoint</label>
+            <input
+              id="provider-endpoint"
+              type="url"
+              value={baseUrl}
+              onChange={(e) => setBaseUrl(e.target.value)}
+              placeholder="https://openrouter.ai/api/v1"
+              className="font-mono text-[13px] text-ink bg-transparent outline-none border-b border-rule focus:border-ink py-1"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="provider-api-key" className="eyebrow text-[9px]">API key</label>
+            <input
+              id="provider-api-key"
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder={info?.byok ? `saved · ${info.byok.api_key_masked}` : "sk-…"}
+              autoComplete="off"
+              className="font-mono text-[13px] text-ink bg-transparent outline-none border-b border-rule focus:border-ink py-1"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="provider-model" className="eyebrow text-[9px]">Model</label>
+            <input
+              id="provider-model"
+              type="text"
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              placeholder="google/gemma-3-27b-it"
+              className="font-mono text-[13px] text-ink bg-transparent outline-none border-b border-rule focus:border-ink py-1"
+            />
+          </div>
+
+          <label className="flex items-start gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={cloudEmbeds}
+              onChange={(e) => setCloudEmbeds(e.target.checked)}
+              className="mt-1"
+            />
+            <span className="text-[13px] leading-[1.6] text-ink-soft">
+              Also run embeddings in the cloud. Off by default — the local
+              embedding model is a small, fast download, and keeping it local
+              means your whole archive text is never uploaded for indexing.
+            </span>
+          </label>
+          {cloudEmbeds && (
+            <div className="flex flex-col gap-1 pl-6">
+              <label htmlFor="provider-embed-model" className="eyebrow text-[9px]">Embedding model</label>
+              <input
+                id="provider-embed-model"
+                type="text"
+                value={embedModel}
+                onChange={(e) => setEmbedModel(e.target.value)}
+                placeholder="text-embedding-3-small"
+                className="font-mono text-[13px] text-ink bg-transparent outline-none border-b border-rule focus:border-ink py-1"
+              />
+              <p className="text-[12.5px] leading-[1.6] text-wax">
+                Changing the embedding model requires re-indexing the archive
+                (scripts/reindex-embeddings.ts) before search works again.
+              </p>
+            </div>
+          )}
+
+          <div
+            className="rounded-[10px] border p-3"
+            style={{
+              borderColor: "rgba(125,42,26,0.25)",
+              background: "rgba(125,42,26,0.05)",
+            }}
+          >
+            <p className="text-[13px] leading-[1.65] text-ink-soft">
+              With a key saved, this leaves your device and is sent to{" "}
+              <strong className="text-ink">{host}</strong>: your questions and
+              the archive passages they match, whenever you ask the archive
+              something; each photo, at the moment it is captioned; and note
+              text, when it is tagged.
+              {cloudEmbeds
+                ? " With cloud embeddings on, the full text of every memory is also sent once for indexing."
+                : ` Recordings, transcription, your voice, and the archive index are never sent to ${host} — they stay on this device, travelling only inside the encrypted archive you choose to hand to someone.`}
+            </p>
+          </div>
+
+          {error && (
+            <p className="text-[13px] leading-[1.6] text-wax">{error}</p>
+          )}
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="btn"
+              disabled={busy || !model.trim() || (!apiKey.trim() && !info?.byok)}
+              onClick={() => save(true)}
+            >
+              {busy ? "Checking the key…" : "Check & use this model"}
+            </button>
+            <button
+              type="button"
+              className="btn-ghost"
+              disabled={busy}
+              onClick={() => {
+                setEditing(false);
+                setError(null);
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function VaultSection() {
   return (
     <section className="flex flex-col gap-6">
@@ -822,7 +1135,7 @@ function VaultSection() {
           Export the entire archive as a single passphrase-encrypted
           <code className="font-mono text-[13px] text-ink mx-1">.hloom</code>
           file, or import a bundle someone shared with you. The bundle is
-          self-contained - argon2id + ChaCha20-Poly1305 over a gzipped JSON
+          self-contained &mdash; argon2id + ChaCha20-Poly1305 over a gzipped JSON
           snapshot of every row and blob.
         </p>
       </div>
@@ -886,10 +1199,11 @@ function ExportPanel() {
         The passphrase encrypts the bundle. Whoever imports it later needs
         the same words.
       </p>
-      <label className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted">
+      <label htmlFor="export-passphrase" className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted">
         Passphrase
       </label>
       <input
+        id="export-passphrase"
         type="password"
         value={passphrase}
         onChange={(e) => setPassphrase(e.target.value)}
@@ -968,14 +1282,15 @@ function ImportPanel() {
       <h3 className="font-serif text-[17px] text-ink">Import</h3>
       <p className="p-meta">
         Drop a <code className="font-mono">.hloom</code> bundle here.
-        Existing captures in this vault are preserved - imported rows are
+        Existing captures in this vault are preserved &mdash; imported rows are
         merged in.
       </p>
 
-      <label className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted">
+      <label htmlFor="import-bundle" className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted">
         Bundle
       </label>
       <input
+        id="import-bundle"
         type="file"
         accept=".hloom,application/json"
         onChange={(e) => {
@@ -992,10 +1307,11 @@ function ImportPanel() {
         </p>
       )}
 
-      <label className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted mt-2">
+      <label htmlFor="import-passphrase" className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-muted mt-2">
         Passphrase
       </label>
       <input
+        id="import-passphrase"
         type="password"
         value={passphrase}
         onChange={(e) => setPassphrase(e.target.value)}
@@ -1069,15 +1385,12 @@ type SelfieState =
   | { kind: "error"; message: string; preview?: string };
 
 function SelfieSection() {
+  // Initial state is already "checking", so the mount effect only has to
+  // resolve it — no synchronous setState needed.
   const [state, setState] = useState<SelfieState>({ kind: "checking" });
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    refresh();
-  }, []);
-
-  async function refresh() {
-    setState({ kind: "checking" });
+  const refresh = async () => {
     try {
       const r = await fetch("/api/onboarding/self", { cache: "no-store" });
       const d = (await r.json()) as { has_embedding?: boolean };
@@ -1085,7 +1398,12 @@ function SelfieSection() {
     } catch {
       setState({ kind: "no-photo" });
     }
-  }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh() is async; state settles after the fetch, not synchronously
+    void refresh();
+  }, []);
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -1207,6 +1525,7 @@ type VoiceState =
   | { kind: "idle" }
   | { kind: "checking" }
   | { kind: "unavailable"; reason: string }
+  | { kind: "hosted" }
   | { kind: "no-profile" }
   | { kind: "have-profile"; duration_ms: number | null; created_at: string }
   | { kind: "recording"; durationMs: number }
@@ -1220,16 +1539,7 @@ function VoiceSection() {
   const chunksRef = useRef<Blob[]>([]);
   const startedAtRef = useRef<number>(0);
 
-  useEffect(() => {
-    refresh();
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function refresh() {
-    setState({ kind: "checking" });
+  const refresh = async () => {
     try {
       const r = await fetch("/api/voice/profile", { cache: "no-store" });
       const data = (await r.json()) as {
@@ -1239,7 +1549,12 @@ function VoiceSection() {
           created_at: string;
         } | null;
         tts_available: boolean;
+        hosted?: boolean;
       };
+      if (data.hosted) {
+        setState({ kind: "hosted" });
+        return;
+      }
       if (!data.tts_available) {
         setState({
           kind: "unavailable",
@@ -1262,7 +1577,16 @@ function VoiceSection() {
         reason: "Couldn't reach the voice engine.",
       });
     }
-  }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh() is async; state settles after the fetch, not synchronously
+    void refresh();
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function startRecording() {
     try {
@@ -1319,7 +1643,8 @@ function VoiceSection() {
       });
       return;
     }
-    refresh();
+    setState({ kind: "checking" });
+    void refresh();
   }
 
   async function playSample() {
@@ -1345,7 +1670,7 @@ function VoiceSection() {
       <h2 className="eyebrow">Your voice</h2>
       <p className="p-body max-w-[520px]">
         Heirloom can read your archive aloud in your own voice. Record the
-        short passage below - once. Future captures, letters, and reflection
+        short passage below — once. Future captures, letters, and reflection
         sources can be played back in your voice on demand.
       </p>
 
@@ -1357,13 +1682,30 @@ function VoiceSection() {
           Your recording stays on this device. We use it to clone the timbre
           of your voice so the archive can read your own words aloud later.
           The system <strong>never</strong> generates new sentences in your
-          voice - only your actual writing, recordings, and the verbatim
+          voice — only your actual writing, recordings, and the verbatim
           source text behind a Reflection answer.
         </p>
       </details>
 
       {state.kind === "checking" && (
         <p className="p-meta">Checking the voice engine…</p>
+      )}
+
+      {state.kind === "hosted" && (
+        <div className="rounded-[12px] border border-rule-soft p-4 max-w-[560px] bg-paper">
+          <p className="p-meta mb-2">
+            Voice is made on your device.
+          </p>
+          <p className="p-meta max-w-[480px]">
+            Recording, transcription, and cloning all run on your own device -
+            never a cloud service. Your voice reaches the people you choose
+            only inside the end-to-end-encrypted archive you hand them; it is
+            never uploaded to a server in between. This hosted demo runs in the
+            cloud, so it leaves voice out on purpose. Install the free macOS
+            app to record in your own voice — the rest of the archive works
+            exactly the same.
+          </p>
+        </div>
       )}
 
       {state.kind === "unavailable" && (
@@ -1377,7 +1719,7 @@ function VoiceSection() {
             bash &quot;/Applications/Heirloom.app/Contents/Resources/tts/install-tts.sh&quot;
           </pre>
           <p className="p-meta mt-2">
-            After it finishes, quit and relaunch Heirloom - the voice
+            After it finishes, quit and relaunch Heirloom — the voice
             sidecar will auto-start.
           </p>
         </div>
@@ -1395,7 +1737,7 @@ function VoiceSection() {
             </button>
             <button
               type="button"
-              className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-fade hover:text-ink underline"
+              className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink-fade hover:text-ink underline inline-block py-2"
               onClick={() => setState({ kind: "no-profile" })}
             >
               Re-record
@@ -1409,6 +1751,11 @@ function VoiceSection() {
         state.kind === "uploading" ||
         state.kind === "error") && (
         <div className="flex flex-col gap-4 max-w-[560px]">
+          <p className="p-meta">
+            Somewhere quiet, at your natural pace &mdash; about twenty seconds.
+            Let your voice do what it normally does; that&rsquo;s what makes it
+            sound like you.
+          </p>
           <blockquote className="font-serif italic text-[17px] leading-[1.5] text-ink-soft border-l-2 border-rule pl-4 text-wrap-pretty">
             “{VOICE_SCRIPT}”
           </blockquote>
@@ -1429,7 +1776,6 @@ function VoiceSection() {
             )}
 
             {previewUrl && state.kind !== "recording" && (
-              // eslint-disable-next-line jsx-a11y/media-has-caption
               <audio src={previewUrl} controls className="h-8" />
             )}
           </div>

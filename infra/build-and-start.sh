@@ -56,7 +56,9 @@ done
 ok "migrations applied"
 
 # 4. heirloom/gemma4-grounded variant ------------------------------------
-if [[ -f /opt/heirloom/app/Modelfile ]]; then
+# Only when Ollama is installed (the self-host path). The hosted demo runs
+# Azure OpenAI and has no Ollama, so this is skipped there.
+if [[ -f /opt/heirloom/app/Modelfile ]] && command -v ollama >/dev/null 2>&1; then
   heading "Building heirloom/gemma4-grounded"
   cd /opt/heirloom/app
   sudo -u ollama ollama create heirloom/gemma4-grounded -f Modelfile >/dev/null

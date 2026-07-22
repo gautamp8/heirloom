@@ -8,7 +8,8 @@ import {
 import argon2 from "argon2";
 import type { Session } from "./auth";
 import { sqlAdmin, vec } from "./db";
-import { resolveBlob } from "./storage";
+import { readBlob, resolveBlob } from "./storage";
+import { describeProvider } from "./provider";
 
 /**
  * .hloom wire format. A UTF-8 JSON envelope wrapping base64 ciphertext
@@ -192,7 +193,7 @@ export async function exportVault(
   }
   for (const url of blobUrls) {
     try {
-      const data = await fs.readFile(resolveBlob(url));
+      const data = await readBlob(url);
       blobs[url] = data.toString("base64");
     } catch (e) {
       console.warn("[export] missing blob", url, e);
@@ -301,6 +302,13 @@ export async function importVault(
   session: Session,
 ): Promise<ImportSummary> {
   if (session.role !== "creator") throw new Error("creator_only");
+  // The hosted demo has no persistent disk and, more to the point, is a
+  // public server: decrypting someone's private .hloom onto it defeats the
+  // local-first guarantee. Import stays a local-app feature where the
+  // archive never leaves the device.
+  if ((await describeProvider()).profile === "hosted-demo") {
+    throw new Error("import_is_local_only");
+  }
   if (!sqlAdmin) throw new Error("admin_db_unavailable");
   if (!passphrase || passphrase.trim().length < 6) {
     throw new Error("passphrase_too_short");
@@ -327,19 +335,41 @@ export async function importVault(
     throw new Error("unsupported_algorithm");
   }
 
+  // Hostile-input posture: .hloom files are untrusted, even from a
+  // "friend" who also hands over the passphrase. The KDF cost parameters
+  // are read from the file, so an attacker could set them to demand
+  // gigabytes of argon2 memory (an OOM DoS on the importer). Clamp them
+  // to a generous ceiling above what export() ever produces (64 MiB /
+  // t=3 / p=4) before any allocation happens.
+  const kdfMem = env.kdf.memory_kib;
+  const kdfTime = env.kdf.time;
+  const kdfPar = env.kdf.parallelism;
+  const kdfLen = env.kdf.hash_length;
+  if (
+    !Number.isInteger(kdfMem) || kdfMem < 8 * 1024 || kdfMem > 256 * 1024 ||
+    !Number.isInteger(kdfTime) || kdfTime < 1 || kdfTime > 10 ||
+    !Number.isInteger(kdfPar) || kdfPar < 1 || kdfPar > 8 ||
+    !Number.isInteger(kdfLen) || kdfLen !== KEY_LEN
+  ) {
+    throw new Error("bundle_kdf_params_out_of_range");
+  }
+
   const salt = Buffer.from(env.kdf.salt, "base64");
   const nonce = Buffer.from(env.cipher.nonce, "base64");
   const aad = Buffer.from(env.cipher.aad, "base64");
   const ciphertext = Buffer.from(env.ciphertext, "base64");
   const tag = Buffer.from(env.tag, "base64");
+  if (salt.length < 8 || nonce.length !== NONCE_LEN || tag.length !== TAG_LEN) {
+    throw new Error("bundle_crypto_fields_malformed");
+  }
 
   const key = (await argon2.hash(passphrase.trim(), {
     type: argon2.argon2id,
     salt,
-    memoryCost: env.kdf.memory_kib,
-    timeCost: env.kdf.time,
-    parallelism: env.kdf.parallelism,
-    hashLength: env.kdf.hash_length,
+    memoryCost: kdfMem,
+    timeCost: kdfTime,
+    parallelism: kdfPar,
+    hashLength: kdfLen,
     raw: true,
   })) as unknown as Buffer;
 
@@ -358,8 +388,14 @@ export async function importVault(
     throw new Error("decryption_failed_wrong_passphrase_or_tampered");
   }
 
+  // Decompression-bomb guard: a small authenticated ciphertext can gunzip
+  // to something enormous. Cap the inflated size (256 MB is well above a
+  // real archive: media travels as separate base64 blobs already counted
+  // against the ciphertext size, and this is the JSON snapshot).
+  const MAX_INFLATED = 256 * 1024 * 1024;
+  const plaintextBuf = gunzipSync(compressed, { maxOutputLength: MAX_INFLATED });
   const plaintext = JSON.parse(
-    gunzipSync(compressed).toString("utf8"),
+    plaintextBuf.toString("utf8"),
   ) as VaultPlaintext;
 
   const rows = {
@@ -379,31 +415,42 @@ export async function importVault(
     voice_profiles: plaintext.rows.voice_profiles ?? [],
   };
 
-  // Wipe everything in the target vault that we're about to overwrite.
-  // Order respects FK cascades: child rows first, then parents.
-  await sqlAdmin.begin(async (tx) => {
-    await tx`DELETE FROM voice_profiles      WHERE vault_id = ${session.vault_id}`;
-    await tx`DELETE FROM executor_credentials WHERE vault_id = ${session.vault_id}`;
-    await tx`DELETE FROM sealed_letters      WHERE vault_id = ${session.vault_id}`;
-    await tx`DELETE FROM life_events         WHERE vault_id = ${session.vault_id}`;
-    await tx`DELETE FROM face_appearances    WHERE vault_id = ${session.vault_id}`;
-    await tx`DELETE FROM nominee_releases    WHERE vault_id = ${session.vault_id}`;
-    // captures cascade clears transcripts, transcript_chunks, capture_tags.
-    await tx`DELETE FROM captures            WHERE vault_id = ${session.vault_id}`;
-    await tx`DELETE FROM people              WHERE vault_id = ${session.vault_id}`;
-    await tx`DELETE FROM nominees            WHERE vault_id = ${session.vault_id}`;
-  });
-
   const counts: Record<string, number> = {};
+  const writtenBlobs: string[] = [];
 
-  await sqlAdmin.begin(async (tx) => {
-    // 1) Blobs land in the storage tree under fresh names.
+  // Atomic import: the wipe and the re-insert share ONE transaction, so a
+  // failure mid-insert rolls the whole thing back — the creator's existing
+  // vault is never left emptied-but-not-repopulated. Blob files are
+  // written to disk inside the transaction and cleaned up on rollback
+  // (filesystem writes aren't transactional, so we track and undo them).
+  try {
+    await sqlAdmin.begin(async (tx) => {
+      // Wipe everything in the target vault. Order respects FK cascades:
+      // child rows first, then parents.
+      await tx`DELETE FROM voice_profiles      WHERE vault_id = ${session.vault_id}`;
+      await tx`DELETE FROM executor_credentials WHERE vault_id = ${session.vault_id}`;
+      await tx`DELETE FROM sealed_letters      WHERE vault_id = ${session.vault_id}`;
+      await tx`DELETE FROM life_events         WHERE vault_id = ${session.vault_id}`;
+      await tx`DELETE FROM face_appearances    WHERE vault_id = ${session.vault_id}`;
+      await tx`DELETE FROM nominee_releases    WHERE vault_id = ${session.vault_id}`;
+      // captures cascade clears transcripts, transcript_chunks, capture_tags.
+      await tx`DELETE FROM captures            WHERE vault_id = ${session.vault_id}`;
+      await tx`DELETE FROM people              WHERE vault_id = ${session.vault_id}`;
+      await tx`DELETE FROM nominees            WHERE vault_id = ${session.vault_id}`;
+
+    // 1) Blobs land in the storage tree under fresh names. The extension
+    //    comes from an untrusted blob_url, so sanitize it exactly as
+    //    writeBlob() does — otherwise "x.png/../../../etc/y" would be a
+    //    path-traversal write primitive through resolveBlob().
     const blobNameMap: Record<string, string> = {};
     for (const [oldUrl, b64] of Object.entries(plaintext.blobs ?? {})) {
-      const ext = oldUrl.split(".").pop() ?? "bin";
+      const rawExt = oldUrl.split(".").pop() ?? "bin";
+      const ext = rawExt.replace(/[^a-z0-9]/gi, "").slice(0, 10) || "bin";
       const newName = `imported-${randomBytes(8).toString("hex")}.${ext}`;
       const newUrl = `storage/blobs/${newName}`;
-      await fs.writeFile(resolveBlob(newUrl), Buffer.from(b64, "base64"));
+      const abs = resolveBlob(newUrl);
+      await fs.writeFile(abs, Buffer.from(b64, "base64"));
+      writtenBlobs.push(abs);
       blobNameMap[oldUrl] = newUrl;
     }
     counts.blobs = Object.keys(blobNameMap).length;
@@ -717,7 +764,15 @@ export async function importVault(
       UPDATE vaults SET onboarded_at = COALESCE(onboarded_at, now())
       WHERE id = ${session.vault_id}
     `;
-  });
+    });
+  } catch (err) {
+    // Roll back the blob files the failed transaction wrote, so a torn
+    // import doesn't leave orphaned media on disk.
+    await Promise.all(
+      writtenBlobs.map((p) => fs.unlink(p).catch(() => {})),
+    );
+    throw err;
+  }
 
   return { vault_id: session.vault_id, counts };
 }

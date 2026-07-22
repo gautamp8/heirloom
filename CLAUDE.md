@@ -190,7 +190,7 @@ The application functions offline / local-first whenever possible. Privacy is a 
 
 ## Deployment Posture
 
-Heirloom is **local-first by default**. The two supported local paths are the dev server (`./install.sh` + `pnpm dev`) for contributors, and the **macOS .app bundle** for everyone else. The Tauri shell is built by `desktop/scripts/package.sh` and ships a self-contained Node server, the same SQL schema running on SQLite + sqlite-vec, a code-signed whisper-cpp with `ggml-base.en` baked in, and a small splash that pivots to the embedded server on an ephemeral port. Voice-cloning is opt-in (run `Contents/Resources/tts/install-tts.sh` once to drop the LuxTTS venv at `~/Library/Application Support/Heirloom/tts/`). The shell auto-spawns whichever sidecars are present and silently re-syncs `server.py` from the bundle on each launch so DMG updates carry through.
+Heirloom is **local-first by default**. The two supported local paths are the dev server (`./install.sh` + `pnpm dev`) for contributors, and the **macOS .app bundle** for everyone else. The Tauri shell is built by `desktop/scripts/package.sh` and ships a self-contained Node server, the same SQL schema running on SQLite + sqlite-vec, a code-signed whisper-cpp with `ggml-small.en` baked in, and a small splash that pivots to the embedded server on an ephemeral port. Voice-cloning is opt-in (run `Contents/Resources/tts/install-tts.sh` once to drop the LuxTTS venv at `~/Library/Application Support/Heirloom/tts/`). The shell auto-spawns whichever sidecars are present and silently re-syncs `server.py` from the bundle on each launch so DMG updates carry through.
 
 Two other deployment shapes are supported, in this order of preference:
 

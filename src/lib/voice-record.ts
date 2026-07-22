@@ -64,6 +64,11 @@ function mixToMono(buffer: AudioBuffer): Float32Array {
   return out;
 }
 
-/** ~12-15 seconds at a calm pace. Long enough for stable timbre,
- *  short enough that the read doesn't feel like a chore. */
-export const VOICE_SCRIPT = `Sometimes I think about the things I'd want to tell you when you're older - the smell of the kitchen on a Sunday morning, the porch light at five, the way we always made room for one more.`;
+/** ~20-25 seconds at a calm pace. The TTS model encodes at most the first
+ *  15s of the recording, so a slightly longer read guarantees it always
+ *  gets its full window regardless of pace — and the extra length lets the
+ *  voice move through a bit of range (a statement, a question, a warm
+ *  close) instead of one flat line, which captures a more expressive
+ *  timbre. This on-screen script is the single biggest zero-cost lever on
+ *  clone quality, so it's written to be easy and natural to read aloud. */
+export const VOICE_SCRIPT = `Sometimes I think about the things I'd want to tell you when you're older. The smell of the kitchen on a Sunday morning. The porch light on at five. The way we always made room for one more at the table. Do you remember the summer it rained for a week and we read every book in the house? I do. I hope, wherever you are when you hear this, that you know how much you were loved.`;

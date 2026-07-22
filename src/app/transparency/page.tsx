@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { readSession } from "@/lib/auth";
 import { withRls } from "@/lib/db";
 import { REFLECTION_SIMILARITY_THRESHOLD } from "@/lib/reflection";
+import { describeProvider, retrievalFloor } from "@/lib/provider";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,11 @@ export default async function TransparencyPage() {
   const session = await readSession();
   if (!session) redirect("/portal");
 
+  const provider = await describeProvider().catch(() => null);
+  const activeFloor = await retrievalFloor().catch(
+    () => REFLECTION_SIMILARITY_THRESHOLD,
+  );
+
   const rows = await withRls(session.user_id, session.role, async (tx) => {
     return tx<Row[]>`
       SELECT id, question, grounded, answer_json, created_at
@@ -57,7 +63,7 @@ export default async function TransparencyPage() {
           What Heirloom <em>decided.</em>
         </h1>
         <p className="p-body max-w-[560px] mb-10">
-          Every Reflection query Heirloom answered - or refused - and why. The
+          Every Reflection query Heirloom answered — or refused — and why. The
           grounding gate, the citation check, the first-person scrubber: all
           visible. Nothing leaves the model unsupervised.
         </p>
@@ -71,22 +77,24 @@ export default async function TransparencyPage() {
           <ul className="flex flex-col gap-2 font-serif text-[15px] leading-[1.5] text-ink-soft">
             <li>
               <strong className="font-medium text-ink">1. Retrieval first.</strong> Every
-              question is embedded with EmbeddingGemma and matched against the
-              archive&rsquo;s 768-dim vector index before the language model is
-              touched.
+              question is embedded with{" "}
+              <code className="font-mono text-[13px]">
+                {provider?.embedding ?? "the local embedding model"}
+              </code>{" "}
+              and matched against the archive&rsquo;s 768-dim vector index
+              before the language model is touched.
             </li>
             <li>
               <strong className="font-medium text-ink">2. Similarity threshold.</strong>{" "}
               If the top chunk falls below cosine{" "}
-              <code className="font-mono text-[13px]">
-                {REFLECTION_SIMILARITY_THRESHOLD}
-              </code>
-              , the empty state is served verbatim. The model is never called.
+              <code className="font-mono text-[13px]">{activeFloor}</code>, the
+              empty state is served verbatim. The model is never called. The
+              floor is calibrated per embedding model.
             </li>
             <li>
-              <strong className="font-medium text-ink">3. Citation validator.</strong> Every
-              streamed claim&rsquo;s citations are checked against the retrieved
-              set. Anything outside it is rejected.
+              <strong className="font-medium text-ink">3. Citation validator.</strong>{" "}
+              Every streamed claim&rsquo;s citations are checked against the
+              retrieved set. Anything outside it is rejected.
             </li>
             <li>
               <strong className="font-medium text-ink">4. First-person scrubber.</strong>{" "}
@@ -153,11 +161,7 @@ function ReflectionAudit({ row }: { row: Row }) {
 
       {/* Decision pipeline */}
       <ol className="flex flex-col gap-2.5 mb-4">
-        <Step
-          label="Embedded"
-          ok
-          detail="Query → EmbeddingGemma 768-dim vector"
-        />
+        <Step label="Embedded" ok detail="Query → 768-dim vector" />
         <Step
           label={`Retrieved ${d.retrieved_count ?? 0} chunks`}
           ok={(d.retrieved_count ?? 0) > 0}
@@ -172,7 +176,7 @@ function ReflectionAudit({ row }: { row: Row }) {
           ok={passedGate}
           detail={
             passedGate
-              ? "Top similarity ≥ threshold - proceed to synthesis"
+              ? "Top similarity ≥ threshold — proceed to synthesis"
               : `Top similarity ${top?.toFixed(3) ?? "0"} < ${(threshold as number).toFixed(2)} → empty state, model NOT called`
           }
         />
@@ -192,7 +196,7 @@ function ReflectionAudit({ row }: { row: Row }) {
               ok={rejected !== "first_person"}
               detail={
                 rejected === "first_person"
-                  ? 'Answer used "I" or "my" outside quotes - refused'
+                  ? 'Answer used "I" or "my" outside quotes — refused'
                   : "Answer stays in third person about the archive"
               }
             />

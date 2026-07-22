@@ -34,10 +34,16 @@ On launch the shell:
    spawns the LuxTTS voice-cloning sidecar on `127.0.0.1:11435`.
    Otherwise voice features stay disabled - text, photo, retrieval
    all work unchanged.
-4. Spawns the bundled Node + Next.js server on `127.0.0.1:3000` with
-   `HEIRLOOM_BACKEND=sqlite`.
-5. Opens a WKWebView at the placeholder page, which polls
-   `/api/health` and pivots to the portal once it answers.
+4. Spawns the bundled Node + Next.js server with
+   `HEIRLOOM_BACKEND=sqlite` on the first free port from a fixed
+   candidate set (`47384-47387`) that the splash page also knows.
+5. Opens a WKWebView at the bundled splash page. On first run the
+   splash walks the user through the one-time model download - it
+   drives Ollama's `/api/pull` directly and renders per-model
+   progress (size, rate, ETA), then builds the grounded model
+   variant. Once the models are present it probes the candidate
+   ports for `/api/health` and pivots to the live app. No terminal
+   involved at any point.
 6. On exit, SIGTERMs all children so they don't outlive the window.
 
 ## Optional: voice cloning
@@ -73,14 +79,71 @@ Requires:
 Output:
 
 ```
-desktop/src-tauri/target/release/bundle/dmg/Heirloom.dmg     (~92 MB)
-desktop/src-tauri/target/release/bundle/macos/Heirloom.app   (~214 MB)
+desktop/src-tauri/target/release/bundle/dmg/Heirloom_0.2.0_aarch64.dmg
+desktop/src-tauri/target/release/bundle/dmg/Heirloom.dmg     (same file, stable name)
+desktop/src-tauri/target/release/bundle/macos/Heirloom.app
 ```
 
-The first-run user still needs to pull the models - the shell points
-`OLLAMA_MODELS` at the app-data dir, so a one-shot
-`ollama pull gemma4:e4b` from inside the app's terminal (or a future
-in-app pull screen) populates the cache.
+The script builds only the `.app` via Tauri, then assembles the DMG
+with `hdiutil` (no Finder/AppleScript, so it works headless — Tauri's
+built-in create-dmg step does not). The DMG is a plain drag-to-
+`/Applications` layout.
+
+## Signing + notarization (the 10-minute credential step)
+
+The unsigned DMG runs after the right-click → Open Gatekeeper dance. To
+ship a DMG that opens with a double-click, code-sign with a Developer ID
+and notarize. Everything is prepared; this needs only an Apple Developer
+account and an app-specific password.
+
+Prerequisites (one time): an Apple Developer ID Application certificate
+in the login keychain, and an app-specific password stored as a notary
+profile:
+
+```bash
+xcrun notarytool store-credentials heirloom-notary \
+  --apple-id "you@example.com" \
+  --team-id "YOURTEAMID" \
+  --password "app-specific-password"
+```
+
+Then, after `package.sh` produces the `.app`:
+
+```bash
+APP="desktop/src-tauri/target/release/bundle/macos/Heirloom.app"
+IDENTITY="Developer ID Application: Your Name (YOURTEAMID)"
+
+# 1. Sign inside-out (sidecars + dylibs first, then the app) with the
+#    hardened runtime and Heirloom's entitlements. --deep is deprecated;
+#    sign the nested Mach-O explicitly.
+for bin in "$APP"/Contents/MacOS/* "$APP"/Contents/Resources/server/node_modules/**/*.node; do
+  [ -f "$bin" ] && codesign --force --timestamp --options runtime \
+    --entitlements desktop/src-tauri/entitlements.plist \
+    --sign "$IDENTITY" "$bin" 2>/dev/null || true
+done
+codesign --force --timestamp --options runtime \
+  --entitlements desktop/src-tauri/entitlements.plist \
+  --sign "$IDENTITY" "$APP"
+
+# 2. Re-run stage 6 of package.sh (or just re-hdiutil) to wrap the SIGNED
+#    .app into the DMG, then notarize + staple the DMG.
+xcrun notarytool submit \
+  "desktop/src-tauri/target/release/bundle/dmg/Heirloom.dmg" \
+  --keychain-profile heirloom-notary --wait
+xcrun stapler staple \
+  "desktop/src-tauri/target/release/bundle/dmg/Heirloom.dmg"
+```
+
+`entitlements.plist` grants exactly the hardened-runtime exceptions the
+bundled sidecars need (JIT for Node, library-validation off so the
+ad-hoc-signed whisper dylibs and the spawned Ollama/whisper binaries
+load) and nothing more — see the comments in that file.
+
+First-run model downloads happen inside the app: the splash screen
+pulls `gemma4:e4b` and `embeddinggemma` through Ollama's REST API
+with visible progress, into the app-data `OLLAMA_MODELS` dir. The
+pull is resumable - quitting mid-download and reopening picks up
+where it left off.
 
 ## Iterating on the shell
 

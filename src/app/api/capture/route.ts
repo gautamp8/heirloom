@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { withRls } from "@/lib/db";
 import { writeBlob } from "@/lib/storage";
 import { runCapturePipeline } from "@/lib/pipeline";
@@ -10,6 +11,10 @@ import {
 } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
+// The response returns in 202, but the ingest pipeline (caption + embed
+// via the cloud provider) runs in after() and is bounded by the function
+// duration, so give it room on Vercel.
+export const maxDuration = 60;
 
 const MAX_AUDIO_BYTES = 50 * 1024 * 1024; // 50 MB hard cap
 
@@ -26,14 +31,24 @@ const MAX_AUDIO_BYTES = 50 * 1024 * 1024; // 50 MB hard cap
 export async function POST(req: Request) {
   try {
     const session = await requireSession();
+    // Only creators add to an archive. RLS already blocks a nominee INSERT,
+    // but check up front so a nominee gets a clean 403 instead of a 500 —
+    // and, on the media path, so we never write a blob to disk for a write
+    // the database is going to reject.
+    if (session.role !== "creator") {
+      throw new HttpError(403, "creator_only");
+    }
     const ct = req.headers.get("content-type") ?? "";
 
     const capture_id = ct.startsWith("multipart/form-data")
       ? await commitMedia(req, session)
       : await commitNote(req, session);
 
-    // Detached - fires the pipeline and returns immediately
-    void runCapturePipeline(capture_id, session);
+    // Detached - fires the pipeline and returns immediately. `after()`
+    // keeps the work alive past the response on serverless (Vercel Fluid
+    // Compute freezes the instance otherwise); on a long-running server it
+    // simply runs after the response, same as a bare promise.
+    after(() => runCapturePipeline(capture_id, session));
 
     return Response.json({ capture_id, status: "processing" }, { status: 202 });
   } catch (err) {

@@ -1,20 +1,709 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Heirloom</title>
     <style>
-      html, body { height: 100%; margin: 0; background: #FAF7F0; font-family: -apple-system, system-ui, sans-serif; color: #4A3A2A; }
-      .center { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 8px; }
-      .name { font-style: italic; font-size: 22px; opacity: 0.85; }
-      .hint { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.55; }
+      @font-face {
+        font-family: "Source Serif 4";
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url("./fonts/source-serif-4-400-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Source Serif 4";
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+        src: url("./fonts/source-serif-4-500-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Source Serif 4";
+        font-style: italic;
+        font-weight: 400;
+        font-display: swap;
+        src: url("./fonts/source-serif-4-400-italic.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Geist";
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url("./fonts/geist-400-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Geist";
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+        src: url("./fonts/geist-500-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Geist";
+        font-style: normal;
+        font-weight: 600;
+        font-display: swap;
+        src: url("./fonts/geist-600-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "JetBrains Mono";
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+        src: url("./fonts/jetbrains-mono-500-normal.woff2") format("woff2");
+      }
+
+      :root {
+        --paper: #faf7f0;
+        --paper-2: #f2ebdb;
+        --paper-3: #e8dfc8;
+        --ink: #1f1b14;
+        --ink-soft: #4a4338;
+        --ink-muted: #8c8472;
+        --ink-fade: #9c9075;
+        --rule: rgba(31, 27, 20, 0.10);
+        --rule-soft: rgba(31, 27, 20, 0.06);
+        --wax: #7d2a1a;
+        --wax-dark: #5c1f12;
+        --serif: "Source Serif 4", Georgia, serif;
+        --sans: "Geist", ui-sans-serif, -apple-system, system-ui, sans-serif;
+        --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 14px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        overflow: hidden;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      .app {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 32px 40px;
+      }
+
+      .card {
+        max-width: 520px;
+        width: 100%;
+        text-align: center;
+      }
+
+      .seal {
+        width: 72px;
+        height: 72px;
+        margin: 0 auto 18px;
+        display: block;
+        object-fit: contain;
+      }
+
+      h1 {
+        font-family: var(--serif);
+        font-weight: 400;
+        font-size: 32px;
+        letter-spacing: -0.01em;
+        margin: 0 0 8px;
+        color: var(--ink);
+      }
+
+      .tagline {
+        font-family: var(--serif);
+        font-style: italic;
+        font-weight: 400;
+        font-size: 15px;
+        color: var(--ink-muted);
+        margin: 0 0 22px;
+      }
+
+      .body {
+        font-size: 14.5px;
+        line-height: 1.65;
+        color: var(--ink-soft);
+        margin: 0 0 22px;
+        text-align: left;
+      }
+
+      .meta {
+        font-size: 11px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--ink-fade);
+        margin: 0 0 10px;
+      }
+
+      .row {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      button {
+        font: inherit;
+        font-size: 14px;
+        border-radius: 999px;
+        padding: 11px 22px;
+        border: 1px solid transparent;
+        cursor: pointer;
+        background: transparent;
+        color: var(--ink);
+        transition: background 120ms ease, border-color 120ms ease, transform 100ms ease;
+      }
+      button:active { transform: translateY(1px); }
+
+      .btn-primary {
+        background: var(--ink);
+        color: var(--paper);
+        border-color: var(--ink);
+      }
+      .btn-primary:hover { background: #2c2618; }
+
+      .btn-secondary {
+        border-color: var(--rule);
+        color: var(--ink-soft);
+      }
+      .btn-secondary:hover { background: var(--paper-2); }
+
+      .model-list {
+        text-align: left;
+        background: var(--paper-2);
+        border: 1px solid var(--rule);
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin: 0 0 16px;
+      }
+
+      .model-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--rule-soft);
+        font-size: 13.5px;
+      }
+      .model-row:last-child { border-bottom: 0; }
+
+      .model-name { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; color: var(--ink); }
+      .model-purpose { color: var(--ink-muted); font-size: 12.5px; }
+      .model-size { color: var(--ink-soft); font-variant-numeric: tabular-nums; font-size: 12.5px; }
+
+      .totals {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        padding-top: 10px;
+        margin-top: 4px;
+        border-top: 1px solid var(--rule);
+        font-size: 13px;
+      }
+      .totals .label { color: var(--ink-muted); letter-spacing: 0.06em; text-transform: uppercase; font-size: 10.5px; }
+      .totals .value { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+      .pull-card {
+        text-align: left;
+        background: var(--paper-2);
+        border: 1px solid var(--rule);
+        border-radius: 12px;
+        padding: 16px 18px;
+        margin: 0 0 14px;
+      }
+
+      .pull-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+      .pull-name { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; color: var(--ink); }
+      .pull-status { font-size: 12px; color: var(--ink-muted); }
+
+      .bar {
+        background: var(--paper-3);
+        border-radius: 999px;
+        height: 6px;
+        overflow: hidden;
+        margin: 6px 0 8px;
+      }
+      .bar > span {
+        display: block;
+        height: 100%;
+        background: var(--ink);
+        width: 0%;
+        border-radius: 999px;
+        transition: width 200ms ease;
+      }
+      .pull-done .bar > span { background: #1e6e3a; }
+
+      .pull-stats {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11.5px;
+        color: var(--ink-fade);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .hint {
+        font-size: 12px;
+        color: var(--ink-fade);
+        margin: 14px 0 0;
+        text-align: center;
+      }
+
+      .error {
+        text-align: left;
+        background: #fbf0ec;
+        border: 1px solid #e6c8c0;
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin: 0 0 14px;
+        color: var(--wax-dark);
+        font-size: 13.5px;
+      }
+      .error code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+
+      .spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid var(--rule);
+        border-top-color: var(--ink-soft);
+        border-radius: 50%;
+        display: inline-block;
+        animation: spin 0.9s linear infinite;
+        vertical-align: -2px;
+        margin-right: 8px;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      .hide { display: none !important; }
     </style>
   </head>
   <body>
-    <div class="center">
-      <div class="name">Heirloom</div>
-      <div class="hint">Starting up…</div>
+    <div class="app">
+      <div class="card" id="root">
+        <img class="seal" src="./seal.png" alt="" />
+        <h1>Heirloom</h1>
+        <div class="tagline">Preserve presence across generations.</div>
+        <div id="screen"></div>
+      </div>
     </div>
+
+    <script>
+      // ---- Tauri bridge -------------------------------------------------
+      // The .app's Node server binds to a port from a small known set
+      // (see lib.rs `pick_known_port`). The splash probes the same set
+      // and uses whichever responds with our expected health payload.
+      // This avoids depending on Tauri's IPC from a plain HTML page,
+      // which is unreliable in v2 release builds.
+      const SERVER_PORTS = [47384, 47385, 47386, 47387];
+      function tauri() { return window.__TAURI_INTERNALS__; }
+      async function invoke(name, args) {
+        const t = tauri();
+        if (!t) throw new Error("not running inside tauri");
+        return t.invoke(name, args || {});
+      }
+      async function quitApp() {
+        try { await invoke("quit_app"); } catch (_) { window.close(); }
+      }
+
+      // ---- Required models ---------------------------------------------
+      const REQUIRED = [
+        {
+          id: "gemma4:e4b",
+          purpose: "Story synthesis and photo captions",
+          sizeBytes: 9_637_485_568, // ~9.6 GB
+        },
+        {
+          id: "embeddinggemma",
+          purpose: "Retrieval over your archive",
+          sizeBytes: 621_345_792, // ~621 MB
+        },
+      ];
+
+      const OLLAMA = "http://127.0.0.1:11434";
+
+      function bytes(n) {
+        if (!Number.isFinite(n) || n < 0) return "—";
+        if (n < 1024) return n + " B";
+        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+        if (n < 1024 * 1024 * 1024) return (n / (1024 * 1024)).toFixed(1) + " MB";
+        return (n / (1024 * 1024 * 1024)).toFixed(2) + " GB";
+      }
+      function eta(remaining, bps) {
+        if (!Number.isFinite(remaining) || !Number.isFinite(bps) || bps <= 0) return "—";
+        const secs = remaining / bps;
+        if (secs < 90) return Math.max(1, Math.round(secs)) + "s";
+        if (secs < 3600) return Math.round(secs / 60) + "m";
+        const h = Math.floor(secs / 3600);
+        const m = Math.round((secs - h * 3600) / 60);
+        return h + "h " + m + "m";
+      }
+
+      // ---- Screens ------------------------------------------------------
+      const screen = document.getElementById("screen");
+      function render(html) { screen.innerHTML = html; }
+
+      function welcomeScreen({ skippable, onContinue }) {
+        render(`
+          <p class="body">
+            Heirloom is a private memory archive. You record voice notes, photographs,
+            and short letters; the people you name can revisit them on a device they own.
+            Nothing leaves your computer.
+          </p>
+          <p class="body">
+            It is built on Gemma 4, running locally through Ollama. Before the app opens,
+            two models need to download to your machine. That download happens once.
+          </p>
+          <div class="row">
+            <button class="btn-primary" id="next">Continue</button>
+            ${skippable ? '<button class="btn-secondary" id="skip">Skip intro</button>' : ""}
+          </div>
+        `);
+        document.getElementById("next").onclick = onContinue;
+        if (skippable) {
+          const el = document.getElementById("skip");
+          if (el) el.onclick = onContinue;
+        }
+      }
+
+      function modelsNeededScreen({ missing, onDownload, onQuit }) {
+        const total = missing.reduce((s, m) => s + m.sizeBytes, 0);
+        const rows = missing
+          .map(
+            (m) => `
+            <div class="model-row">
+              <div>
+                <div class="model-name">${m.id}</div>
+                <div class="model-purpose">${m.purpose}</div>
+              </div>
+              <div class="model-size">${bytes(m.sizeBytes)}</div>
+            </div>`,
+          )
+          .join("");
+        render(`
+          <p class="meta">One-time setup</p>
+          <p class="body">
+            Heirloom needs to download the local model weights it runs on. They are stored at
+            <code style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px;">~/.ollama/models</code>
+            and reused across launches. Make sure you have at least
+            <strong>${bytes(total * 1.15)}</strong> of free disk space.
+          </p>
+          <div class="model-list">
+            ${rows}
+            <div class="totals">
+              <span class="label">Total download</span>
+              <span class="value">${bytes(total)}</span>
+            </div>
+          </div>
+          <div class="row">
+            <button class="btn-primary" id="download">Download models</button>
+            <button class="btn-secondary" id="quit">Quit</button>
+          </div>
+          <p class="hint">Roughly ten minutes on a fast connection.</p>
+        `);
+        document.getElementById("download").onclick = onDownload;
+        document.getElementById("quit").onclick = onQuit;
+      }
+
+      function progressScreen({ models }) {
+        const cards = models
+          .map(
+            (m) => `
+            <div class="pull-card" id="pull-${cssId(m.id)}">
+              <div class="pull-header">
+                <div class="pull-name">${m.id}</div>
+                <div class="pull-status">queued</div>
+              </div>
+              <div class="bar"><span></span></div>
+              <div class="pull-stats">
+                <span class="downloaded">0 B / ${bytes(m.sizeBytes)}</span>
+                <span class="rate">—</span>
+              </div>
+            </div>`,
+          )
+          .join("");
+        render(`
+          <p class="meta">Downloading</p>
+          <p class="body" style="text-align: center;">
+            <span class="spinner"></span>
+            Models are streaming to <code style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px;">~/.ollama/models</code>.
+            You can close this window and resume later; the pull will pick up where it left off.
+          </p>
+          ${cards}
+          <p class="hint" id="phase">Starting…</p>
+        `);
+      }
+
+      function startingScreen(text) {
+        render(`
+          <p class="body" style="text-align: center;">
+            <span class="spinner"></span>${text || "Starting Heirloom…"}
+          </p>
+        `);
+      }
+
+      function errorScreen({ title, detail, retry }) {
+        render(`
+          <div class="error">
+            <strong>${title}</strong><br/>
+            <span style="color: var(--ink-soft);">${detail}</span>
+          </div>
+          <div class="row">
+            <button class="btn-primary" id="retry">Retry</button>
+            <button class="btn-secondary" id="quit">Quit</button>
+          </div>
+        `);
+        document.getElementById("retry").onclick = retry;
+        document.getElementById("quit").onclick = quitApp;
+      }
+
+      function cssId(s) { return s.replace(/[^a-z0-9]/gi, "_"); }
+
+      // ---- Ollama orchestration ----------------------------------------
+      async function waitForOllama({ timeoutMs = 90_000 } = {}) {
+        const deadline = Date.now() + timeoutMs;
+        while (Date.now() < deadline) {
+          try {
+            const r = await fetch(OLLAMA + "/api/version", { cache: "no-store" });
+            if (r.ok) return true;
+          } catch (_) {}
+          await sleep(700);
+        }
+        return false;
+      }
+
+      async function listInstalledModels() {
+        const r = await fetch(OLLAMA + "/api/tags", { cache: "no-store" });
+        if (!r.ok) return [];
+        const j = await r.json();
+        return (j.models || []).map((m) => m.name);
+      }
+
+      function modelInstalled(tags, id) {
+        return tags.some((t) => t === id || t.startsWith(id + ":") || t.startsWith(id));
+      }
+
+      async function pullModel(id, onProgress) {
+        const r = await fetch(OLLAMA + "/api/pull", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model: id, stream: true }),
+        });
+        if (!r.ok || !r.body) {
+          const text = await r.text().catch(() => "");
+          throw new Error(`ollama pull ${id} returned ${r.status}: ${text || "no body"}`);
+        }
+        const reader = r.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          let nl;
+          while ((nl = buf.indexOf("\n")) >= 0) {
+            const line = buf.slice(0, nl).trim();
+            buf = buf.slice(nl + 1);
+            if (!line) continue;
+            try {
+              const j = JSON.parse(line);
+              onProgress(j);
+              if (j.error) throw new Error(j.error);
+            } catch (e) {
+              if (e && e.message && !e.message.startsWith("Unexpected")) throw e;
+            }
+          }
+        }
+      }
+
+      async function buildGrounded() {
+        // Best-effort: if the modelfile content is known, create the grounded
+        // variant locally. We use ollama's REST create with a from-reference,
+        // not a full modelfile, so this is light. Failures are non-fatal:
+        // the live app falls back to gemma4:e4b directly.
+        try {
+          await fetch(OLLAMA + "/api/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: "heirloom/gemma4-grounded",
+              from: "gemma4:e4b",
+              system:
+                "You are the curator of a personal memory archive. Speak only about content present in the retrieved excerpts you are shown. Use archival third person. Never invent details. If retrieval returns nothing relevant, reply exactly: I don't have that in the archive. Try asking another way?",
+              stream: false,
+            }),
+          });
+        } catch (_) { /* non-fatal */ }
+      }
+
+      // Probe each candidate port. Treat a response as "Heirloom's
+      // own server" only when the payload includes the synthesis flag
+      // (so a stray Next.js dev server on the same port doesn't get
+      // mistaken for ours).
+      async function probeOnce(port) {
+        try {
+          const r = await fetch(`http://127.0.0.1:${port}/api/health`, { cache: "no-store" });
+          if (!r.ok) return null;
+          const j = await r.json().catch(() => null);
+          if (j && j.ollama && typeof j.ollama.synthesisAvailable !== "undefined") {
+            return `http://127.0.0.1:${port}`;
+          }
+        } catch (_) {}
+        return null;
+      }
+      async function discoverServer({ timeoutMs = 180_000 } = {}) {
+        const deadline = Date.now() + timeoutMs;
+        while (Date.now() < deadline) {
+          for (const port of SERVER_PORTS) {
+            const url = await probeOnce(port);
+            if (url) return url;
+          }
+          await sleep(500);
+        }
+        return null;
+      }
+
+      function sleep(ms) { return new Promise((res) => setTimeout(res, ms)); }
+
+      // ---- Flow ---------------------------------------------------------
+      const SETUP_FLAG = "heirloom.setupSeenV1";
+
+      async function flow() {
+        // 1. Wait for Ollama to be reachable
+        startingScreen("Waking up the local model runtime…");
+        const ollamaUp = await waitForOllama({ timeoutMs: 60_000 });
+        if (!ollamaUp) {
+          errorScreen({
+            title: "Ollama didn't start.",
+            detail:
+              "Heirloom bundles Ollama, but the daemon on 127.0.0.1:11434 isn't responding. Quit and reopen the app, or report this on GitHub.",
+            retry: flow,
+          });
+          return;
+        }
+
+        // 2. Check which models are present
+        const tags = await listInstalledModels();
+        const missing = REQUIRED.filter((m) => !modelInstalled(tags, m.id));
+
+        if (missing.length === 0) {
+          startingScreen("Starting Heirloom…");
+          // Make sure the grounded variant exists too (cheap if it already does)
+          await buildGrounded();
+          await handoff();
+          return;
+        }
+
+        // 3. Show welcome + consent
+        const showIntro =
+          missing.length > 0 && localStorage.getItem(SETUP_FLAG) !== "true";
+
+        const proceedToModels = () => {
+          modelsNeededScreen({
+            missing,
+            onDownload: async () => {
+              localStorage.setItem(SETUP_FLAG, "true");
+              await runPulls(missing);
+            },
+            onQuit: quitApp,
+          });
+        };
+
+        if (showIntro) {
+          welcomeScreen({ skippable: false, onContinue: proceedToModels });
+        } else {
+          proceedToModels();
+        }
+      }
+
+      async function runPulls(missing) {
+        progressScreen({ models: missing });
+        const phase = document.getElementById("phase");
+
+        for (let i = 0; i < missing.length; i++) {
+          const m = missing[i];
+          if (phase) phase.textContent = `Model ${i + 1} of ${missing.length}: ${m.id}`;
+          const card = document.getElementById("pull-" + cssId(m.id));
+          const statusEl = card.querySelector(".pull-status");
+          const barEl = card.querySelector(".bar > span");
+          const dlEl = card.querySelector(".downloaded");
+          const rateEl = card.querySelector(".rate");
+
+          // Smoothed rate over a short window
+          const sample = { lastTime: Date.now(), lastBytes: 0, rate: 0 };
+
+          try {
+            await pullModel(m.id, (evt) => {
+              if (evt.status) statusEl.textContent = evt.status;
+              if (typeof evt.total === "number" && typeof evt.completed === "number") {
+                const pct = Math.max(0, Math.min(100, (evt.completed / evt.total) * 100));
+                barEl.style.width = pct.toFixed(1) + "%";
+                const now = Date.now();
+                const dt = (now - sample.lastTime) / 1000;
+                if (dt > 0.4) {
+                  const inst = (evt.completed - sample.lastBytes) / dt;
+                  sample.rate = sample.rate === 0 ? inst : sample.rate * 0.6 + inst * 0.4;
+                  sample.lastTime = now;
+                  sample.lastBytes = evt.completed;
+                }
+                const remaining = Math.max(0, evt.total - evt.completed);
+                dlEl.textContent = `${bytes(evt.completed)} / ${bytes(evt.total)}  ·  ${pct.toFixed(0)}%`;
+                rateEl.textContent = sample.rate > 0
+                  ? `${bytes(sample.rate)}/s  ·  ${eta(remaining, sample.rate)} left`
+                  : "—";
+              }
+            });
+            card.classList.add("pull-done");
+            statusEl.textContent = "done";
+            barEl.style.width = "100%";
+            rateEl.textContent = "complete";
+          } catch (err) {
+            errorScreen({
+              title: `Couldn't download ${m.id}.`,
+              detail: String(err && err.message ? err.message : err) +
+                " — check your internet connection and retry.",
+              retry: flow,
+            });
+            return;
+          }
+        }
+
+        if (phase) phase.textContent = "Preparing the grounded model…";
+        await buildGrounded();
+
+        if (phase) phase.textContent = "Starting Heirloom…";
+        await handoff();
+      }
+
+      async function handoff() {
+        const url = await discoverServer({ timeoutMs: 180_000 });
+        if (!url) {
+          errorScreen({
+            title: "Heirloom's local server didn't come up.",
+            detail:
+              "The models are installed but the bundled Node server isn't responding on any expected port. Quit and reopen the app.",
+            retry: flow,
+          });
+          return;
+        }
+        window.location.replace(url);
+      }
+
+      // Kick off
+      flow();
+    </script>
   </body>
 </html>
