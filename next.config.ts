@@ -20,7 +20,13 @@ const nextConfig: NextConfig = {
   // (passphrase hashing) loads on the server path too. Externalized so the
   // bundler leaves their .node binaries for the runtime to load, and NFT
   // traces the correct platform prebuild on Vercel.
-  serverExternalPackages: ["better-sqlite3", "sqlite-vec", "argon2"],
+  // sharp is here for a second reason: nothing in Heirloom imports it —
+  // it is Next's image optimizer dependency — but once it was pinned to
+  // >=0.35.3 (to clear a high-severity libvips advisory) the tracer
+  // pulled its platform packages into route bundles, which split enough
+  // routes into their own lambdas to blow past Vercel's 12-function cap.
+  // Externalizing keeps it out of the bundles.
+  serverExternalPackages: ["better-sqlite3", "sqlite-vec", "argon2", "sharp"],
   // Standalone output bundles only the deps Heirloom actually needs into
   // .next/standalone/, so the Tauri .dmg can ship the server without
   // dragging a full node_modules tree. It is deliberately NOT used on
