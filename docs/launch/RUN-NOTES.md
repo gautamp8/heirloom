@@ -5,6 +5,68 @@ Working notes for the launch-readiness run (started 2026-07-07, branch
 this file holds the queue of things only Gautam can do, plus decisions
 worth remembering.
 
+## BLOCKED — demo redeploys hit Vercel's Hobby function cap (2026-07-22)
+
+**The live demo is fine.** `demo.withheirloom.app` is healthy and serving
+the last successful deployment, which includes the whole screen-perfection
+pass. What is blocked is shipping *further* updates to it.
+
+Every deploy now fails at the deploy step (the build itself succeeds):
+
+> No more than 12 Serverless Functions can be added to a Deployment on
+> the Hobby plan. Create a team (Pro plan) to deploy more.
+
+This is a platform-side change, not our code, and the evidence is
+conclusive: commit `b10bdf5` deployed successfully as a preview at ~16:40,
+and roughly an hour later a tree **byte-identical** to it on the app
+surface (`git diff b10bdf5 HEAD -- src/ public/ next.config.ts
+package.json pnpm-lock.yaml` is empty; `/marketing` is in `.vercelignore`)
+was rejected. Vercel's build image also moved to CLI 56.5.0 mid-session.
+The app sits exactly at the 12-function cap, so there is no headroom.
+
+Things tried, all rejected, all since reverted because they only ever
+existed to buy room:
+- Consolidating routes: favicon to `public/` (a route becomes a static
+  asset), `/api/vault/{export,import}` and the portal's bundle import
+  behind one `[op]` segment, and `/api/transcribe` + `/api/voice/clone`
+  behind another. Local `vercel build` went 14 → 10 functions; the remote
+  count did not follow, because the remote tree differs (it has
+  `NEXT_PUBLIC_HEIRLOOM_DEMO_NOTICE` set).
+- Toggling `output: "standalone"` off for Vercel, and externalizing sharp.
+
+**[HUMAN] Decision needed.** Moving the project to a Pro plan (~$20/mo)
+unblocks it with no code change and gives headroom. The alternative is
+the original WS6 plan — a small VM — for which `infra/vm-setup.sh` still
+works. Note the GOAL budget is <$25/mo all-in, so Pro consumes most of it.
+
+Two things are parked behind that decision:
+1. **sharp <0.35.0** (GHSA-f88m-g3jw-g9cj, high) stays unpinned in the
+   app — pinning it was one of the changes that tipped the cap. Exposure
+   on the demo is minimal: nothing in Heirloom imports sharp (it is
+   Next's image-optimizer dependency) and Vercel optimizes images on its
+   own infrastructure. The pin **is** applied to the marketing site,
+   which deploys separately and is not function-capped. `pnpm audit`
+   there is clean; the app's reports this one advisory.
+2. **The demo banner's 0.30 cumulative layout shift.** Lighthouse on the
+   demo scores accessibility / best-practices / SEO 100 and fails only
+   CLS, because the banner is inserted after hydration and pushes the
+   page down. The fix (server-render it, apply per-session dismissal via
+   a pre-paint script) is written and was reverted for the same reason.
+   It affects **only** the demo: the shipped product renders no banner,
+   so there is no shift for real users.
+
+## Marketing site is not deployed yet (2026-07-22)
+
+`withheirloom.app` (Vercel project `heirloom`, root directory
+`marketing`) is **git-integrated and deploys from `master`**. All the WS7
+marketing work plus this run's honesty and accessibility fixes are
+committed on `launch-ready`, so the live site is still the pre-run
+version — it has the old "Nothing leaves your device" hero, no animated
+envelope, and no demo link. It goes live when `launch-ready` merges to
+`master`, which GOAL gates on Gautam's review. Verified locally against
+the dev server: animated envelope with the real seal, honest hero and
+privacy copy, working demo CTA, and the mobile device-frame fix.
+
 ## WS6 hosted demo — LIVE on Vercel + Neon + Azure (2026-07-08)
 
 **LIVE and verified end-to-end:**
