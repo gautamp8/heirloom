@@ -267,6 +267,13 @@ body {
   color: var(--color-ink);
 }
 
+/* Demo banner, dismissed for this session. The banner is server-rendered so
+   it never shifts layout; a pre-paint script in the layout stamps this
+   attribute, and this rule hides the banner before it can flash. */
+html[data-demo-banner-dismissed="1"] [data-demo-banner] {
+  display: none;
+}
+
 /* Keyboard focus — visible ring on every interactive control (buttons, the
    mono underline "link-buttons", inputs, links, summaries). Mouse clicks
    don't trigger :focus-visible, so it stays invisible for pointer users. */

@@ -1,38 +1,27 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-
-const STORAGE_KEY = "heirloom-demo-banner-dismissed";
-const DISMISS_EVENT = "heirloom-demo-banner-dismissed";
-
-function subscribe(onChange: () => void) {
-  window.addEventListener(DISMISS_EVENT, onChange);
-  return () => window.removeEventListener(DISMISS_EVENT, onChange);
-}
-
-function readDismissed() {
-  try {
-    return sessionStorage.getItem(STORAGE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
+export const DEMO_BANNER_STORAGE_KEY = "heirloom-demo-banner-dismissed";
+export const DEMO_BANNER_DISMISSED_ATTR = "data-demo-banner-dismissed";
 
 /**
  * Sticky banner shown on the public Sagan demo deployment so visitors
- * know the latencies are constrained and the host is not their own.
- * Rendered only when `NEXT_PUBLIC_HEIRLOOM_DEMO_NOTICE` is set; users
- * can dismiss it per browser session.
+ * know the host is not their own. Rendered only when
+ * `NEXT_PUBLIC_HEIRLOOM_DEMO_NOTICE` is set; dismissible per session.
+ *
+ * It renders on the SERVER so the first paint already includes it — an
+ * earlier version hid it until hydration, which inserted a ~180px block
+ * at the top of the page after load and cost 0.30 cumulative layout
+ * shift on the demo. Per-session dismissal is applied instead by a tiny
+ * pre-paint script in the layout, which stamps
+ * `data-demo-banner-dismissed` on <html>; globals.css hides the banner
+ * on that attribute. So a returning visitor gets no flash AND no shift.
  */
 export function DemoBanner({ enabled }: { enabled: boolean }) {
-  // Server snapshot says "hidden" so the banner never flashes during
-  // hydration; the client snapshot reads the real per-session dismissal.
-  const hidden = useSyncExternalStore(subscribe, readDismissed, () => true);
-
-  if (!enabled || hidden) return null;
+  if (!enabled) return null;
 
   return (
     <div
+      data-demo-banner=""
       role="region"
       aria-label="Demo notice"
       style={{
@@ -82,11 +71,14 @@ export function DemoBanner({ enabled }: { enabled: boolean }) {
           type="button"
           onClick={() => {
             try {
-              sessionStorage.setItem(STORAGE_KEY, "1");
+              sessionStorage.setItem(DEMO_BANNER_STORAGE_KEY, "1");
             } catch {
               /* ignore */
             }
-            window.dispatchEvent(new Event(DISMISS_EVENT));
+            document.documentElement.setAttribute(
+              DEMO_BANNER_DISMISSED_ATTR,
+              "1",
+            );
           }}
           aria-label="Dismiss demo notice"
           style={{

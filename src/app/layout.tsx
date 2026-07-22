@@ -71,6 +71,21 @@ export default function RootLayout({
       className={`${sourceSerif.variable} ${geist.variable} ${jetbrainsMono.variable}`}
       suppressHydrationWarning
     >
+      {DEMO_NOTICE && (
+        <head>
+          {/* Applies the per-session demo-banner dismissal BEFORE first
+              paint. The banner itself is server-rendered (so it costs no
+              layout shift); this hides it for someone who already
+              dismissed it, without a flash. */}
+          <script
+            dangerouslySetInnerHTML={{
+              __html:
+                "try{if(sessionStorage.getItem('heirloom-demo-banner-dismissed')==='1')" +
+                "document.documentElement.setAttribute('data-demo-banner-dismissed','1')}catch(e){}",
+            }}
+          />
+        </head>
+      )}
       <body className="min-h-dvh bg-paper text-ink" suppressHydrationWarning>
         <MotionProvider>
           <DemoBanner enabled={DEMO_NOTICE} />
