@@ -5,6 +5,42 @@ Working notes for the launch-readiness run (started 2026-07-07, branch
 this file holds the queue of things only Gautam can do, plus decisions
 worth remembering.
 
+## What is left, and exactly why (2026-07-22)
+
+Everything mechanizable is done. These five need something only Gautam
+can supply — not effort, but an input:
+
+1. **Notarization.** Needs a Developer ID certificate and app-specific
+   password in the keychain. The DMG is built and verified,
+   `entitlements.plist` grants the right hardened-runtime exceptions,
+   and `RELEASE-v0.2.0.md` has the checksum and the exact
+   codesign/notarytool/gh commands.
+2. **PWA install + push on real hardware.** Needs a human tapping "Add
+   to Home Screen" and "Allow" on an iOS/Android device. The
+   programmatic half is done and verified live: the precache list holds
+   only stable paths, and the update lifecycle now busts caches per
+   deploy.
+3. **The voice listening test.** `infra/tts-server/sweep.py` is already
+   turnkey — one command clones each reference voice and renders the
+   same sentence across num_steps / guidance / return_smooth into
+   labeled files with a latency table. The knobs are env-configurable
+   (`HEIRLOOM_TTS_STEPS`, `_GUIDANCE`, `_SMOOTH`) so applying the winner
+   needs no code edit. Running it needs the LuxTTS venv
+   (`install-tts.sh`, a multi-GB one-time download) and the judgement
+   needs ears. Expected sweet spot per the notes in server.py: 16-24
+   steps.
+4. **The 60-90s narrated demo video.** WS8 asks for a screen recording
+   of a real archive, narrated, "one take energy, flaw kept in" — a
+   performance. Two supporting artifacts are rendered and committed:
+   `media/heirloom-overview.mp4` (the remotion motion piece, 20s) and
+   `media/heirloom-walkthrough.mp4` (23s of the real product screens
+   with crossfades, usable as B-roll under narration). A live screen
+   recording could not be captured here: macOS `screencapture` returns
+   "could not create image from display" without a Screen Recording
+   permission grant.
+5. **Posting to Show HN.** `SHOW-HN.md` holds the post, the first
+   comment, and answers to the four objections.
+
 ## WS5 PWA — update lifecycle fixed; video artifact rendered (2026-07-22)
 
 **Service-worker cache busting was genuinely broken**, exactly as WS5
