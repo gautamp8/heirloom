@@ -34,7 +34,15 @@ const nextConfig: NextConfig = {
   ...(process.env.VERCEL
     ? {
         outputFileTracingExcludes: {
-          "*": ["node_modules/sharp/**", "node_modules/@img/**"],
+          // pnpm keeps the real files under node_modules/.pnpm/<pkg>@<ver>/,
+          // with node_modules/<pkg> only a symlink into it, so a plain
+          // "node_modules/sharp/**" glob matches nothing.
+          "*": [
+            "**/node_modules/sharp/**",
+            "**/node_modules/@img/**",
+            "**/.pnpm/sharp@*/**",
+            "**/.pnpm/@img+*/**",
+          ],
         },
       }
     : {}),
