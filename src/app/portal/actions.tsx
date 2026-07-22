@@ -52,7 +52,7 @@ export function PortalActions() {
       const fd = new FormData();
       fd.append("file", bundle);
       fd.append("passphrase", bundlePass);
-      const r = await fetch("/api/portal/import", {
+      const r = await fetch("/api/vault/adopt", {
         method: "POST",
         body: fd,
       });
