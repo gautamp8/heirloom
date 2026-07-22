@@ -67,7 +67,16 @@ export async function POST(req: Request) {
                 SELECT display_name FROM users
                 WHERE id = (SELECT creator_id FROM vaults WHERE id = ${session.vault_id})
               `;
-              return user;
+              // Names belonging to the archive itself. They recur all
+              // through it, so they must not be what a question grounds
+              // on — see hasLexicalOverlap.
+              const named = await tx<{ name: string }[]>`
+                SELECT display_name AS name FROM people
+                WHERE vault_id = ${session.vault_id}
+                UNION
+                SELECT name FROM nominees WHERE vault_id = ${session.vault_id}
+              `;
+              return { ...user, archive_names: named.map((n) => n.name) };
             },
           );
 
@@ -124,7 +133,11 @@ export async function POST(req: Request) {
           // keyword overlap. Either one means the chunk is plausibly
           // about the question; downstream LLM + citation guards still
           // collapse to empty state if no real claim can be made.
-          const lexicalHit = hasLexicalOverlap(question, chunks);
+          const archiveNames = [
+            meta?.display_name,
+            ...(meta?.archive_names ?? []),
+          ].filter((n): n is string => Boolean(n));
+          const lexicalHit = hasLexicalOverlap(question, chunks, archiveNames);
           const grounded =
             chunks.length > 0 &&
             (topSim >= floor || lexicalHit);

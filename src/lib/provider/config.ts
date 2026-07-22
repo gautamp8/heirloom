@@ -77,20 +77,42 @@ export type ByokSettings = z.infer<typeof ByokSettingsSchema>;
 
 /** Retrieval floors per embedding identity.
  *
- *  Method: run the WS2 grounding eval set (fixtures/grounding/*.yaml —
- *  must-answer and must-refuse pairs against the Sagan seed) with
- *  `scripts/calibrate-retrieval-floor.ts`, which sweeps the floor and
- *  reports the widest band that keeps every must-refuse refused and every
- *  must-answer grounded. Record the band's midpoint here with the date.
+ *  Method: run the 40-fixture Sagan grounding eval (must-answer,
+ *  must-refuse and safe pairs) against a live instance on the profile
+ *  being calibrated, with `HEIRLOOM_RETRIEVAL_FLOOR` overriding this
+ *  table, and pick the floor that refuses every must-refuse without
+ *  losing a must-answer. The must-answer set survives a high floor
+ *  because the hybrid gate's second leg — lexical overlap — carries the
+ *  questions whose vector match is weak; the floor only has to be high
+ *  enough to stop a topically-adjacent chunk from answering on its own.
  *
- *  embeddinggemma: 0.30 (original calibration, 2026-05: relevant matches
- *  landed 0.24-0.34, unrelated 0.14-0.23 — see reflection.ts history).
+ *  Measured 2026-07-22, both profiles, same fixtures. The bands overlap
+ *  on every embedder tried, which is why the gate is hybrid rather than
+ *  a threshold alone:
+ *
+ *  embeddinggemma (local): must-answer 0.270-0.608, must-refuse
+ *  0.192-0.420. At 0.30, "What did Carl say about his time in
+ *  Antarctica?" matched Apollo/Earth-from-space chunks at 0.420 and
+ *  answered about the Moon instead of refusing — a fabrication on the
+ *  DEFAULT profile. 0.43 sits above that band, so the vector leg can no
+ *  longer carry a topically-adjacent chunk on its own.
+ *
+ *  The cost is one over-refusal: "What was his full name?" retrieves at
+ *  0.270 and its identity chunk does not make the top-5, so it now
+ *  refuses. It had been passing only by accident — its token "full"
+ *  substring-matched inside "wonderfully" before the lexical gate was
+ *  anchored to word starts. Trading a false refusal for a fabrication is
+ *  the direction this contract is meant to fail in.
+ *
+ *  azure/text-embedding-3-small (hosted demo): must-answer 0.225-0.691,
+ *  must-refuse 0.195-0.431. Measured on the live demo, 0.30 already
+ *  refuses every must-refuse — its highest-scoring near-misses
+ *  (identity_born 0.431, antarctica 0.387) are caught downstream by the
+ *  citation validator — so it is left alone rather than raised on
+ *  speculation. Re-measure if the deployment's embedding model changes.
  */
 const RETRIEVAL_FLOORS: Record<string, number> = {
-  "ollama/embeddinggemma@768": 0.3,
-  // PROVISIONAL until the calibration harness has run against the Sagan
-  // eval set on a live deployment — update this entry (and this comment)
-  // with the measured pass-band when it has.
+  "ollama/embeddinggemma@768": 0.43,
   "azure/text-embedding-3-small@768": 0.3,
   "openai/text-embedding-3-small@768": 0.3,
 };

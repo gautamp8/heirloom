@@ -73,7 +73,10 @@ describe("profile resolution", () => {
     });
     expect(p.embeddingDims).toBe(768);
     expect(p.embeddingIdentity).toBe("ollama/embeddinggemma@768");
-    expect(p.retrievalFloor).toBe(0.3);
+    // embeddinggemma was recalibrated to 0.43 on 2026-07-22 — at 0.30 an
+    // Antarctica question matched Apollo chunks at 0.420 and answered
+    // instead of refusing. See RETRIEVAL_FLOORS in provider/config.ts.
+    expect(p.retrievalFloor).toBe(0.43);
   });
 
   it("uncalibrated embedding identity falls back to the default floor", async () => {

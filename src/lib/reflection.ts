@@ -15,9 +15,12 @@ import { z } from "zod";
  *
  *  The LIVE floor is provider-scoped — different embedding models have
  *  different cosine geometry — and comes from `retrievalFloor()` in
- *  src/lib/provider (see RETRIEVAL_FLOORS there). This constant remains
- *  as the embeddinggemma value and the display fallback for reflection
- *  rows recorded before thresholds were stored per-row. */
+ *  src/lib/provider (see RETRIEVAL_FLOORS there, which now carries the
+ *  measured bands for both profiles). embeddinggemma was recalibrated to
+ *  0.43 on 2026-07-22; this constant stays at the original 0.30 purely
+ *  as the display fallback for reflection rows recorded before
+ *  thresholds were stored per-row, so historical rows keep reading with
+ *  the threshold they were actually judged against. */
 export const REFLECTION_SIMILARITY_THRESHOLD = 0.30;
 
 /** Short, generic words ignored when checking for keyword overlap
@@ -34,6 +37,13 @@ const LEXICAL_STOPWORDS = new Set([
   "very","really","much","many","one","two","ever","never","always","things",
   "thing","kind","sort","type","there","here","yes","no","not","can","could",
   "would","should","will","shall","may","might","must","get","got","go","going",
+  // Generic conversational and temporal words. They are substantive by the
+  // length rule but say nothing about topic: "what did he SAY about his
+  // TIME in Antarctica" must not ground on an unrelated chunk that happens
+  // to contain "there was a time when...".
+  "say","says","said","saying","tell","tells","told","talk","talks","talked",
+  "talking","mention","mentions","mentioned","time","times","ask","asked",
+  "anything","everything","something","nothing","someone","anyone","everyone",
 ]);
 
 function tokenize(text: string): string[] {
@@ -44,22 +54,46 @@ function tokenize(text: string): string[] {
     .filter((w) => w.length >= 3 && !LEXICAL_STOPWORDS.has(w));
 }
 
-/** True if any of the question's substantive tokens appear in any
- *  retrieved chunk. Used as the second leg of a hybrid grounding gate:
- *  a query like "anything about wedding?" can sit just under the
- *  vector threshold yet still clearly be about the chunk that contains
- *  the word "wedding". */
+/** True if any of the question's substantive tokens appear as a WHOLE
+ *  WORD in any retrieved chunk. Used as the second leg of a hybrid
+ *  grounding gate: a query like "anything about wedding?" can sit just
+ *  under the vector threshold yet still clearly be about the chunk that
+ *  contains the word "wedding".
+ *
+ *  `ignore` drops names belonging to the archive itself — the creator and
+ *  the people in it. Their names recur throughout their own archive, so
+ *  matching one says nothing about topic: "What did Carl say about his
+ *  time in Antarctica?" grounded on "carl" alone and answered about the
+ *  Moon instead of refusing.
+ *
+ *  Matching anchors at a word start rather than testing a bare
+ *  substring, for the same reason: `includes("time")` also fires on
+ *  "sometimes" and `includes("say")` on "essay". A suffix is still
+ *  allowed, so "name" finds "named". */
 export function hasLexicalOverlap(
   question: string,
   chunks: { text: string }[],
+  ignore?: Iterable<string>,
 ): boolean {
-  const qTokens = tokenize(question);
+  const ignored = new Set(
+    [...(ignore ?? [])].flatMap((name) => tokenize(name)),
+  );
+  const qTokens = tokenize(question).filter((t) => !ignored.has(t));
   if (qTokens.length === 0) return false;
   for (const ch of chunks) {
     const lower = ch.text.toLowerCase();
-    if (qTokens.some((t) => lower.includes(t))) return true;
+    if (qTokens.some((t) => matchesWordStart(lower, t))) return true;
   }
   return false;
+}
+
+/** Matches the token at a WORD START, allowing a suffix — so "name"
+ *  finds "named"/"names" and "wedding" finds "weddings", while "time"
+ *  does NOT fire on "sometimes" and "say" does not fire on "essay",
+ *  which a plain substring test did. */
+function matchesWordStart(haystack: string, token: string): boolean {
+  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}`).test(haystack);
 }
 
 export const EMPTY_STATE_ANSWER =
