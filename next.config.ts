@@ -21,10 +21,14 @@ const nextConfig: NextConfig = {
   // bundler leaves their .node binaries for the runtime to load, and NFT
   // traces the correct platform prebuild on Vercel.
   serverExternalPackages: ["better-sqlite3", "sqlite-vec", "argon2"],
-  // Standalone output bundles only the deps Heirloom actually needs
-  // into .next/standalone/, so the Tauri .dmg can ship the server
-  // without dragging a full node_modules tree.
-  output: "standalone",
+  // Standalone output bundles only the deps Heirloom actually needs into
+  // .next/standalone/, so the Tauri .dmg can ship the server without
+  // dragging a full node_modules tree. It is deliberately NOT used on
+  // Vercel: standalone opts out of Vercel's native route grouping, so
+  // every heavy route became its own lambda and the deployment blew past
+  // the 12-function limit. Vercel builds the default output and groups
+  // them; local and desktop builds still get standalone.
+  output: process.env.VERCEL ? undefined : "standalone",
 };
 
 export default nextConfig;
