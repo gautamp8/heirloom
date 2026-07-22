@@ -75,3 +75,4 @@ docs/eval/
 .vercel
 .env*
 /public/sw.js
+infra/tts-server/sweep-out/

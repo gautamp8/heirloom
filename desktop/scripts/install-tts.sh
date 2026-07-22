@@ -76,7 +76,7 @@ ok "deps installed"
 
 # 5. Smoke-test the import ---------------------------------------------
 heading "Smoke test"
-python -c "import torch, fastapi, soundfile, librosa; print('imports ok')"
+python -c "import torch, fastapi, soundfile, librosa; from zipvoice.luxvoice import LuxTTS; print('imports ok')"
 ok "core imports succeed"
 
 # 6. Write a tiny launcher Heirloom can exec ---------------------------

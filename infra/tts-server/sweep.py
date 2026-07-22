@@ -25,8 +25,11 @@ from pathlib import Path
 import soundfile as sf
 import torch
 
-# The same model class the server uses.
-from luxtts import LuxTTS  # type: ignore
+# The same model class the server uses — see server.py's _ensure_loaded.
+# (An earlier version imported `luxtts`, which does not exist in the
+# venv install-tts.sh builds; the package is `zipvoice`, so the sweep
+# could never actually run.)
+from zipvoice.luxvoice import LuxTTS  # type: ignore
 
 TEST_TEXT = (
     "Look after each other. Say the kind thing out loud while you can. "
@@ -53,7 +56,7 @@ def main() -> None:
 
     device = "mps" if torch.backends.mps.is_available() else "cpu"
     print(f"loading LuxTTS on {device} ...")
-    model = LuxTTS(device=device)
+    model = LuxTTS(model_path="YatharthS/LuxTTS", device=device)
 
     out_root = Path("sweep-out")
     out_root.mkdir(exist_ok=True)
@@ -68,7 +71,7 @@ def main() -> None:
         info = sf.info(str(ref))
         prompt_seconds = max(3.0, min(15.0, info.duration))
         encode_dict = model.encode_prompt(
-            prompt_audio=str(ref), duration=prompt_seconds
+            prompt_audio=str(ref), duration=prompt_seconds, rms=0.01
         )
         for label, steps, guidance, smooth in SETTINGS:
             t0 = time.time()
