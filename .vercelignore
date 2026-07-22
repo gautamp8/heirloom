@@ -4,6 +4,8 @@
 # marketing site's own source out of its deployment, leaving Vercel to
 # build the app and then fail looking for `marketing/.next`.
 /scripts
+# ...except the service-worker stamper, which the build command runs.
+!/scripts/build-sw.mjs
 /tests
 /docs
 /storage
