@@ -5,6 +5,35 @@ Working notes for the launch-readiness run (started 2026-07-07, branch
 this file holds the queue of things only Gautam can do, plus decisions
 worth remembering.
 
+## WS4 desktop — DMG v0.2.0 built and verified (2026-07-22)
+
+`desktop/scripts/package.sh` produced a 516 MB aarch64 DMG
+(`Heirloom.dmg` / `Heirloom_0.2.0_aarch64.dmg`), `hdiutil verify`
+passes, and it was launched from the packaged `.app` to confirm it
+actually works rather than merely building:
+
+- embedded Node server up on port 47384, `/api/health` returns `ok`
+- profile is **local** — Ollama on the machine, `gemma4:e4b` and
+  `embeddinggemma` both resolved; no cloud provider in the shipped app
+- **SQLite migrations applied**: 22 tables in
+  `~/Library/Application Support/app.heirloom.desktop/heirloom.sqlite`,
+  written through WAL while running
+- bundle complete: server (61 MB), `whisper-cli` + dylibs with rpaths
+  rewritten, `ggml-small.en.bin` (465 MB), opt-in TTS installer
+
+Notes, checksum and the exact publish commands are in
+[`RELEASE-v0.2.0.md`](./RELEASE-v0.2.0.md). Signing prerequisites and the
+inside-out `codesign` + `notarytool` sequence were already documented in
+`desktop/README.md`, and `desktop/src-tauri/entitlements.plist` grants
+exactly the hardened-runtime exceptions the sidecars need. So **[HUMAN]**
+here is genuinely only: Developer ID cert + app-specific password, run
+the documented commands, publish.
+
+One thing this surfaced and fixed: `/api/health` reported
+`"postgres": "ok"` even on the desktop app, which runs SQLite. It now
+reports `database: { engine, status }` with the real engine, keeping the
+old key for existing probes.
+
 ## RESOLVED — the Vercel function cap, and the sharp advisory (2026-07-22)
 
 Demo redeploys were failing with `exceeded_serverless_functions_per_deployment`

@@ -1,4 +1,9 @@
 import { sql } from "@/lib/db";
+
+// The desktop bundle runs SQLite, the server runs Postgres. Report
+// which one actually answered rather than labelling both "postgres".
+const DB_ENGINE =
+  process.env.HEIRLOOM_BACKEND === "sqlite" ? "sqlite" : "postgres";
 import { ollamaTags, ollamaVersion } from "@/lib/ollama";
 import { describeProvider, resolveProvider } from "@/lib/provider";
 
@@ -23,6 +28,8 @@ export async function GET() {
     return Response.json(
       {
         ok: false,
+        database: { engine: DB_ENGINE, status: dbOk ? "ok" : "down" },
+        // Retained for existing probes that read this key.
         postgres: dbOk ? "ok" : "down",
         provider: {
           status: "misconfigured",
@@ -61,6 +68,8 @@ export async function GET() {
       {
         ok,
         profile: "local",
+        database: { engine: DB_ENGINE, status: dbOk ? "ok" : "down" },
+        // Retained for existing probes that read this key.
         postgres: dbOk ? "ok" : "down",
         ollama: ollamaUp
           ? {
@@ -88,6 +97,8 @@ export async function GET() {
     {
       ok,
       profile: provider.profile,
+      database: { engine: DB_ENGINE, status: dbOk ? "ok" : "down" },
+      // Retained for existing probes that read this key.
       postgres: dbOk ? "ok" : "down",
       provider: { status: "configured", ...description },
     },
