@@ -77,7 +77,7 @@ export function VoiceInput({
       const wav = await webmBlobToWav(webm);
       const fd = new FormData();
       fd.append("audio", wav, "voice.wav");
-      const r = await fetch("/api/transcribe", { method: "POST", body: fd });
+      const r = await fetch("/api/voice/transcribe", { method: "POST", body: fd });
       if (!r.ok) {
         setState("error");
         setTimeout(() => setState("idle"), 2500);
