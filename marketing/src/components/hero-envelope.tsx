@@ -49,11 +49,11 @@ export function HeroEnvelope() {
       {/* Flap (triangular) — rotates up on --ease-fold. */}
       <div className="he-flap" />
 
-      {/* Seal rides the flap: same pivot, no clip, so it travels up with
-          the flap and reads as "the wax has just released." */}
-      <div className="he-seal-rider">
-        <div className="he-seal" />
-      </div>
+      {/* The wax breaks free of the lifting flap and settles back onto the
+          envelope. Keeping it on the flap meant it rotated away and faded
+          out with it, so the ceremony ended on a bare creased box with the
+          brand mark gone. */}
+      <div className="he-seal" />
     </div>
   );
 }
@@ -154,26 +154,19 @@ const ENV_CSS = `
   transform: rotateX(0deg);
   animation: he-flap-open var(--duration-cinema) var(--ease-fold) 0.9s both;
 }
-.he-seal-rider {
-  position: absolute;
-  top: 130px; left: 0;
-  width: 300px; height: 116px;
-  transform-origin: top center;
-  transform-style: preserve-3d;
-  z-index: 4;
-  pointer-events: none;
-  transform: rotateX(0deg);
-  animation: he-flap-open var(--duration-cinema) var(--ease-fold) 0.9s both;
-}
 .he-seal {
   position: absolute;
   left: 102px;
-  top: 48px;
+  top: 178px;
   width: 96px; height: 96px;
   background: url(/seal-2x.png) center / contain no-repeat;
   filter: drop-shadow(0 4px 6px rgba(0,0,0,0.28));
   transform-origin: center;
-  animation: he-seal-press 0.9s var(--ease-paper) both;
+  z-index: 5;
+  pointer-events: none;
+  animation:
+    he-seal-press 0.9s var(--ease-paper) both,
+    he-seal-settle var(--duration-cinema) var(--ease-paper) 0.9s both;
 }
 
 /* ---- keyframes ------------------------------------------------------- */
@@ -192,15 +185,20 @@ const ENV_CSS = `
   60%  { transform: scale(1.06); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
 }
+@keyframes he-seal-settle {
+  0%   { transform: translateY(0) rotate(0deg); }
+  30%  { transform: translateY(3px) rotate(-3.5deg); }
+  100% { transform: translateY(9px) rotate(-6deg); }
+}
 @keyframes he-fade { to { opacity: 1; } }
 
 /* Reduced motion: no choreography — the letter simply rests open, seal
    pressed, everything at its end state, instantly. */
 @media (prefers-reduced-motion: reduce) {
   .hero-env * { animation: none !important; }
-  .he-flap, .he-seal-rider { transform: rotateX(-180deg); opacity: 0; }
+  .he-flap { transform: rotateX(-180deg); opacity: 0; }
   .he-letter { transform: translateY(-150px) scale(1.02); }
   .he-letter-lines, .he-letter-note { opacity: 1; }
-  .he-seal { transform: scale(1); opacity: 1; }
+  .he-seal { transform: translateY(9px) rotate(-6deg); opacity: 1; }
 }
 `;
