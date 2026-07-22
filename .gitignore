@@ -74,3 +74,4 @@ test-results/
 docs/eval/
 .vercel
 .env*
+/public/sw.js
