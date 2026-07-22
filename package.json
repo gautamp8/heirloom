@@ -3,8 +3,8 @@
   "version": "0.2.0",
   "private": true,
   "scripts": {
-    "dev": "node scripts/build-sw.mjs && next dev -H 0.0.0.0",
-    "build": "node scripts/build-sw.mjs && next build",
+    "dev": "node tools/build-sw.mjs && next dev -H 0.0.0.0",
+    "build": "node tools/build-sw.mjs && next build",
     "start": "next start -H 0.0.0.0",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -15,7 +15,7 @@
     "test:watch": "vitest",
     "test:injection": "vitest run --config vitest.injection.config.ts",
     "test:e2e": "playwright test",
-    "build-sw": "node scripts/build-sw.mjs"
+    "build-sw": "node tools/build-sw.mjs"
   },
   "dependencies": {
     "@ai-sdk/azure": "^3.0.85",
