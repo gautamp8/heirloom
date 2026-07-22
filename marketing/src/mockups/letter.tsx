@@ -17,11 +17,6 @@ export function MockupLetter({ width = 360 }: { width?: number }) {
             <stop offset="0" stopColor="#FBF7EE" />
             <stop offset="1" stopColor="#EBE2CB" />
           </linearGradient>
-          <radialGradient id="wax" cx="0.4" cy="0.35" r="0.7">
-            <stop offset="0" stopColor="#A23F2A" />
-            <stop offset="0.55" stopColor="#7D2A1A" />
-            <stop offset="1" stopColor="#5C1F12" />
-          </radialGradient>
           <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
             <feOffset dy="4" />
@@ -58,48 +53,19 @@ export function MockupLetter({ width = 360 }: { width?: number }) {
         <line x1="20" y1="40" x2="180" y2="140" stroke="rgba(31,27,20,0.06)" />
         <line x1="340" y1="40" x2="180" y2="140" stroke="rgba(31,27,20,0.06)" />
 
-        {/* wax blob */}
-        <g transform="translate(180 142)">
-          <ellipse cx="0" cy="0" rx="32" ry="30" fill="url(#wax)" />
-          {/* drips */}
-          <path
-            d="M-22 18 Q-26 28 -22 34 Q-18 28 -18 22 Z"
-            fill="#5C1F12"
-            opacity="0.85"
-          />
-          <path
-            d="M22 18 Q26 28 22 34 Q18 28 18 22 Z"
-            fill="#5C1F12"
-            opacity="0.85"
-          />
-          {/* embossed H */}
-          <text
-            x="0"
-            y="6"
-            textAnchor="middle"
-            fontFamily="Georgia, serif"
-            fontStyle="italic"
-            fontWeight="400"
-            fontSize="28"
-            fill="#3a1208"
-            opacity="0.55"
-          >
-            H
-          </text>
-          <text
-            x="0"
-            y="4.5"
-            textAnchor="middle"
-            fontFamily="Georgia, serif"
-            fontStyle="italic"
-            fontWeight="400"
-            fontSize="28"
-            fill="#F2ECDD"
-            opacity="0.25"
-          >
-            H
-          </text>
-        </g>
+        {/* The real pressed-wax seal, the same asset the app and the hero
+            envelope use. This was previously drawn from scratch - an
+            ellipse with two "drip" paths and a Georgia-italic H - which
+            read as a flat disc with legs stuck under it and matched
+            nothing else on the site. */}
+        <image
+          href="/seal-2x.png"
+          x="145"
+          y="107"
+          width="70"
+          height="70"
+          preserveAspectRatio="xMidYMid meet"
+        />
 
         {/* inscription */}
         <text
