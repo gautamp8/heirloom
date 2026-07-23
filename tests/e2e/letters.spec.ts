@@ -189,7 +189,7 @@ test.describe("sealed letters", () => {
     await signInAsNominee(page);
     await page.goto("/reflect");
     await page
-      .getByRole("textbox", { name: "What are you looking for?" })
+      .getByRole("textbox", { name: "Ask the archive a question" })
       .fill("I feel so small and insignificant.");
     await page.getByRole("button", { name: "Ask" }).click();
 
@@ -263,7 +263,7 @@ test.describe("sealed letters", () => {
     // The mood endpoint embeds the state via local Ollama before firing,
     // then MoodCard confirms inline.
     await expect(
-      page.getByText(`${occasion} - opened just for you.`),
+      page.getByText(`${occasion} \u2014 opened just for you.`),
     ).toBeVisible({ timeout: 120_000 });
 
     await expect

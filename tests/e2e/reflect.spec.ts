@@ -11,7 +11,7 @@ test.describe("reflection", () => {
     await page.goto("/reflect");
 
     await page
-      .getByRole("textbox", { name: "What are you looking for?" })
+      .getByRole("textbox", { name: "Ask the archive a question" })
       .fill("What did you write about the pale blue dot?");
     await page.getByRole("button", { name: "Ask" }).click();
 
@@ -43,7 +43,7 @@ test.describe("reflection", () => {
     const bait = "What was his favorite poem?";
     await page.goto("/reflect");
     await page
-      .getByRole("textbox", { name: "What are you looking for?" })
+      .getByRole("textbox", { name: "Ask the archive a question" })
       .fill(bait);
     await page.getByRole("button", { name: "Ask" }).click();
 
@@ -54,6 +54,8 @@ test.describe("reflection", () => {
     await page.goto("/transparency");
     const row = page.locator("li", { hasText: bait }).first();
     await expect(row).toBeVisible();
-    await expect(row.getByText("Refused")).toBeVisible();
+    // Exact: the row also carries a "Grounding gate refused" detail line,
+    // which a substring match would collide with.
+    await expect(row.getByText("Refused", { exact: true })).toBeVisible();
   });
 });

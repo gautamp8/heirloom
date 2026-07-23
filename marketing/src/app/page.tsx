@@ -1,4 +1,5 @@
 import { Reel } from "@/components/reel";
+import { Seal } from "@/components/seal";
 import { DownloadButton } from "@/components/download-button";
 import { TryButton } from "@/components/try-button";
 import { DeviceiPhone } from "@/components/device-iphone";
@@ -7,7 +8,6 @@ import { MockupCapture } from "@/mockups/capture";
 import { MockupNominee } from "@/mockups/nominee";
 import { MockupEmptyState } from "@/mockups/empty-state";
 import { MockupSealedLetterPhone } from "@/mockups/sealed-letter-phone";
-import { HeroEnvelope } from "@/components/hero-envelope";
 import { links } from "@/components/links";
 import { IconArrow, IconExternal } from "@/components/icons";
 
@@ -18,7 +18,11 @@ export default function Home() {
       <section className="stage relative">
         <div className="mx-auto max-w-[1180px] px-5 pt-16 pb-20 md:pt-24 md:pb-28 relative z-10">
           <div className="flex flex-col items-center text-center fade-up">
-            <HeroEnvelope />
+            {/* Plain seal for now — the opening-envelope ceremony is parked
+                until it earns its place in the hero. */}
+            <div className="mb-8">
+              <Seal size={96} />
+            </div>
             <div className="flex items-center gap-2 mt-2">
               <span className="pill">Local-first</span>
               <span className="pill pill-beta">Beta</span>

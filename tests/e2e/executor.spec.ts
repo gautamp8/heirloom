@@ -11,7 +11,7 @@ const PASSPHRASE_RE = /^[a-z]+ · [a-z]+ · [a-z]+ · \d{2}$/;
 
 /** Error copy, verbatim from src/app/executor/unlock/form.tsx. */
 const WRONG_CREDENTIALS_COPY =
-  "That isn't the right passphrase, or the creator's email hint doesn't match. Try again.";
+  "That isn’t the right passphrase, or the creator’s email hint doesn’t match. Try again.";
 const RATE_LIMIT_COPY = "Too many attempts. Wait an hour and try again.";
 
 /**

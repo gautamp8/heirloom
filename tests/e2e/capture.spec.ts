@@ -207,9 +207,11 @@ test.describe("guided capture (creator)", () => {
     const sheet = page.getByRole("dialog");
     await expect(sheet.getByText("Speak a memory")).toBeVisible();
 
-    // The record/stop control is the round unlabeled button — the only
-    // rounded-full button in the sheet (the Close button is rounded-md).
-    const recordButton = sheet.locator("button.rounded-full");
+    // The record/stop control now carries a real accessible name, so
+    // address it by role rather than by its border-radius class.
+    const recordButton = sheet.getByRole("button", {
+      name: /start recording|stop recording/i,
+    });
     await recordButton.click();
 
     // Fake media device feeds a tone; the running timer proves the
@@ -242,7 +244,7 @@ test.describe("guided capture (creator)", () => {
   test("video capture is honestly disabled", async ({ page }) => {
     await signInAsOnboardedCreator(page);
 
-    const video = page.getByRole("button", { name: "Video Short clip" });
+    const video = page.getByRole("button", { name: "Video Coming soon" });
     await expect(video).toBeVisible();
     await expect(video).toBeDisabled();
 

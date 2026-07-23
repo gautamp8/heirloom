@@ -47,7 +47,7 @@ test.describe("welcome ceremony", () => {
 
       // The page shell mounted.
       await expect(
-        page.getByText("Local-first · Nothing leaves this device"),
+        page.getByText("Local-first · Nothing leaves without you"),
       ).toBeVisible();
 
       // A frozen stage is never the sealed-envelope form.
@@ -59,7 +59,7 @@ test.describe("welcome ceremony", () => {
         // Envelope is gone; the fixture letter is open and readable.
         await expect(page.getByText("From Rita · For Sam")).toBeVisible();
         await expect(
-          page.getByText("Sam - there is something here for you.", {
+          page.getByText("Sam — there is something here for you.", {
             exact: true,
           }),
         ).toBeVisible();
@@ -71,7 +71,7 @@ test.describe("welcome ceremony", () => {
         // Envelope stages carry the folded fixture letter (a ~90-char
         // excerpt of the body) inside the paper.
         await expect(
-          page.getByText(/Sam - there is something here for you/),
+          page.getByText(/Sam — there is something here for you/),
         ).toBeVisible();
         await expect(
           page.getByRole("button", { name: "Enter the archive" }),
@@ -98,7 +98,7 @@ test.describe("welcome ceremony", () => {
 
     await expect(
       page.getByText(
-        "That isn't the right passphrase. Try again, or contact the executor.",
+        "That isn\u2019t the right passphrase. Try again, or ask the person who shared it with you.",
       ),
     ).toBeVisible();
 

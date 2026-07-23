@@ -138,7 +138,7 @@ test.describe("cross-vault isolation", () => {
     await page.goto("/reflect");
 
     await page
-      .getByRole("textbox", { name: "What are you looking for?" })
+      .getByRole("textbox", { name: "Ask the archive a question" })
       .fill("Where is the map?");
     const reflectResponse = page.waitForResponse(
       (r) =>
