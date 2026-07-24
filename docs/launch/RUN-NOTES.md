@@ -5,6 +5,51 @@ Working notes for the launch-readiness run (started 2026-07-07, branch
 this file holds the queue of things only Gautam can do, plus decisions
 worth remembering.
 
+## Grounding + demo hardening; DoD line 1 fully closed (2026-07-24)
+
+Re-reading the Definition of Done line by line (rather than trusting the
+summary) surfaced two DoD items that had NOT actually been done this
+cycle, and one of them hid a real bug.
+
+**A fabrication on the default local profile.** The injection harness and
+grounding eval are required on local AND hosted; only hosted had been
+run. On local, "What did Carl say about his time in Antarctica?" — no
+Antarctica in the archive — answered about the Moon. Two lexical-gate
+weaknesses: bare-substring matching ("time" fired on "sometimes", "full"
+on "wonderfully") and counting the creator's own name (grounding on
+"carl" in Carl Sagan's archive). Fixed: word-start matching, and drop
+the archive's people/nominee names plus generic conversational words.
+
+**A second fabrication surfaced on hosted** once the rate limit forced a
+re-run: "when was he born?" ground at 0.43 and the model hedged with
+grounded-but-tangential claims instead of refusing. Fixed three ways,
+each principled: (1) the embeddinggemma floor 0.30->0.43 and the
+azure/openai floor 0.30->0.45, above each must-refuse band, per WS1's
+calibration ask; (2) a soft-refusal guard — when the answer's own prose
+disclaims the archive ("the archive does not give...", "nothing in the
+archive"), collapse to the canonical empty state, since that IS the
+designed refusal; unit-tested both ways so it never fires on content
+that merely contains a negation.
+
+**Result, both profiles, freshly measured:** grounding eval 40/40 with
+zero fabrications; injection 22/22 fail-closed; 103/103 unit tests, lint
+and typecheck green. DoD line 1 holds in full.
+
+**The public demo had no rate limit** — the other missing DoD piece
+(WS6). Every Reflect calls paid Azure inference and the URL is anonymous;
+the only limiter in the tree was in-memory, inert on stateless Vercel. A
+Postgres-backed fixed-window limiter (migration 010) now caps
+/api/reflect at 20 / 5 min / IP on the hosted profile, fails open, and is
+swept by the nightly reset. Verified live: request 21 returns 429.
+Authorized tooling carries HEIRLOOM_EVAL_TOKEN to bypass so the eval can
+still run. Capture already had a 50 MB cap and Azure a \$30 budget with
+80%/100% alerts, so the demo's abuse guards are now complete.
+
+Also verified clean this pass: no secrets in the client bundle (grepped
+the built chunks for the DB password / JWT / VAPID private key — zero
+hits; the three NEXT_PUBLIC_* are a boolean, a boolean, and the VAPID
+*public* key).
+
 ## What is left, and exactly why (2026-07-22)
 
 Everything mechanizable is done. These five need something only Gautam
