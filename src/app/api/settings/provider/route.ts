@@ -142,7 +142,7 @@ export async function POST(req: Request) {
         );
       }
       const [{ n }] = await sqlAdmin<{ n: number }[]>`
-        SELECT COUNT(*)::int AS n FROM vaults`;
+        SELECT CAST(COUNT(*) AS INTEGER) AS n FROM vaults`;
       if (Number(n) > 1) {
         throw new HttpError(
           409,
