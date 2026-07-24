@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import * as path from "node:path";
 
 /**
  * E2E suite. Targets a live dev server on a DEDICATED database — global
@@ -17,7 +18,6 @@ const baseURL = process.env.E2E_BASE_URL ?? `http://127.0.0.1:${E2E_PORT}`;
 // E2E_BACKEND=sqlite runs the same suite against the desktop engine.
 // Paths must match tests/e2e/global-setup.ts.
 const SQLITE = process.env.E2E_BACKEND === "sqlite";
-const path = require("node:path") as typeof import("node:path");
 const E2E_SQLITE_PATH = path.resolve(".e2e-sqlite/heirloom.db");
 const E2E_SQLITE_BLOB_DIR = path.resolve(".e2e-blobs-sqlite");
 

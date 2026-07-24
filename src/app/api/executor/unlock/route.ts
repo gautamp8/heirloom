@@ -109,17 +109,19 @@ export async function POST(req: Request) {
       throw new HttpError(423, "credential_locked");
     }
 
-    // Atomically flip every unreleased row on this vault to released_at=now().
-    const [counts] = await sqlAdmin<{ released: number }[]>`
-      WITH flipped AS (
-        UPDATE nominee_releases
-        SET released_at = now()
-        WHERE vault_id = ${cred.vault_id}
-          AND released_at IS NULL
-        RETURNING id
-      )
-      SELECT CAST(COUNT(*) AS INTEGER) AS released FROM flipped
+    // Flip every unreleased row on this vault to released_at=now(). A
+    // top-level UPDATE ... RETURNING is supported by both Postgres and
+    // SQLite (3.35+); a data-modifying CTE (WITH x AS (UPDATE ...)) is
+    // Postgres-only and threw "near UPDATE: syntax error" on the desktop
+    // engine — the reason the executor release flow failed there.
+    const flipped = await sqlAdmin<{ id: string }[]>`
+      UPDATE nominee_releases
+      SET released_at = now()
+      WHERE vault_id = ${cred.vault_id}
+        AND released_at IS NULL
+      RETURNING id
     `;
+    const counts = { released: flipped.length };
 
     await sqlAdmin`
       UPDATE executor_credentials SET used_at = now() WHERE vault_id = ${cred.vault_id}

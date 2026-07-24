@@ -1,6 +1,6 @@
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import postgres from "postgres";
+import { e2eDb } from "./db";
 import { signInAsCreator } from "./helpers";
 
 /**
@@ -18,9 +18,6 @@ import { signInAsCreator } from "./helpers";
  * and reloading Home (see waitForCaptureReady).
  */
 
-const E2E_DB_URL =
-  process.env.E2E_DATABASE_URL ??
-  "postgres://gautam_prajapati@localhost:5433/heirloom_e2e";
 
 const SEED_PHOTO = path.resolve(
   __dirname,
@@ -93,7 +90,7 @@ async function waitForCaptureReady(
     /* stream window likely lapsed — fall back to the DB */
   }
 
-  const sql = postgres(E2E_DB_URL, { max: 1 });
+  const { sql, end } = e2eDb();
   try {
     for (;;) {
       const [row] = await sql<{ status: string }[]>`
@@ -113,7 +110,7 @@ async function waitForCaptureReady(
       await new Promise((r) => setTimeout(r, 2_000));
     }
   } finally {
-    await sql.end();
+    await end();
   }
   // Ready per the DB but the sheet never heard it — reload Home so the
   // Recent list reflects the finished capture.

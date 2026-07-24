@@ -1,10 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
-import postgres from "postgres";
+import { e2eDb } from "./db";
 import { signInAsCreator, signInAsNominee } from "./helpers";
 
-const E2E_DB_URL =
-  process.env.E2E_DATABASE_URL ??
-  "postgres://gautam_prajapati@localhost:5433/heirloom_e2e";
 
 /** Exact eyebrow (h2) heading per settings section, creator view. */
 const CREATOR_SECTIONS = [
@@ -130,7 +127,7 @@ test.describe("notifications API", () => {
     expect(body.ok).toBe(true);
     expect(typeof body.id).toBe("string");
 
-    const sql = postgres(E2E_DB_URL, { max: 1 });
+    const { sql, end } = e2eDb();
     try {
       // The row landed with the exact keys we sent.
       const rows = await sql<
@@ -157,7 +154,7 @@ test.describe("notifications API", () => {
       `;
       expect(after).toHaveLength(0);
     } finally {
-      await sql.end();
+      await end();
     }
   });
 });

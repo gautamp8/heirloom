@@ -1,10 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
-import postgres from "postgres";
+import { e2eDb, type FixtureSql } from "./db";
 import { signOut } from "./helpers";
 
-const E2E_DB_URL =
-  process.env.E2E_DATABASE_URL ??
-  "postgres://gautam_prajapati@localhost:5433/heirloom_e2e";
 
 /** The exact shape generatePassphrase() emits: `willow · bread · river · 14`. */
 const PASSPHRASE_RE = /^[a-z]+ · [a-z]+ · [a-z]+ · \d{2}$/;
@@ -28,12 +25,12 @@ function syntheticIp(): string {
 }
 
 /** Short-lived DB connection for direct setup/assertions. */
-async function withDb<T>(fn: (sql: postgres.Sql) => Promise<T>): Promise<T> {
-  const sql = postgres(E2E_DB_URL, { max: 1 });
+async function withDb<T>(fn: (sql: FixtureSql) => Promise<T>): Promise<T> {
+  const { sql, end } = e2eDb();
   try {
     return await fn(sql);
   } finally {
-    await sql.end();
+    await end();
   }
 }
 
@@ -55,7 +52,7 @@ async function bootstrapCreator(page: Page) {
 
 /** /api/executor/setup refuses until the vault has a nominee; there is no
  *  nominee-designation UI wired into this flow yet, so insert directly. */
-async function designateNominee(sql: postgres.Sql, vaultId: string) {
+async function designateNominee(sql: FixtureSql, vaultId: string) {
   const [row] = await sql<{ id: string }[]>`
     INSERT INTO nominees (vault_id, name, relationship, email, role)
     VALUES (${vaultId}, 'Ada', 'Daughter', 'ada@executor.e2e', 'executor')

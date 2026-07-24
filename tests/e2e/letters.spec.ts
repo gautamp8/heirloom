@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import postgres from "postgres";
+import { e2eDb, type FixtureSql } from "./db";
 import { signInAsNominee } from "./helpers";
 
 /**
@@ -21,16 +21,14 @@ import { signInAsNominee } from "./helpers";
  * unlocked by earlier specs, depends only on the global-setup seed.
  */
 
-const DB_URL =
-  process.env.E2E_DATABASE_URL ??
-  "postgres://gautam_prajapati@localhost:5433/heirloom_e2e";
 
 const SEED_OCCASION = "When you feel insignificant";
 // Unique per run so repeated runs against a long-lived instance
 // (E2E_BASE_URL, no DB reset) never produce ambiguous text matches.
 const TAG = `[e2e-letters ${Date.now().toString(36)}]`;
 
-let sql: postgres.Sql;
+let sql: FixtureSql;
+let end: () => Promise<void>;
 let vaultId: string;
 let nomineeId: string;
 let seedLetterId: string;
@@ -55,7 +53,7 @@ async function letterState(letterId: string): Promise<LetterState> {
 async function insertLetter(opts: {
   occasion: string;
   body: string;
-  conditions: postgres.JSONValue;
+  conditions: unknown;
   copyIntentEmbeddingFrom?: string;
 }): Promise<{ letter_id: string; capture_id: string }> {
   const [cap] = await sql<{ id: string }[]>`
@@ -87,7 +85,7 @@ async function insertLetter(opts: {
 
 test.describe("sealed letters", () => {
   test.beforeAll(async () => {
-    sql = postgres(DB_URL, { max: 1 });
+    ({ sql, end } = e2eDb());
 
     // The Sagan seed vault + its single nominee ("You").
     const [archive] = await sql<{ vault_id: string; nominee_id: string }[]>`
@@ -126,7 +124,7 @@ test.describe("sealed letters", () => {
     } catch {
       // Leftovers are tolerated by the rest of the suite.
     }
-    await sql?.end();
+    await end?.();
   });
 
   test("first nominee home visit unlocks the seed first_visit letter", async ({

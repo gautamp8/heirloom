@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import argon2 from "argon2";
-import postgres from "postgres";
+import { e2eDb, type FixtureSql } from "./db";
 import { normalisePassphrase } from "../../src/lib/passphrase";
 import { SAGAN_URL_PASSPHRASE, signInAsNominee } from "./helpers";
 
@@ -12,9 +12,6 @@ import { SAGAN_URL_PASSPHRASE, signInAsNominee } from "./helpers";
  * the real UI and API to prove neither vault can see the other.
  */
 
-const DB_URL =
-  process.env.E2E_DATABASE_URL ??
-  "postgres://gautam_prajapati@localhost:5433/heirloom_e2e";
 
 const CREATOR_B_EMAIL = "beatrix-vaulter@e2e-isolation.heirloom.local";
 const CREATOR_B_NAME = "Beatrix Vaulter";
@@ -28,16 +25,18 @@ const NOMINEE_B_URL_PASSPHRASE = "vault-b-lantern-orchard-42";
 // on the distinctive apostrophe-free middle rather than the exact string.
 const EMPTY_STATE = /have that in the archive\. Try asking another way/i;
 
-let db: ReturnType<typeof postgres>;
+let db: FixtureSql;
+let vec: (arr: number[]) => unknown;
+let end: () => Promise<void>;
 let vaultBCaptureId = "";
 
 /** Deterministic, non-zero 768-dim pgvector literal. The values are
  *  synthetic on purpose: vault B's index only needs to exist, not to be
  *  semantically meaningful, because retrieval must never reach it. */
-function syntheticEmbeddingLiteral(dim = 768): string {
-  const v = new Float32Array(dim);
-  for (let i = 0; i < dim; i++) v[i] = Math.sin((i + 1) * 12.9898) * 0.1;
-  return `[${Array.from(v, (n) => n.toFixed(6)).join(",")}]`;
+function syntheticEmbeddingArray(dim = 768): number[] {
+  const v: number[] = [];
+  for (let i = 0; i < dim; i++) v.push(Math.sin((i + 1) * 12.9898) * 0.1);
+  return v;
 }
 
 /** Vault B's nominee through the same welcome ceremony the helper uses. */
@@ -52,7 +51,7 @@ async function signInAsVaultBNominee(page: Page) {
 
 test.describe("cross-vault isolation", () => {
   test.beforeAll(async () => {
-    db = postgres(DB_URL, { max: 2, transform: { undefined: null } });
+    ({ sql: db, vec, end } = e2eDb());
 
     // Idempotent: drop any vault-B remnant from a previous run of this
     // spec (the vault cascades to captures, chunks, nominees, releases).
@@ -90,7 +89,7 @@ test.describe("cross-vault isolation", () => {
     await db`
       INSERT INTO transcript_chunks (capture_id, vault_id, chunk_index, text, embedding)
       VALUES (${capture.id}, ${vault.id}, 0, ${SECRET_BODY},
-              ${syntheticEmbeddingLiteral()}::vector)`;
+              ${vec(syntheticEmbeddingArray())})`;
 
     const hash = await argon2.hash(
       normalisePassphrase(NOMINEE_B_URL_PASSPHRASE),
@@ -112,7 +111,7 @@ test.describe("cross-vault isolation", () => {
   });
 
   test.afterAll(async () => {
-    await db?.end({ timeout: 5 });
+    await end?.();
   });
 
   test("Sagan nominee's home shows no vault B content", async ({ page }) => {

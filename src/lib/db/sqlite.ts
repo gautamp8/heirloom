@@ -160,6 +160,8 @@ type TagFn = {
   begin: <T>(fn: (tx: TagFn) => Promise<T>) => Promise<T>;
 };
 
+let savepointCounter = 0;
+
 function makeTag(): TagFn {
   const tag = function tag<T = unknown>(
     strings: TemplateStringsArray,
@@ -173,14 +175,24 @@ function makeTag(): TagFn {
 
   tag.begin = async <T>(fn: (tx: TagFn) => Promise<T>): Promise<T> => {
     const db = await getDb();
-    db.exec("BEGIN");
+    // SQLite has no nested BEGIN — a second BEGIN throws "cannot start a
+    // transaction within a transaction". Postgres nests via savepoints,
+    // and app code does nest (e.g. a capture pipeline's withRls wrapping
+    // an identity-index resync that opens its own transaction), so mirror
+    // that here: the outer call runs a real transaction, any inner call
+    // runs a SAVEPOINT so it can roll back independently without aborting
+    // the outer one.
+    const nested = db.inTransaction;
+    const name = `sp_${(savepointCounter = (savepointCounter + 1) % 1e9)}`;
+    db.exec(nested ? `SAVEPOINT ${name}` : "BEGIN");
     try {
       const inner = makeTag();
       const result = await fn(inner);
-      db.exec("COMMIT");
+      db.exec(nested ? `RELEASE ${name}` : "COMMIT");
       return result;
     } catch (err) {
-      db.exec("ROLLBACK");
+      db.exec(nested ? `ROLLBACK TO ${name}` : "ROLLBACK");
+      if (nested) db.exec(`RELEASE ${name}`);
       throw err;
     }
   };
