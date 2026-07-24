@@ -5,6 +5,7 @@ import {
   ReflectionSchema,
   hasFirstPersonOutsideQuotes,
   hasLexicalOverlap,
+  looksLikeArchiveRefusal,
   validateCitations,
 } from "@/lib/reflection";
 
@@ -174,5 +175,43 @@ describe("ReflectionSchema", () => {
       claims: [{ text: "x", citations: [] }],
     });
     expect(parsed.success).toBe(false);
+  });
+});
+
+
+describe("looksLikeArchiveRefusal", () => {
+  it("flags a soft refusal that disclaims the archive", () => {
+    expect(
+      looksLikeArchiveRefusal(
+        "The archive does not give Carl Sagan\u2019s birth date. It only shows that he was already speaking.",
+      ),
+    ).toBe(true);
+    expect(
+      looksLikeArchiveRefusal("The archive doesn\u2019t contain his favorite poem."),
+    ).toBe(true);
+    expect(
+      looksLikeArchiveRefusal("There is nothing in the archive about Antarctica."),
+    ).toBe(true);
+    expect(
+      looksLikeArchiveRefusal("That is not present in the archive."),
+    ).toBe(true);
+  });
+
+  it("does not flag grounded content that merely contains a negation", () => {
+    expect(
+      looksLikeArchiveRefusal(
+        "He wrote that we should not take Earth for granted.",
+      ),
+    ).toBe(false);
+    expect(
+      looksLikeArchiveRefusal(
+        "Science is a way of thinking, not just a body of knowledge.",
+      ),
+    ).toBe(false);
+    expect(
+      looksLikeArchiveRefusal(
+        "Carl Sagan described the pale blue dot as a mote of dust.",
+      ),
+    ).toBe(false);
   });
 });

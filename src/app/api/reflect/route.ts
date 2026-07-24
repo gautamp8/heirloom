@@ -16,6 +16,7 @@ import {
   ReflectionSchema,
   buildReflectionPrompt,
   hasFirstPersonOutsideQuotes,
+  looksLikeArchiveRefusal,
   hasLexicalOverlap,
   validateCitations,
   type ReflectionAnswer,
@@ -330,7 +331,13 @@ export async function POST(req: Request) {
           const firstPerson = final
             ? hasFirstPersonOutsideQuotes(final.answer)
             : false;
-          if (!final || !cite.ok || firstPerson || noClaims) {
+          // Soft refusal: the prose itself disclaims the archive, then
+          // adds cited-but-tangential context that slips past the citation
+          // and no-claims checks. Collapse to the clean designed refusal.
+          const softRefusal = final
+            ? looksLikeArchiveRefusal(final.answer)
+            : false;
+          if (!final || !cite.ok || firstPerson || noClaims || softRefusal) {
             send("grounded", { grounded: false });
             send("answer", { text: EMPTY_STATE_ANSWER });
             const reflection_id = await saveReflection(
@@ -350,7 +357,9 @@ export async function POST(req: Request) {
                       ? "first_person"
                       : !cite.ok
                         ? "invalid_citation"
-                        : "no_claims",
+                        : softRefusal
+                          ? "soft_refusal"
+                          : "no_claims",
                   grounded: false,
                   retrieved_chunks: chunks.slice(0, 8).map((c) => ({
                     capture_id: c.capture_id,

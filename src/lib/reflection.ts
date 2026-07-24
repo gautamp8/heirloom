@@ -217,3 +217,31 @@ export function hasFirstPersonOutsideQuotes(text: string): boolean {
   const stripped = text.replace(/["“”][^"“”]*["“”]/g, "");
   return /\b(I|I'm|I've|I'll|I'd|me|my|mine)\b/i.test(stripped);
 }
+
+/**
+ * A "soft refusal": the model's own prose says the archive does not hold
+ * what was asked, then adds some grounded-but-tangential context. It
+ * usually happens on a must-refuse whose retrieval scraped up related
+ * material — e.g. "when was he born?" returns identity chunks, and the
+ * model answers "The archive does not give his birth date. It only shows
+ * that he was…". Those trailing claims are validly cited, so the citation
+ * and no-claims checks pass them through even though the answer is, in
+ * substance, a refusal.
+ *
+ * When the answer opens by disclaiming the archive, collapse it to the
+ * canonical empty state — that is the designed refusal, and it is better
+ * to say it cleanly than to hedge. Anchored to archive-absence phrasing
+ * so it does not fire on content that merely contains a negation ("he
+ * wrote that we should not take Earth for granted").
+ */
+const ARCHIVE_REFUSAL_PATTERNS: RegExp[] = [
+  /\b(?:the\s+)?archive\s+(?:does\s*n[o']?t|doesn[’']?t|do\s*n[o']?t|don[’']?t)\s+(?:give|have|contain|include|mention|say|show|record|provide|specify|state|tell|list|note|hold)/i,
+  /\b(?:the\s+)?archive\s+(?:is\s+silent|says\s+nothing|has\s+nothing|holds\s+nothing|contains\s+nothing|includes\s+nothing)/i,
+  /\bthere\s+(?:is|are|'s)\s+(?:no|nothing|not\s+any)\b[^.]*\barchive\b/i,
+  /\b(?:no|not\s+any)\b[^.]*\b(?:in|within)\s+(?:the|this)\s+archive\b/i,
+  /\bnot\s+(?:present|found|available|recorded|included|mentioned)\s+in\s+(?:the|this)\s+archive\b/i,
+];
+
+export function looksLikeArchiveRefusal(text: string): boolean {
+  return ARCHIVE_REFUSAL_PATTERNS.some((re) => re.test(text));
+}
