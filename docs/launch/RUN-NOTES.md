@@ -5,6 +5,50 @@ Working notes for the launch-readiness run (started 2026-07-07, branch
 this file holds the queue of things only Gautam can do, plus decisions
 worth remembering.
 
+## BYOK proven + PWA offline verified; a third sqlite bug (2026-07-25)
+
+Pushed on the DoD items I'd filed under "human" and found automatable
+portions in three of them.
+
+**Item 5 — BYOK works.** Verified end to end without a paid key, because
+Ollama exposes an OpenAI-compatible endpoint at /v1 driven by the exact
+same createOpenAICompatible code path as OpenRouter. On a fresh
+single-vault instance: testByok's live completion against
+http://localhost:11434/v1 succeeded, the profile switched to byok, and a
+reflect returned a grounded, third-person answer synthesized through that
+endpoint while embeddings stayed local (topSim 0.641). Fresh instances
+default to local; DELETE reverts to local; the settings privacy statement
+names exactly what leaves the device and when. The only difference from a
+real OpenRouter run is the base_url + key value.
+
+That verification caught a THIRD sqlite dialect bug: the single-creator
+guard ran SELECT COUNT(*)::int, and ::int threw 'unrecognized token' on
+sqlite — so enabling BYOK was broken on the desktop engine. Fixed to
+CAST(... AS INTEGER). It was the last :: cast in app runtime SQL.
+
+**Item 4 — PWA works offline.** With Chrome network emulation set to
+Offline (navigator.onLine false), the app shell renders fully from the
+service-worker cache: /, /seal.png and /manifest.webmanifest all 200, and
+navigating renders the whole portal. The cache is versioned by deploy SHA
+(heirloom-809d02487743-shell), confirming the SW-versioning fix live.
+Installability criteria all met: name, start_url, display standalone,
+192+512 icons, active SW, HTTPS. Install-to-home-screen and push delivery
+still need a physical device.
+
+**Item 3 — first-run.** The DMG is built and verified running on sqlite.
+'true first-run with no models' would require wiping ~/.ollama and a
+multi-GB re-pull, which is destructive on this dev box; the splash's
+auto-pull-with-progress path is implemented and code-verified. The
+release itself is gated on notarization ([HUMAN]) — RELEASE-v0.2.0.md has
+the exact publish command for after the cert step.
+
+**Bugs found this arc (by not stopping at 'human-blocked'):** SW cache
+never busted; health reported the wrong DB engine; the voice sweep could
+never run; a fabrication on the default local profile; a fabrication on
+hosted; no demo rate limit; the stale E2E suite; sqlite nested
+transactions; a Postgres-only CTE in executor release; and the ::int cast
+in BYOK-enable. All fixed.
+
 ## E2E on both DB backends — DoD line 2 (2026-07-24)
 
 The matrix is required on both engines; only postgres had run. Made the
