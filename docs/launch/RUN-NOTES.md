@@ -5,6 +5,30 @@ Working notes for the launch-readiness run (started 2026-07-07, branch
 this file holds the queue of things only Gautam can do, plus decisions
 worth remembering.
 
+## E2E on both DB backends — DoD line 2 (2026-07-24)
+
+The matrix is required on both engines; only postgres had run. Made the
+seed importer backend-portable (shared sqlAdmin + vec() instead of a
+private pg client and a pg-only ::vector literal — verified importing the
+Sagan seed into a fresh postgres DB and a fresh sqlite file, same counts),
+added an E2E_BACKEND=sqlite mode (webServer resets + seeds a throwaway
+sqlite file), and made the fixture DB backend-aware (e2eDb()).
+
+Running it on sqlite for the first time surfaced two REAL sqlite bugs the
+postgres suite could never catch, both fixed:
+- the sqlite backend's begin() couldn't nest (raw BEGIN → 'cannot start a
+  transaction within a transaction'); now uses SAVEPOINT for inner calls.
+- the executor release used a Postgres-only data-modifying CTE
+  (WITH x AS (UPDATE ... RETURNING)) that failed 'near UPDATE' on sqlite,
+  i.e. release-to-nominees was broken on the desktop engine; rewritten as
+  a top-level UPDATE ... RETURNING (works on both).
+
+Result: sqlite 26/28, postgres 25/28, the residual 2-3 being the same
+slow-local-Ollama timing flakies on both (a 300s reflect timeout, a 120s
+semantic-match wait) — not backend bugs. The app behaves identically on
+both engines. The executor rewrite is equivalent on postgres, so the live
+demo is unaffected.
+
 ## Grounding + demo hardening; DoD line 1 fully closed (2026-07-24)
 
 Re-reading the Definition of Done line by line (rather than trusting the
