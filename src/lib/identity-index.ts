@@ -1,5 +1,5 @@
 import type { Sql } from "postgres";
-import { withRls } from "./db";
+import { withRls, vec } from "./db";
 import { embedAll } from "./embed";
 import { ensureVaultEmbedder } from "./embedding-guard";
 import { chunkText } from "./chunking";
@@ -197,17 +197,18 @@ export async function syncIdentityIndexAdmin(
   if (chunks.length === 0) return { chunks: 0 };
   const vectors = await embedAll(chunks.map((c) => c.text));
   for (let i = 0; i < chunks.length; i++) {
-    // Inline literal rather than the db-bound vec() fragment: this runs
-    // against a caller-supplied `sql` (the seed importer's own client), and
-    // a fragment bound to a different postgres instance serializes to
-    // "[object Promise]" when the two aren't the same bundled copy.
-    const lit = `[${vectors[i].join(",")}]`;
+    // The backend-aware vec() helper: a pgvector literal on Postgres, a
+    // serialized sqlite-vec blob on SQLite. Callers now pass the shared
+    // admin/tx connection from ./db (the seed importer included), so the
+    // fragment is always bound to the same bundled db instance — the
+    // reason this had once been inlined as `${lit}::vector` is gone, and
+    // that hack only worked on Postgres.
     await sql`
       INSERT INTO transcript_chunks
         (capture_id, vault_id, chunk_index, text, embedding)
       VALUES
         (${cap.id}, ${vault_id}, ${chunks[i].index},
-         ${chunks[i].text}, ${lit}::vector)
+         ${chunks[i].text}, ${vec(vectors[i])})
     `;
   }
   return { chunks: chunks.length };

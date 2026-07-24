@@ -1,16 +1,40 @@
 import { execSync } from "node:child_process";
+import * as fs from "node:fs";
+import * as path from "node:path";
+
+/** Fixed sqlite artifacts for the E2E sqlite backend (E2E_BACKEND=sqlite).
+ *  Shared verbatim with the webServer command in playwright.config.ts. */
+export const E2E_SQLITE_PATH = path.resolve(".e2e-sqlite/heirloom.db");
+export const E2E_SQLITE_BLOB_DIR = path.resolve(".e2e-blobs-sqlite");
 
 /**
  * Reset the dedicated E2E database and re-import the Sagan seed so every
  * run starts from the same archive. Skipped when E2E_BASE_URL points at
  * an external instance (that instance owns its own state).
  *
- * Needs: local postgres (the dev pg17 on :5433), Ollama with the local
- * models (embeddings for the seed import), psql on PATH.
+ * Two backends, selected by E2E_BACKEND:
+ *   - postgres (default): the dev pg17 on :5433, proving the server path.
+ *   - sqlite: a throwaway file the desktop bundle's engine would use,
+ *     proving the desktop path. The seed importer is backend-aware, so
+ *     the same command imports into either.
+ *
+ * Needs: Ollama with the local models (embeddings for the seed import);
+ * for postgres, the dev pg17 on :5433 and psql on PATH.
  */
 export default async function globalSetup() {
   if (process.env.E2E_BASE_URL) {
     console.log("[e2e-setup] external target, skipping DB reset");
+    return;
+  }
+
+  const sh = (cmd: string) =>
+    execSync(cmd, { stdio: ["ignore", "pipe", "pipe"], encoding: "utf8" });
+
+  if (process.env.E2E_BACKEND === "sqlite") {
+    // The sqlite file is reset + seeded inside the webServer command (see
+    // playwright.config.ts) so it is ready before the health check, which
+    // Playwright runs before this hook. Nothing to do here.
+    console.log("[e2e-setup] sqlite backend — seeded by the webServer command");
     return;
   }
 
@@ -21,9 +45,6 @@ export default async function globalSetup() {
     process.env.E2E_DATABASE_URL ??
     "postgres://gautam_prajapati@localhost:5433/heirloom_e2e";
   const dbName = new URL(dbUrl).pathname.slice(1);
-
-  const sh = (cmd: string) =>
-    execSync(cmd, { stdio: ["ignore", "pipe", "pipe"], encoding: "utf8" });
 
   console.log(`[e2e-setup] resetting ${dbName}`);
   sh(`psql "${admin}" -c "DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)"`);

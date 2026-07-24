@@ -11,8 +11,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import argon2 from "argon2";
-import postgres from "postgres";
 import { writeBlob as writeBlobStore } from "../../src/lib/storage";
+import { sqlAdmin, vec } from "../../src/lib/db";
 // Static (not dynamic) imports: when this module is bundled into the
 // serverless reset route, Turbopack mishandles `await import(...)` of these
 // helpers (the embed call came back as an unresolved Promise -> "[object
@@ -65,20 +65,15 @@ export async function importSeedArchive(seedDirArg?: string) {
   }
   const manifest: Manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 
-  // Use the admin connection so we bypass per-vault RLS while seeding.
-  const url = process.env.DATABASE_ADMIN_URL ?? process.env.DATABASE_URL;
-  if (!url) {
+  // The shared admin connection, which dispatches on HEIRLOOM_BACKEND —
+  // Postgres for the server/Neon path, SQLite for the desktop bundle and
+  // the sqlite E2E run. Using it (rather than a private postgres client)
+  // is what lets the vector inserts below go through the backend-aware
+  // vec() helper and so import into either backend.
+  const sql = sqlAdmin;
+  if (!sql) {
     throw new Error("DATABASE_ADMIN_URL (or DATABASE_URL) not set");
   }
-  // prepare:false when talking to a transaction-mode pooler (Neon's
-  // -pooler host), which the nightly reset does from a serverless function.
-  const usePooler =
-    process.env.HEIRLOOM_DB_PREPARE === "false" || /-pooler\./.test(url);
-  const sql = postgres(url, {
-    max: 4,
-    transform: { undefined: null },
-    prepare: !usePooler,
-  });
   fs.mkdirSync(STORAGE_ROOT, { recursive: true });
 
   console.log(`importing "${manifest.name}" from ${absSeed}`);
@@ -183,11 +178,10 @@ export async function importSeedArchive(seedDirArg?: string) {
     // Reflection retrieval can find it.
     const embedText = body ?? caption ?? cap.title;
     if (embedText) {
-      const vec = await embed(embedText);
-      const lit = `[${vec.join(",")}]`;
+      const emb = await embed(embedText);
       await sql`
         INSERT INTO transcript_chunks (capture_id, vault_id, chunk_index, text, embedding)
-        VALUES (${row.id}, ${vaultId}, 0, ${embedText}, ${lit}::vector)
+        VALUES (${row.id}, ${vaultId}, 0, ${embedText}, ${vec(emb)})
       `;
     }
     console.log(`  capture: ${cap.kind} - ${cap.title}`);
@@ -219,7 +213,6 @@ export async function importSeedArchive(seedDirArg?: string) {
   for (const letter of manifest.sealed_letters) {
     const intent_text = `${letter.occasion_prompt}. ${letter.trigger_hint}`;
     const intent_vec = await embed(intent_text);
-    const intent_lit = `[${intent_vec.join(",")}]`;
 
     const [cap] = await sql<{ id: string }[]>`
       INSERT INTO captures (vault_id, kind, status, title, body)
@@ -236,7 +229,7 @@ export async function importSeedArchive(seedDirArg?: string) {
       INSERT INTO sealed_letters
         (capture_id, vault_id, to_nominee_id, occasion_prompt, intent_embedding, conditions)
       VALUES (${cap.id}, ${vaultId}, ${nominee.id}, ${letter.occasion_prompt},
-              ${intent_lit}::vector, ${sql.json(conditions)})
+              ${vec(intent_vec)}, ${sql.json(conditions)})
     `;
     console.log(`  sealed letter: ${letter.occasion_prompt}`);
   }
@@ -252,7 +245,11 @@ export async function importSeedArchive(seedDirArg?: string) {
   console.log(`  nominee passphrase: ${passphrase}`);
   console.log(`  open /portal, click "I have a sealed letter", enter that phrase.`);
 
-  await sql.end();
+  // Postgres pools need an explicit close so a CLI run exits; the SQLite
+  // tag has no such handle (nothing to drain).
+  if (typeof (sql as { end?: () => Promise<void> }).end === "function") {
+    await (sql as { end: () => Promise<void> }).end();
+  }
   return { passphrase };
 }
 

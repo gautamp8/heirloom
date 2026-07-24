@@ -80,6 +80,11 @@ async function getDb(): Promise<DatabaseT> {
   const d = new Database(dbPath);
   d.pragma("journal_mode = WAL");
   d.pragma("foreign_keys = ON");
+  // Wait, rather than fail, when another connection holds the write lock.
+  // WAL allows concurrent readers with a single writer; a 5s budget keeps
+  // a second writer (e.g. the E2E fixture process, or a background
+  // pipeline task) from erroring with SQLITE_BUSY under normal contention.
+  d.pragma("busy_timeout = 5000");
   sqliteVec.load(d);
 
   // Postgres builtins our SQL relies on.

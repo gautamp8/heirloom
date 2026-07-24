@@ -76,3 +76,5 @@ docs/eval/
 .env*
 /public/sw.js
 infra/tts-server/sweep-out/
+.e2e-sqlite/
+.e2e-blobs-sqlite/

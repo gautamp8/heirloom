@@ -14,6 +14,30 @@ import { defineConfig, devices } from "@playwright/test";
 const E2E_PORT = 3100;
 const baseURL = process.env.E2E_BASE_URL ?? `http://127.0.0.1:${E2E_PORT}`;
 
+// E2E_BACKEND=sqlite runs the same suite against the desktop engine.
+// Paths must match tests/e2e/global-setup.ts.
+const SQLITE = process.env.E2E_BACKEND === "sqlite";
+const path = require("node:path") as typeof import("node:path");
+const E2E_SQLITE_PATH = path.resolve(".e2e-sqlite/heirloom.db");
+const E2E_SQLITE_BLOB_DIR = path.resolve(".e2e-blobs-sqlite");
+
+// For sqlite, seed the throwaway file inside the webServer command — right
+// before next dev serves it — because Playwright brings the webServer up
+// and health-checks it before globalSetup runs, and the health check is
+// 503 until the DB has an archive. Seeding here makes it order-independent.
+const sqliteSeed =
+  `rm -rf "${path.dirname(E2E_SQLITE_PATH)}" "${E2E_SQLITE_BLOB_DIR}" && ` +
+  `mkdir -p "${path.dirname(E2E_SQLITE_PATH)}" "${E2E_SQLITE_BLOB_DIR}" && ` +
+  `HEIRLOOM_BACKEND=sqlite HEIRLOOM_SQLITE_PATH="${E2E_SQLITE_PATH}" ` +
+  `HEIRLOOM_BLOB_DIR="${E2E_SQLITE_BLOB_DIR}" ` +
+  `pnpm tsx desktop/scripts/import-seed-archive.ts ./desktop/seed-archives/sagan`;
+
+const webServerCommand = SQLITE
+  ? `${sqliteSeed} && HEIRLOOM_BACKEND=sqlite HEIRLOOM_SQLITE_PATH="${E2E_SQLITE_PATH}" ` +
+    `HEIRLOOM_BLOB_DIR="${E2E_SQLITE_BLOB_DIR}" pnpm exec next dev -p ${E2E_PORT}`
+  : `DATABASE_URL=$E2E_DATABASE_URL DATABASE_ADMIN_URL=$E2E_DATABASE_URL ` +
+    `HEIRLOOM_BLOB_DIR=.e2e-blobs pnpm exec next dev -p ${E2E_PORT}`;
+
 export default defineConfig({
   testDir: "tests/e2e",
   globalSetup: "./tests/e2e/global-setup.ts",
@@ -39,12 +63,10 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command:
-          `DATABASE_URL=$E2E_DATABASE_URL DATABASE_ADMIN_URL=$E2E_DATABASE_URL ` +
-          `HEIRLOOM_BLOB_DIR=.e2e-blobs pnpm exec next dev -p ${E2E_PORT}`,
+        command: webServerCommand,
         url: `http://127.0.0.1:${E2E_PORT}/api/health`,
         reuseExistingServer: true,
-        timeout: 60_000,
+        timeout: SQLITE ? 240_000 : 60_000,
         env: {
           E2E_DATABASE_URL:
             process.env.E2E_DATABASE_URL ??
