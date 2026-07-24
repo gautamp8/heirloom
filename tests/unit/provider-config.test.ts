@@ -125,7 +125,9 @@ describe("profile resolution", () => {
       deployment: "embed-dep",
     });
     expect(p.embeddingIdentity).toBe("azure/text-embedding-3-small@768");
-    expect(p.retrievalFloor).toBe(0.3);
+    // Azure floor raised to 0.45 (calibration parity with local): a
+    // must-refuse ('when was he born?') ground at 0.43 on 0.30.
+    expect(p.retrievalFloor).toBe(0.45);
   });
 
   it("AZURE_OPENAI_EMBED_MODEL feeds the embedding identity", async () => {
