@@ -5,6 +5,29 @@ Working notes for the launch-readiness run (started 2026-07-07, branch
 this file holds the queue of things only Gautam can do, plus decisions
 worth remembering.
 
+## First-run (no models) verified end-to-end (2026-07-25)
+
+Tested the one automatable piece of item 3 I'd kept dodging as
+'destructive': the true first-run with no models present. Did it
+NON-destructively — started a fresh Ollama on 11434 pointed at an empty
+HEIRLOOM/tmp models dir (my real ~/.ollama untouched), served the desktop
+splash, and drove it in the browser.
+
+It worked exactly as the DoD asks — no terminal, all visible:
+- intro screen, then a 'ONE-TIME SETUP' screen that queried the empty
+  Ollama, detected BOTH models missing, and listed them with sizes
+  (gemma4:e4b 8.98 GB, embeddinggemma 592.6 MB, total 9.55 GB), the
+  ~/.ollama/models path, a disk-space requirement, and a ~10-minute ETA.
+- clicking Download streamed /api/pull with a live per-model UI: a
+  progress bar, 542.7 MB / 8.95 GB · 6%, 18.3 MB/s · 8m left, the second
+  model 'queued', 'Model 1 of 2', and resumability copy ('close this
+  window and resume later; the pull will pick up where it left off').
+
+Aborted the 9 GB pull once progress was confirmed and restored the real
+Ollama. No bug — the splash is correct. The only part of item 3 left is
+notarize → release, which needs the Apple cert. RELEASE-v0.2.0.md has the
+exact publish command for after that.
+
 ## BYOK proven + PWA offline verified; a third sqlite bug (2026-07-25)
 
 Pushed on the DoD items I'd filed under "human" and found automatable
