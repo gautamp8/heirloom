@@ -3,7 +3,12 @@ import { withRls, vec } from "@/lib/db";
 import { embedOne } from "@/lib/embed";
 import { fetchTopK, canonicalSourceText } from "@/lib/retrieval";
 import { backfillMissingChunks, cleanupMislabeledFaces } from "@/lib/pipeline";
-import { retrievalFloor, synthesisModel } from "@/lib/provider";
+import {
+  describeProvider,
+  retrievalFloor,
+  synthesisModel,
+} from "@/lib/provider";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 import { EMBEDDING_MISMATCH, ensureVaultEmbedder } from "@/lib/embedding-guard";
 import { fireLetterConditions } from "@/lib/letter-conditions";
 import {
@@ -43,6 +48,30 @@ export const maxDuration = 60;
 export async function POST(req: Request) {
   try {
     const session = await requireSession();
+
+    // Cost guard for the public demo: every Reflect calls a paid Azure
+    // model, and the demo URL is anonymous and linked publicly, so cap
+    // requests per IP. Only on the hosted profile — the local/desktop
+    // app is single-user and has no reason to throttle itself. Fails
+    // open (see rateLimit): a demo guard must never take the app down.
+    if ((await describeProvider()).profile === "hosted-demo") {
+      const { ok, retryAfter } = await rateLimit(
+        "reflect",
+        clientIp(req),
+        20, // 20 questions / 5 min / IP — generous for trying it, useless for scripted abuse
+        5 * 60,
+      );
+      if (!ok) {
+        return new Response(
+          JSON.stringify({ error: "rate_limited", retry_after: retryAfter }),
+          {
+            status: 429,
+            headers: { "content-type": "application/json", "retry-after": String(retryAfter) },
+          },
+        );
+      }
+    }
+
     const body = (await req.json()) as { question?: string };
 
     const question = body.question?.trim() ?? "";

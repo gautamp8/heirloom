@@ -68,12 +68,26 @@ async function handle(req: Request): Promise<Response> {
        AND NOT EXISTS (SELECT 1 FROM nominees n WHERE n.user_id = u.id)
   `;
 
+  // 4. Sweep spent rate-limit buckets. Each window is its own row, so the
+  //    table only grows; drop anything older than a day (windows are
+  //    minutes long, so nothing live is ever touched). Tolerate the table
+  //    not existing yet on an un-migrated deployment.
+  let rateLimits = { count: 0 };
+  try {
+    rateLimits = await sqlAdmin`
+      DELETE FROM rate_limits WHERE created_at < now() - interval '1 day'
+    `;
+  } catch {
+    /* table not present yet — nothing to sweep */
+  }
+
   return Response.json({
     ok: true,
     cleared: {
       public_vaults: vaults.count,
       reflections: reflections.count,
       orphan_users: users.count,
+      rate_limits: rateLimits.count,
     },
   });
 }
