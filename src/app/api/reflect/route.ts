@@ -54,7 +54,15 @@ export async function POST(req: Request) {
     // requests per IP. Only on the hosted profile — the local/desktop
     // app is single-user and has no reason to throttle itself. Fails
     // open (see rateLimit): a demo guard must never take the app down.
-    if ((await describeProvider()).profile === "hosted-demo") {
+    //
+    // Authorized tooling (the grounding eval and injection harness fire
+    // ~40 requests in a burst, which would trip the public cap) carries
+    // HEIRLOOM_EVAL_TOKEN in a header to bypass. The token is a demo-only
+    // secret; if it is unset the bypass is impossible.
+    const evalToken = process.env.HEIRLOOM_EVAL_TOKEN;
+    const isTooling =
+      !!evalToken && req.headers.get("x-heirloom-eval") === evalToken;
+    if (!isTooling && (await describeProvider()).profile === "hosted-demo") {
       const { ok, retryAfter } = await rateLimit(
         "reflect",
         clientIp(req),

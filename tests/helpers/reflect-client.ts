@@ -73,7 +73,16 @@ export async function reflect(
 ): Promise<ReflectOutcome> {
   const r = await fetch(`${BASE_URL}/api/reflect`, {
     method: "POST",
-    headers: { "content-type": "application/json", cookie },
+    headers: {
+      "content-type": "application/json",
+      cookie,
+      // Bypass the demo's per-IP rate limit when running the eval /
+      // injection suites against a hosted instance. No-op if the var is
+      // unset (local runs) or wrong (the server just rate-limits us).
+      ...(process.env.HEIRLOOM_EVAL_TOKEN
+        ? { "x-heirloom-eval": process.env.HEIRLOOM_EVAL_TOKEN }
+        : {}),
+    },
     body: JSON.stringify({ question }),
     signal: AbortSignal.timeout(timeoutMs),
   });
