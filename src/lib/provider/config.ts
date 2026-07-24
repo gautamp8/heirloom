@@ -105,16 +105,20 @@ export type ByokSettings = z.infer<typeof ByokSettingsSchema>;
  *  the direction this contract is meant to fail in.
  *
  *  azure/text-embedding-3-small (hosted demo): must-answer 0.225-0.691,
- *  must-refuse 0.195-0.431. Measured on the live demo, 0.30 already
- *  refuses every must-refuse — its highest-scoring near-misses
- *  (identity_born 0.431, antarctica 0.387) are caught downstream by the
- *  citation validator — so it is left alone rather than raised on
- *  speculation. Re-measure if the deployment's embedding model changes.
+ *  must-refuse 0.195-0.431. 0.30 was left in place at first, on the
+ *  theory that identity_born (0.431) would be caught downstream — but a
+ *  re-run proved that catch non-deterministic: "when was he born?"
+ *  ground at 0.43 and the model hedged with two tangential claims about
+ *  surrounding context rather than refusing. Raised to 0.45, above the
+ *  must-refuse band, so that near-miss can no longer vector-ground. The
+ *  must-answers below 0.45 (identity_name 0.225, year_1980, and the
+ *  one-word "science"/"made of" queries) survive on the lexical leg, the
+ *  same way they do on local. Re-measure if the embedding model changes.
  */
 const RETRIEVAL_FLOORS: Record<string, number> = {
   "ollama/embeddinggemma@768": 0.43,
-  "azure/text-embedding-3-small@768": 0.3,
-  "openai/text-embedding-3-small@768": 0.3,
+  "azure/text-embedding-3-small@768": 0.45,
+  "openai/text-embedding-3-small@768": 0.45,
 };
 
 /** Floor used when an identity has not been calibrated yet. Matches the
